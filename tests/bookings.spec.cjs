@@ -80,6 +80,8 @@ async function openApp(page, path = '/') {
       }),
     };
     window.emailjs = { init() {}, send: async () => {} };
+    window.firebase.auth = () => ({ onAuthStateChanged(callback) { callback(null); } });
+    window.firebase.auth.Auth = { Persistence: { NONE: 'none', LOCAL: 'local', SESSION: 'session' } };
   });
   await page.goto(path);
   await page.evaluate(() => {
@@ -107,10 +109,12 @@ for (const path of ['/', '/boekingen.html']) {
       await expect.poll(() => page.evaluate(() => testWrites.length)).toBe(2);
       expect(await page.evaluate(() => boekingen[0].prijs)).toBe(0);
       await page.evaluate(() => {
-        statAnker = strNaarDatum('2026-11-02');
         openStatistieken();
+        statPeriode = 'dag';
+        statAnker = strNaarDatum('2026-11-02');
         renderStatistieken();
       });
+      await expect(page.locator('#stat-grid .stat-kaart').filter({ hasText: /^Boekingen/ }).locator('.stat-waarde')).toHaveText('1');
       await expect(page.locator('#stat-grid .stat-kaart').filter({ hasText: 'Ontvangen' }).locator('.stat-waarde')).toHaveText('€ 0.00');
     });
 
@@ -145,6 +149,26 @@ for (const path of ['/', '/boekingen.html']) {
       await page.locator('#add-btn').click();
       await expect.poll(() => page.evaluate(() => testWrites.length)).toBe(1);
       await expect(page.locator('#logboek img')).toHaveCount(0);
+      expect(await page.evaluate(() => window.testInjection)).toBeUndefined();
+    });
+
+    test('oude platformgegevens worden als tekst weergegeven', async ({ page }) => {
+      await page.evaluate(() => {
+        boekingen = [{ datumStr: '2026-11-02', start: 600, eind: 695, naam: 'Test',
+          platform: '<img src=x onerror="window.testInjection=true">', betaling: 'betaald', prijs: 0 }];
+        anker = strNaarDatum('2026-11-02');
+        setView('dag');
+      });
+      await expect(page.locator('.booking-dur')).toContainText('<img src=x');
+      await expect(page.locator('.booking-item img')).toHaveCount(0);
+      await page.evaluate(() => {
+        openStatistieken();
+        statPeriode = 'dag';
+        statAnker = strNaarDatum('2026-11-02');
+        renderStatistieken();
+      });
+      await expect(page.locator('.platform-naam')).toContainText('<img src=x');
+      await expect(page.locator('#pagina-statistieken img')).toHaveCount(0);
       expect(await page.evaluate(() => window.testInjection)).toBeUndefined();
     });
 

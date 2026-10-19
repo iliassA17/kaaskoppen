@@ -1,11 +1,5 @@
 const webpush = require('web-push');
-
-// VAPID configuratie via Netlify environment variables
-webpush.setVapidDetails(
-  'mailto:' + (process.env.VAPID_SUBJECT || 'iliass.17@hotmail.com'),
-  process.env.VAPID_PUBLIC_KEY,
-  process.env.VAPID_PRIVATE_KEY
-);
+const { requireUser } = require('../lib/auth.cjs');
 
 exports.handler = async function(event, context) {
   // Alleen POST toestaan
@@ -19,9 +13,21 @@ exports.handler = async function(event, context) {
     'Content-Type': 'application/json'
   };
 
+  const denied = await requireUser(event, true);
+  if (denied) return { ...denied, headers };
+  if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) {
+    return { statusCode: 503, headers, body: JSON.stringify({ error: 'Pushmeldingen zijn nog niet ingesteld.' }) };
+  }
+  const subject = process.env.VAPID_SUBJECT || 'mailto:iliass.17@hotmail.com';
+  webpush.setVapidDetails(subject.includes(':') ? subject : 'mailto:' + subject,
+    process.env.VAPID_PUBLIC_KEY, process.env.VAPID_PRIVATE_KEY);
+
   var body;
   try {
     body = JSON.parse(event.body);
+    if (!body || typeof body !== 'object' || !Array.isArray(body.subscriptions) || body.subscriptions.length > 100) {
+      throw new Error('Ongeldige abonnementen');
+    }
   } catch(e) {
     return { statusCode: 400, headers, body: JSON.stringify({ error: 'Ongeldige JSON' }) };
   }

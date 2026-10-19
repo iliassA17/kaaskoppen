@@ -1,0 +1,115 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function verified() { return signedIn() && request.auth.token.email_verified == true; }
+    function admin() { return verified() && request.auth.token.get('admin', false) == true; }
+    function staff() { return admin() || (verified() && request.auth.token.get('beheerder', false) == true); }
+    function username() {
+      return get(/databases/$(database)/documents/authUsers/$(request.auth.uid)).data.gebruiker;
+    }
+    function owner(name) {
+      return verified() && username() == name &&
+        get(/databases/$(database)/documents/accounts/$(name)).data.uid == request.auth.uid;
+    }
+    function validUsername(name) {
+      return name is string && name.matches('[a-z0-9][a-z0-9_-]{2,31}') &&
+        !(name in ['constructor', 'prototype']);
+    }
+    function invitationFor(name, code) {
+      let invitation = getAfter(/databases/$(database)/documents/codes/$(code)).data;
+      return invitation.gebruikt == true && invitation.uid == request.auth.uid && invitation.gebruiker == name;
+    }
+    function validBooking(data) {
+      return (!('datumStr' in data) || (data.datumStr is string && data.datumStr.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}'))) &&
+        (!('start' in data) || (data.start is int && data.start >= 0 && data.start < 1440)) &&
+        (!('eind' in data) || (data.eind is int && data.eind >= 0 && data.eind < 2880)) &&
+        (!('tijdvak' in data) || data.tijdvak == null || (data.tijdvak is int && data.tijdvak >= 0 && data.tijdvak < 4)) &&
+        (!('prijs' in data) || data.prijs == null || (data.prijs is number && data.prijs >= 0 && data.prijs < 1000000)) &&
+        (!('naam' in data) || (data.naam is string && data.naam.size() <= 500)) &&
+        (!('betaling' in data) || data.betaling in ['betaald', 'achteraf']) &&
+        (!('platform' in data) || data.platform in ['', 'marktplaats', 'instagram', 'snapchat', 'tiktok', 'overig']);
+    }
+
+    match /authUsers/{uid} {
+      allow get: if signedIn() && request.auth.uid == uid;
+      allow list: if admin();
+      allow create: if signedIn() && request.auth.uid == uid &&
+        request.resource.data.keys().hasOnly(['gebruiker']) &&
+        validUsername(request.resource.data.gebruiker) &&
+        getAfter(/databases/$(database)/documents/accounts/$(request.resource.data.gebruiker)).data.uid == uid;
+      allow update: if false;
+      allow delete: if admin();
+    }
+
+    match /accounts/{name} {
+      allow read: if staff() || (verified() && resource.data.uid == request.auth.uid);
+      allow create: if signedIn() && validUsername(name) &&
+        request.resource.data.keys().hasOnly(['uid', 'gebruiker', 'email', 'aangemaakt', 'uitnodigingscode']) &&
+        request.resource.data.uid == request.auth.uid && request.resource.data.gebruiker == name &&
+        request.resource.data.email == request.auth.token.email &&
+        getAfter(/databases/$(database)/documents/authUsers/$(request.auth.uid)).data.gebruiker == name &&
+        invitationFor(name, request.resource.data.uitnodigingscode);
+      allow update: if admin() || (owner(name) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'foto', 'ranglijstPrive', 'gelezenUpdates', 'laatstOnline', 'loginLog'
+        ]) &&
+        (!('foto' in request.resource.data) ||
+          (request.resource.data.foto is string && request.resource.data.foto.size() < 200000 &&
+            (request.resource.data.foto == '' || request.resource.data.foto.matches('data:image/(jpeg|png);base64,[A-Za-z0-9+/=]+')))));
+      allow delete: if admin();
+    }
+
+    match /codes/{code} {
+      allow get: if signedIn();
+      allow list: if staff();
+      allow create: if staff() && code.matches('[A-Z0-9-]{5,64}') &&
+        request.resource.data.keys().hasOnly(['code', 'gebruikt', 'gebruiker']) &&
+        request.resource.data.code == code && request.resource.data.gebruikt == false &&
+        request.resource.data.gebruiker == null;
+      allow update: if signedIn() && resource.data.gebruikt == false &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['gebruikt', 'gebruiker', 'uid']) &&
+        request.resource.data.gebruikt == true && request.resource.data.uid == request.auth.uid &&
+        !exists(/databases/$(database)/documents/authUsers/$(request.auth.uid)) &&
+        getAfter(/databases/$(database)/documents/authUsers/$(request.auth.uid)).data.gebruiker == request.resource.data.gebruiker &&
+        getAfter(/databases/$(database)/documents/accounts/$(request.resource.data.gebruiker)).data.uitnodigingscode == code;
+      allow delete: if staff();
+    }
+
+    match /boekingen/{id} {
+      allow read: if staff() || owner(resource.data.gebruiker);
+      allow create: if owner(request.resource.data.gebruiker) && validBooking(request.resource.data);
+      allow update: if owner(resource.data.gebruiker) && request.resource.data.gebruiker == resource.data.gebruiker && validBooking(request.resource.data);
+      allow delete: if admin() || owner(resource.data.gebruiker);
+    }
+    match /instellingen/{name} {
+      allow read: if staff() || owner(name);
+      allow create, update: if owner(name);
+      allow delete: if admin() || owner(name);
+    }
+    match /pushSubscriptions/{name} {
+      allow read: if staff() || owner(name);
+      allow create, update: if owner(name) && request.resource.data.gebruiker == name;
+      allow delete: if admin() || owner(name);
+    }
+    match /updates/{id} {
+      allow read: if verified();
+      allow create, update, delete: if staff();
+    }
+    match /meldingen/{id} {
+      allow read: if verified();
+      allow create: if verified() && owner(request.resource.data.gebruiker) &&
+        request.resource.data.keys().hasOnly(['titel', 'inhoud', 'gebruiker', 'datum', 'stemmen']) &&
+        request.resource.data.titel is string && request.resource.data.titel.size() <= 200 &&
+        request.resource.data.inhoud is string && request.resource.data.inhoud.size() <= 10000 &&
+        request.resource.data.stemmen == {};
+      allow update: if verified() && owner(username()) && resource.data.gebruiker != username() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stemmen']) &&
+        request.resource.data.stemmen.diff(resource.data.stemmen).affectedKeys().hasOnly([username()]) &&
+        (!(username() in request.resource.data.stemmen) || request.resource.data.stemmen[username()] in ['voor', 'tegen']);
+      allow delete: if staff();
+    }
+    // Old reset tokens and every undeclared collection are inaccessible.
+    match /{document=**} { allow read, write: if false; }
+  }
+}

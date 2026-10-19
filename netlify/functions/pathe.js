@@ -1,4 +1,5 @@
 const https = require('https');
+const { requireUser } = require('../lib/auth.cjs');
 
 function anthropicRequest(body) {
   return new Promise((resolve, reject) => {
@@ -36,6 +37,10 @@ exports.handler = async function(event) {
 
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers, body: '' };
   if (event.httpMethod !== 'POST') return { statusCode: 405, headers, body: JSON.stringify({ error: 'Method not allowed' }) };
+
+  const denied = await requireUser(event);
+  if (denied) return { ...denied, headers };
+  if (!process.env.ANTHROPIC_API_KEY) return { statusCode: 503, headers, body: JSON.stringify({ error: 'Filmzoeken is nog niet ingesteld.', films: [] }) };
 
   try {
     const { datum, vestiging, vrijVoor, vrijNa, filmNaam } = JSON.parse(event.body);

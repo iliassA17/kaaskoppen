@@ -1,17 +1,24 @@
 # Boekingsschema
 
-De aangeleverde app uit `Boekingsschema-fix-tijdvakken.zip`. De hoofdpagina is
-`index.html`; de oudere `boekingen.html` blijft beschikbaar. Beide pagina's
-hebben de gedeelde correcties voor opslaan, prijzen en logmeldingen.
+De aangeleverde boekingsapp met prijs- en betrouwbaarheidsverbeteringen en een
+nieuwe login via Firebase Authentication. De hoofdpagina is `index.html`.
+`boekingen.html` verwijst door naar dezelfde beveiligde app.
+
+**Activeer deze versie samen met de Firebase-instellingen en databaseregels.**
+Alleen de bestanden uploaden naar Netlify is onvoldoende. Zie
+[Veilig inloggen activeren](docs/veilig-inloggen.md) voor de volledige procedure,
+het behoud van bestaande accounts en het instellen van beheerdersrechten.
 
 ## Ontwikkelen en testen
 
-Vereist: Node.js 22 of nieuwer, npm, Python 3 en Chromium.
+Vereist: Node.js 22 of nieuwer, npm, Python 3 en Chromium. De Firebase-tests
+vereisen ook Java 21 of nieuwer.
 
 ```sh
 cd /workspace/kaaskoppen
 npm ci
 npm test
+npm run test:security
 npm run dev
 ```
 
@@ -19,6 +26,13 @@ npm run dev
 Chromium op `/usr/bin/chromium`. Elders kun je `CHROMIUM_PATH` instellen of
 `npx playwright install chromium` uitvoeren. `npm test` start en stopt zelf een
 aparte server op poort 8765.
+
+`npm run test:security` start zelf lokale Auth- en Firestore-emulators voor
+`demo-kaaskoppen`, test de echte databaseregels, migratie en tokencontrole en
+voert daarna browsertests uit met de Firebase-SDK. Dit gebruikt geen
+productieaccounts, verstuurt geen echte e-mails en publiceert geen regels.
+De emulator wordt bij de eerste uitvoering van Google gedownload; de cache
+staat standaard naast de checkout in `/workspace/.cache/kaaskoppen`.
 
 De browsertests blokkeren externe verzoeken en gebruiken een lokale Firestore-
 testimplementatie. Ze controleren gratis boekingen en statistieken, behoud van
@@ -44,19 +58,26 @@ Zet geheime waarden uitsluitend in de beveiligde omgevingsinstellingen.
 Er zijn geen servercredentials aangeleverd of gekopieerd.
 
 De frontend laadt SDK's van `www.gstatic.com` en `cdn.jsdelivr.net`, gebruikt
-`firestore.googleapis.com` en laadt lettertypen van `fonts.googleapis.com` en
+`firestore.googleapis.com`, `identitytoolkit.googleapis.com` en
+`securetoken.googleapis.com` en laadt lettertypen van `fonts.googleapis.com` en
 `fonts.gstatic.com`. EmailJS gebruikt `api.emailjs.com`. De filmzoekfunctie
-gebruikt vanuit de server `api.anthropic.com`.
+gebruikt vanuit de server `api.anthropic.com`. De server verifieert Firebase-
+tokens met publieke certificaten van `www.googleapis.com`; daarvoor is geen
+serviceaccountsleutel op Netlify nodig. `FIREBASE_PROJECT_ID` is standaard
+`boekingsschema` en moet voor een ander Firebase-project worden aangepast.
 
 ## Grenzen van deze eerste verbeterronde
 
 Opslagfouten herstellen nu de lokale boekingen en undo-geschiedenis. Tijdens
 opslag worden andere boekingsacties tegengehouden. Dit voorkomt geen conflicten
 tussen verschillende apparaten: de bestaande opslag vervangt nog de volledige
-boekingenlijst van de gebruiker. Inloggen gebruikt nog de aangeleverde eigen
-wachtwoordhash en browseropslag; migratie naar Firebase Authentication en
-bijbehorende toegangsregels is een aparte wijziging. De Firestore-regels zitten
-niet in het zipbestand en zijn niet beoordeeld.
+boekingenlijst van de gebruiker. De nieuwe inlogbeveiliging werkt pas op de
+live site zodra de procedure in `docs/veilig-inloggen.md` is uitgevoerd.
+
+De ranglijst is voorlopig alleen voor beheerders beschikbaar: de oude ranglijst
+las alle privéboekingen en accountgegevens. Een openbare ranglijst vereist een
+aparte, beperkte gegevensbron. Gewone gebruikers versturen geen pushberichten
+meer naar alle abonnees; beheerders kunnen dat met een geldig token wel.
 
 Er is geen buildstap: HTML, CSS en JavaScript worden rechtstreeks geserveerd.
 

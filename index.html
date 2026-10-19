@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Boekingsschema</title>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
@@ -351,12 +352,12 @@
 <div class="auth-overlay" id="auth-overlay">
   <div class="auth-card">
     <div class="auth-title" id="auth-title">Welkom</div>
-    <div class="auth-subtitle" id="auth-subtitle">Log in om verder te gaan</div>
+    <div class="auth-subtitle" id="auth-subtitle">Log in met je e-mailadres</div>
     <div class="auth-error" id="auth-error"></div>
     <div class="auth-success" id="auth-success"></div>
     <div class="auth-group">
-      <label>Gebruikersnaam</label>
-      <input type="text" id="auth-user" placeholder="Gebruikersnaam" />
+      <label id="auth-user-label">E-mailadres</label>
+      <input type="email" id="auth-user" placeholder="jouw@email.nl" autocomplete="username" />
     </div>
     <div class="auth-group" id="auth-email-group" style="display:none;">
       <label>E-mailadres</label>
@@ -364,7 +365,7 @@
     </div>
     <div class="auth-group">
       <label>Wachtwoord</label>
-      <input type="password" id="auth-pass" placeholder="Wachtwoord" />
+      <input type="password" id="auth-pass" placeholder="Wachtwoord" autocomplete="current-password" />
     </div>
     <div class="auth-group" id="auth-pass2-group" style="display:none;">
       <label>Wachtwoord herhalen</label>
@@ -378,6 +379,7 @@
       <input type="checkbox" id="auth-onthoud" /> Blijf ingelogd
     </label>
     <button class="auth-btn" id="auth-btn">Inloggen</button>
+    <button class="auth-btn" id="verificatie-opnieuw" style="display:none;margin-top:10px;">Verificatiemail opnieuw versturen</button>
     <div class="auth-switch" id="auth-switch">
       <span id="auth-wissel-tekst">Nog geen account? </span><a id="auth-wissel">Registreren</a>
     </div>
@@ -396,13 +398,6 @@
     <div class="auth-title">Beheer</div>
     <div class="auth-subtitle">Uitnodigingscodes beheren</div>
     <div class="auth-error" id="admin-error"></div>
-    <div id="admin-login-sectie">
-      <div class="auth-group">
-        <label>Beheerderswachtwoord</label>
-        <input type="password" id="admin-pass" placeholder="Wachtwoord" />
-      </div>
-      <button class="auth-btn" id="admin-login-btn">Inloggen als beheerder</button>
-    </div>
     <div id="admin-panel" style="display:none;">
       <!-- Tabs -->
       <div class="view-tabs" style="margin-bottom:20px;flex-wrap:wrap;">
@@ -453,36 +448,17 @@
 <div class="auth-overlay" id="vergeten-overlay" style="display:none;">
   <div class="auth-card">
     <div class="auth-title">Wachtwoord vergeten</div>
-    <div class="auth-subtitle">Vul je gebruikersnaam of e-mailadres in</div>
+    <div class="auth-subtitle">Vul je e-mailadres in</div>
     <div class="auth-error" id="vergeten-error"></div>
     <div class="auth-success" id="vergeten-success"></div>
     <div class="auth-group">
-      <label>Gebruikersnaam of e-mailadres</label>
-      <input type="text" id="vergeten-user" placeholder="Gebruikersnaam of e-mailadres" />
+      <label>E-mailadres</label>
+      <input type="email" id="vergeten-user" placeholder="jouw@email.nl" autocomplete="email" />
     </div>
     <button class="auth-btn" id="vergeten-btn">Reset mail versturen</button>
     <div style="text-align:center;margin-top:16px;">
       <a id="vergeten-terug" style="font-size:0.68rem;color:var(--muted);cursor:pointer;text-decoration:underline;">&#8592; Terug naar inloggen</a>
     </div>
-  </div>
-</div>
-
-<!-- Wachtwoord reset scherm -->
-<div class="auth-overlay" id="reset-overlay" style="display:none;">
-  <div class="auth-card">
-    <div class="auth-title">Nieuw wachtwoord</div>
-    <div class="auth-subtitle">Kies een nieuw wachtwoord</div>
-    <div class="auth-error" id="reset-error"></div>
-    <div class="auth-success" id="reset-success"></div>
-    <div class="auth-group">
-      <label>Nieuw wachtwoord</label>
-      <input type="password" id="reset-pass" placeholder="Minimaal 4 tekens" />
-    </div>
-    <div class="auth-group">
-      <label>Herhaal wachtwoord</label>
-      <input type="password" id="reset-pass2" placeholder="Herhaal wachtwoord" />
-    </div>
-    <button class="auth-btn" id="reset-btn">Wachtwoord opslaan</button>
   </div>
 </div>
 
@@ -1139,23 +1115,35 @@ var firebaseConfig = {
   messagingSenderId: "938972812899",
   appId: "1:938972812899:web:0df65f9e88f147a6a04a56"
 };
+if (window.location.hostname === '127.0.0.1' && window.BOEKINGEN_TEST_CONFIG) {
+  firebaseConfig = window.BOEKINGEN_TEST_CONFIG;
+}
 firebase.initializeApp(firebaseConfig);
 var db = firebase.firestore();
+if (window.location.hostname === '127.0.0.1' && window.BOEKINGEN_TEST_CONFIG) {
+  db.useEmulator('127.0.0.1', 8080);
+}
 
-function slaOp() {
+function slaOp(gebruiker, lijst) {
+  gebruiker = gebruiker || huidigeGebruiker;
+  lijst = lijst || JSON.parse(JSON.stringify(boekingen));
+  var generatie = authGeneratie;
   var ref = db.collection('boekingen');
-  return ref.where('gebruiker','==',huidigeGebruiker).get().then(function(snap) {
+  return ref.where('gebruiker','==',gebruiker).get().then(function(snap) {
+    if (generatie !== authGeneratie || gebruiker !== huidigeGebruiker) throw new Error('Sessie gewijzigd.');
     var batch = db.batch();
     snap.docs.forEach(function(d){ batch.delete(d.ref); });
-    boekingen.forEach(function(b) {
-      var docRef = ref.doc(huidigeGebruiker+'_'+b.datumStr+'_'+b.start+'_tv'+(b.tijdvak == null ? 0 : b.tijdvak));
-      batch.set(docRef, Object.assign({},b,{gebruiker:huidigeGebruiker}));
+    lijst.forEach(function(b) {
+      var docRef = ref.doc(gebruiker+'_'+b.datumStr+'_'+b.start+'_tv'+(b.tijdvak == null ? 0 : b.tijdvak));
+      batch.set(docRef, Object.assign({},b,{gebruiker:gebruiker}));
     });
     return batch.commit();
   });
 }
 function laadBoekingen() {
-  return db.collection('boekingen').where('gebruiker','==',huidigeGebruiker).get().then(function(snap) {
+  var gebruiker = huidigeGebruiker, generatie = authGeneratie;
+  return db.collection('boekingen').where('gebruiker','==',gebruiker).get().then(function(snap) {
+    if (generatie !== authGeneratie || gebruiker !== huidigeGebruiker) return;
     boekingen = snap.docs.map(function(d){ return d.data(); });
   });
 }
@@ -1173,7 +1161,9 @@ function syncTijdvakFormSelect() {
 }
 
 function laadInstellingen() {
-  return db.collection('instellingen').doc(huidigeGebruiker).get().then(function(doc) {
+  var gebruiker = huidigeGebruiker, generatie = authGeneratie;
+  return db.collection('instellingen').doc(gebruiker).get().then(function(doc) {
+    if (generatie !== authGeneratie || gebruiker !== huidigeGebruiker) return;
     MIN_GAP=95; DUUR=95; OPEN=540; SLUIT=1440; STANDAARD_PRIJS=10;
     MAX_TIJDVAKKEN=1; TIJDVAK_NAMEN=['Tijdvak 1'];
     MELDING_RICHTING='na'; MELDING_MINUTEN=15; PUSH_NIEUWS=true; PUSH_ACHTERAF=true;
@@ -1208,45 +1198,26 @@ function slaInstellingenOp(minGap, open, sluit, standaardPrijs, maxTijdvakken, t
     syncTijdvakFormSelect();
   });
 }
-function slaAccount(user, hash, email) {
-  var nu = new Date();
-  var datum = nu.getDate()+' '+['januari','februari','maart','april','mei','juni','juli','augustus','september','oktober','november','december'][nu.getMonth()]+' '+nu.getFullYear();
-  return db.collection('accounts').doc(user).set({gebruiker:user,hash:hash,email:email,aangemaakt:datum});
-}
+
 function getAccount(user) {
   return db.collection('accounts').doc(user).get().then(function(doc){ return doc.exists?doc.data():null; });
 }
-function getAccountByEmail(email) {
-  return db.collection('accounts').where('email','==',email).get().then(function(snap){ return snap.empty?null:snap.docs[0].data(); });
-}
+
 function updateAccount(user, data) {
   return db.collection('accounts').doc(user).update(data);
 }
 function getCodes() {
   return db.collection('codes').get().then(function(snap){ return snap.docs.map(function(d){ return Object.assign({id:d.id},d.data()); }); });
 }
-function isGeldigeCode(code) {
-  return db.collection('codes').where('code','==',code.toUpperCase()).where('gebruikt','==',false).get().then(function(snap){ return snap.empty?null:snap.docs[0].data(); });
-}
-function markeerCodeGebruikt(code, gebruiker) {
-  return db.collection('codes').where('code','==',code.toUpperCase()).get().then(function(snap){ if(!snap.empty) return snap.docs[0].ref.update({gebruikt:true,gebruiker:gebruiker}); });
-}
+
+
 function voegCodeToe(code) {
-  return db.collection('codes').add({code:code,gebruikt:false,gebruiker:null});
+  return db.collection('codes').doc(code).set({code:code,gebruikt:false,gebruiker:null});
 }
 function verwijderCodeFirestore(id) {
   return db.collection('codes').doc(id).delete();
 }
-function slaResetCode(user, code) {
-  return db.collection('resets').doc(user).set({code:code,aangemaakt:Date.now()});
-}
-function checkResetCode(user, code) {
-  return db.collection('resets').doc(user).get().then(function(doc){
-    if(!doc.exists) return false;
-    var d=doc.data(); var oud=Date.now()-d.aangemaakt>24*60*60*1000;
-    return !oud&&d.code===code;
-  });
-}
+
 
 function setThema(thema) {
   document.body.classList.toggle('licht-thema', thema==='licht');
@@ -1437,6 +1408,7 @@ function toonPagina(pagina) {
 }
 
 function renderProfielAvatar(foto, initiaal) {
+  foto = veiligeFoto(foto);
   var el = document.getElementById('profiel-avatar');
   if (foto) {
     el.innerHTML = '<img src="'+foto+'" style="width:64px;height:64px;border-radius:50%;object-fit:cover;" />';
@@ -1446,12 +1418,14 @@ function renderProfielAvatar(foto, initiaal) {
 }
 
 function openProfiel() {
+  var generatie = authGeneratie;
   renderProfielAvatar(null, huidigeGebruiker.charAt(0).toUpperCase());
   document.getElementById('profiel-naam').textContent = huidigeGebruiker;
   document.getElementById('profiel-email').textContent = '...';
   document.getElementById('profiel-datum').textContent = '...';
   toonPagina('profiel');
   getAccount(huidigeGebruiker).then(function(account) {
+    if (generatie !== authGeneratie) return;
     document.getElementById('profiel-email').textContent = account ? account.email : '-';
     document.getElementById('profiel-datum').textContent = account && account.aangemaakt ? account.aangemaakt : 'Onbekend';
     renderProfielAvatar(account && account.foto ? account.foto : null, huidigeGebruiker.charAt(0).toUpperCase());
@@ -1460,11 +1434,13 @@ function openProfiel() {
 
 function verwerkFoto(input) {
   if (!input.files || !input.files[0]) return;
+  var generatie = authGeneratie;
   var file = input.files[0];
   var reader = new FileReader();
   reader.onload = function(e) {
     var img = new Image();
     img.onload = function() {
+      if (generatie !== authGeneratie) return;
       var canvas = document.createElement('canvas');
       canvas.width = 120; canvas.height = 120;
       var ctx = canvas.getContext('2d');
@@ -1620,23 +1596,21 @@ function nuTijdStr() {
   return String(n.getHours()).padStart(2,'0') + ':' + String(n.getMinutes()).padStart(2,'0') + ':' + String(n.getSeconds()).padStart(2,'0');
 }
 function escHtml(s) {
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 function isVandaag(ds) { return ds === datumNaarStr(new Date()); }
 function boekVoorDag(ds) {
   return boekingen.filter(function(b){ return b.datumStr === ds; }).sort(function(a,b){ return a.start - b.start; });
 }
-function hashWachtwoord(w) {
-  var h = 0;
-  for (var i = 0; i < w.length; i++) { h = Math.imul(31, h) + w.charCodeAt(i) | 0; }
-  return h.toString(36);
-}
+
 
 var boekingOpslaanBezig = false;
 
 // Herstel de vorige toestand als Firestore de wijziging niet kan bewaren.
 function bewaarBoekingWijziging(wijziging, naOpslaan, isUndo) {
   if (boekingOpslaanBezig) return Promise.resolve(false);
+  var generatie = authGeneratie;
+  var opslagGebruiker = huidigeGebruiker;
   var vorigeBoekingen = JSON.stringify(boekingen);
   var vorigeUndo = undoStack.slice();
   boekingOpslaanBezig = true;
@@ -1645,10 +1619,16 @@ function bewaarBoekingWijziging(wijziging, naOpslaan, isUndo) {
   knoppen.forEach(function(btn) { btn.disabled = true; });
   if (!isUndo) slaSnapshot();
   wijziging();
-  return Promise.resolve().then(slaOp).then(function() {
+  var opslagLijst = JSON.parse(JSON.stringify(boekingen));
+  return Promise.resolve().then(function() {
+    if (generatie !== authGeneratie) return;
+    return slaOp(opslagGebruiker, opslagLijst);
+  }).then(function() {
+    if (generatie !== authGeneratie) return false;
     if (naOpslaan) naOpslaan();
     return true;
   }, function() {
+    if (generatie !== authGeneratie) return false;
     boekingen = JSON.parse(vorigeBoekingen);
     undoStack = vorigeUndo;
     voegLogToe('Niet opgeslagen. Controleer je verbinding en probeer opnieuw.', 'error');
@@ -1660,6 +1640,7 @@ function bewaarBoekingWijziging(wijziging, naOpslaan, isUndo) {
     renderOverzicht();
     return false;
   }).finally(function() {
+    if (generatie !== authGeneratie) return;
     boekingOpslaanBezig = false;
     knoppen.forEach(function(btn, i) { btn.disabled = vorigeDisabled[i]; });
     updateUndoBtn();
@@ -1702,90 +1683,21 @@ function toonAuthSuccess(msg) {
   el.textContent = msg; el.style.display = msg ? 'block' : 'none';
 }
 
-// Toggle login/registreer
-function toggleAuthModus() {
-  authModus = authModus === 'login' ? 'register' : 'login';
-  var isReg = authModus === 'register';
-  document.getElementById('auth-title').textContent = isReg ? 'Registreren' : 'Welkom';
-  document.getElementById('auth-subtitle').textContent = isReg ? 'Maak een account aan' : 'Log in om verder te gaan';
-  document.getElementById('auth-btn').textContent = isReg ? 'Account aanmaken' : 'Inloggen';
-  document.getElementById('auth-pass2-group').style.display = isReg ? '' : 'none';
-  document.getElementById('auth-email-group').style.display = isReg ? '' : 'none';
-  document.getElementById('auth-code-group').style.display = isReg ? '' : 'none';
-  document.getElementById('auth-onthoud-wrap').style.display = isReg ? 'none' : 'flex';
-  document.getElementById('auth-wissel-tekst').textContent = isReg ? 'Al een account? ' : 'Nog geen account? ';
-  document.getElementById('auth-wissel').textContent = isReg ? 'Inloggen' : 'Registreren';
-  toonAuthFout(''); toonAuthSuccess('');
-}
-
-// Inloggen / registreren
-function authActie() {
-  var user = document.getElementById('auth-user').value.trim().toLowerCase();
-  var pass = document.getElementById('auth-pass').value;
-  toonAuthFout(''); toonAuthSuccess('');
-  if (!user) { toonAuthFout('Vul een gebruikersnaam in.'); return; }
-  if (!pass) { toonAuthFout('Vul een wachtwoord in.'); return; }
-  var btn = document.getElementById('auth-btn');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="loader"></span>Even geduld...';
-
-  if (authModus === 'register') {
-    var email = document.getElementById('auth-email').value.trim();
-    var pass2 = document.getElementById('auth-pass2').value;
-    var code = document.getElementById('auth-code').value.trim().toUpperCase();
-    if (!email || !email.includes('@')) { toonAuthFout('Vul een geldig e-mailadres in.'); btn.disabled=false; btn.textContent='Account aanmaken'; return; }
-    if (pass !== pass2) { toonAuthFout('Wachtwoorden komen niet overeen.'); btn.disabled=false; btn.textContent='Account aanmaken'; return; }
-    if (pass.length < 4) { toonAuthFout('Wachtwoord moet minimaal 4 tekens zijn.'); btn.disabled=false; btn.textContent='Account aanmaken'; return; }
-    if (!code) { toonAuthFout('Vul een uitnodigingscode in.'); btn.disabled=false; btn.textContent='Account aanmaken'; return; }
-    isGeldigeCode(code).then(function(geldig) {
-      if (!geldig) { toonAuthFout('Uitnodigingscode is ongeldig of al gebruikt.'); btn.disabled=false; btn.textContent='Account aanmaken'; return; }
-      getAccount(user).then(function(bestaand) {
-        if (bestaand) { toonAuthFout('Gebruikersnaam is al bezet.'); btn.disabled=false; btn.textContent='Account aanmaken'; return; }
-        slaAccount(user, hashWachtwoord(pass), email).then(function() {
-          markeerCodeGebruikt(code, user).then(function() {
-            stuurWelkomMail(user, email);
-            toonAuthSuccess('Account aangemaakt! Controleer je email voor een welkomstbericht.');
-            btn.disabled=false; btn.textContent='Inloggen';
-            document.getElementById('auth-code').value = '';
-            toggleAuthModus();
-          });
-        });
-      }).catch(function(e){ toonAuthFout('Verbindingsfout.'); btn.disabled=false; btn.textContent='Account aanmaken'; console.error(e); });
-    }).catch(function(e){ toonAuthFout('Verbindingsfout.'); btn.disabled=false; btn.textContent='Account aanmaken'; console.error(e); });
-    return;
-  }
-
-  // Login
-  getAccount(user).then(function(account) {
-    if (!account || account.hash !== hashWachtwoord(pass)) {
-      toonAuthFout('Gebruikersnaam of wachtwoord is onjuist.');
-      btn.disabled=false; btn.textContent='Inloggen'; return;
-    }
-    var onthoud = document.getElementById('auth-onthoud').checked;
-    if (onthoud) localStorage.setItem('auth_sessie', user);
-    else sessionStorage.setItem('auth_sessie', user);
-    btn.disabled=false; btn.textContent='Inloggen';
-    toonApp(user);
-  }).catch(function(e){ toonAuthFout('Verbindingsfout. Controleer je internet.'); btn.disabled=false; btn.textContent='Inloggen'; console.error(e); });
-}
-
 function toonApp(user) {
+  if (!authProfiel || authProfiel.gebruiker !== user || !auth || !auth.currentUser ||
+      authProfiel.uid !== auth.currentUser.uid || !auth.currentUser.emailVerified) {
+    return Promise.reject(new Error('Niet ingelogd.'));
+  }
+  var generatie = authGeneratie;
   huidigeGebruiker = user;
-  // Login log bijhouden + beheerder check
-  var nuIso = new Date().toISOString();
-  db.collection('accounts').doc(user).get().then(function(doc) {
-    if (!doc.exists) return;
-    var data = doc.data();
-    var log = (data.loginLog || []);
-    log.unshift({timestamp: nuIso});
-    if (log.length > 20) log = log.slice(0, 20);
-    db.collection('accounts').doc(user).update({laatstOnline: nuIso, loginLog: log}).catch(function(){});
-    // Toon beheerder menu-item als gebruiker beheerder is
-    document.getElementById('menu-beheer').style.display = data.isBeheerder ? '' : 'none';
-  });
-  laadBoekingen().then(function() {
+  document.getElementById('menu-beheer').style.display = isBeheerder() ? '' : 'none';
+  // A ranking must not disclose other users' private booking/account records.
+  document.getElementById('menu-ranglijst').style.display = isBeheerder() ? '' : 'none';
+  return laadBoekingen().then(function() {
+    if (generatie !== authGeneratie) return;
     return laadInstellingen();
   }).then(function() {
+    if (generatie !== authGeneratie) return;
     undoStack = [];
     document.getElementById('auth-overlay').style.display = 'none';
     document.getElementById('datum').value = datumNaarStr(new Date());
@@ -1801,36 +1713,13 @@ function toonApp(user) {
     else if (herstelpagina === 'instellingen') { openInstellingen(); }
     else if (herstelpagina === 'statistieken') { toonPagina('statistieken'); renderStatistieken(); }
     else if (herstelpagina === 'pathe') { openPathe(); }
-    else if (herstelpagina === 'beheer') { openBeheerPagina(); }
-    else if (herstelpagina === 'ranglijst') { openRanglijst(); }
+    else if (herstelpagina === 'beheer' && isBeheerder()) { openBeheerPagina(); }
+    else if (herstelpagina === 'ranglijst' && isBeheerder()) { openRanglijst(); }
     else if (herstelpagina === 'nieuws') { openNieuwsPagina(); }
     else { toonPagina('schema'); renderOverzicht(); }
   });
 }
 
-function uitloggen() {
-  if (boekingOpslaanBezig) { voegLogToe('Wacht tot je boeking is opgeslagen.', 'error'); return; }
-  if (meldingInterval) clearInterval(meldingInterval);
-  meldingen = [];
-  localStorage.removeItem('auth_sessie');
-  sessionStorage.removeItem('auth_sessie');
-  sessionStorage.removeItem('huidigePagina');
-  huidigeGebruiker = ''; boekingen = []; undoStack = [];
-  document.getElementById('app').style.display = 'none';
-  document.getElementById('pagina-profiel').style.display = 'none';
-  document.getElementById('pagina-instellingen').style.display = 'none';
-  document.getElementById('pagina-pathe').style.display = 'none';
-  document.getElementById('pagina-nieuws').style.display = 'none';
-  document.getElementById('melding-bar').classList.remove('open');
-  document.getElementById('auth-overlay').style.display = 'flex';
-  document.getElementById('auth-user').value = '';
-  document.getElementById('auth-pass').value = '';
-}
-
-function checkSessie() {
-  var user = localStorage.getItem('auth_sessie') || sessionStorage.getItem('auth_sessie');
-  if (user) toonApp(user);
-}
 
 // Log
 function voegLogToe(tekst, type) {
@@ -2170,7 +2059,7 @@ function renderBoekingLijst(dagBoek, numOffset) {
       else html += '<div class="slot-indicator slot-prev"><span class="slot-label">Vorige uiterlijk</span><span class="slot-closed">Voor 09:00</span></div>';
     }
     var tvBadge = MAX_TIJDVAKKEN > 1 ? '<span style="font-size:0.6rem;background:rgba(138,180,212,0.15);color:var(--blue);border:1px solid rgba(138,180,212,0.3);border-radius:4px;padding:1px 6px;margin-left:6px;vertical-align:middle;">' + escHtml(TIJDVAK_NAMEN[b.tijdvak||0] || ('T'+(b.tijdvak||0)+1)) + '</span>' : '';
-    html += '<div class="booking-item' + (b.betaling === 'achteraf' ? ' onbetaald' : '') + '"><div class="booking-left"><div class="booking-num">' + ((numOffset||0)+i+1) + '</div><div><div class="booking-name">' + escHtml(b.naam) + tvBadge + '</div><div class="booking-time">&#9201; ' + minNaarTijd(b.start) + ' - ' + minNaarTijd(b.eind) + '</div><div class="booking-dur">Duur: 1u 35m' + (b.platform ? ' &nbsp;&middot;&nbsp; ' + b.platform : '') + (b.betaling ? ' &nbsp;&middot;&nbsp; ' + b.betaling : '') + '</div></div></div><div style="display:flex;align-items:center;gap:4px;">' + (b.betaling === 'achteraf' ? '<button class="betaald-btn" onclick="markeerBetaald(\'' + b.datumStr + '\',' + b.start + ',' + (b.tijdvak||0) + ')" title="Markeer als betaald">Betaald</button>' : '') + '<button class="edit-btn" onclick="openBewerkModal(\'' + b.datumStr + '\',' + b.start + ',' + (b.tijdvak||0) + ')" title="Bewerk boeking">&#9998;</button><button class="delete-btn" onclick="verwijderBoeking(\'' + b.datumStr + '\',' + b.start + ',' + (b.tijdvak||0) + ')">&#10005;</button></div></div>';
+    html += '<div class="booking-item' + (b.betaling === 'achteraf' ? ' onbetaald' : '') + '"><div class="booking-left"><div class="booking-num">' + ((numOffset||0)+i+1) + '</div><div><div class="booking-name">' + escHtml(b.naam) + tvBadge + '</div><div class="booking-time">&#9201; ' + minNaarTijd(b.start) + ' - ' + minNaarTijd(b.eind) + '</div><div class="booking-dur">Duur: 1u 35m' + (b.platform ? ' &nbsp;&middot;&nbsp; ' + escHtml(b.platform) : '') + (b.betaling ? ' &nbsp;&middot;&nbsp; ' + escHtml(b.betaling) : '') + '</div></div></div><div style="display:flex;align-items:center;gap:4px;">' + (b.betaling === 'achteraf' ? '<button class="betaald-btn" onclick="markeerBetaald(\'' + b.datumStr + '\',' + b.start + ',' + (b.tijdvak||0) + ')" title="Markeer als betaald">Betaald</button>' : '') + '<button class="edit-btn" onclick="openBewerkModal(\'' + b.datumStr + '\',' + b.start + ',' + (b.tijdvak||0) + ')" title="Bewerk boeking">&#9998;</button><button class="delete-btn" onclick="verwijderBoeking(\'' + b.datumStr + '\',' + b.start + ',' + (b.tijdvak||0) + ')">&#10005;</button></div></div>';
     if (ruimteNa) {
       if (vv < SLUIT) html += '<div class="slot-indicator slot-next"><span class="slot-label">Volgende vanaf</span><span class="slot-time-gold">' + minNaarTijd(vv) + '</span></div>';
       else html += '<div class="slot-indicator slot-next"><span class="slot-label">Volgende vanaf</span><span class="slot-closed">Niet meer mogelijk vandaag (na 00:00)</span></div>';
@@ -2296,7 +2185,6 @@ function renderOverzicht() {
 /* ===== EMAILJS ===== */
 var EMAILJS_SERVICE = 'service_p4qynsf';
 var EMAILJS_TEMPLATE_WELKOM = 'template_6fe802x';
-var EMAILJS_TEMPLATE_RESET = 'template_j3dc3rf';
 emailjs.init('M3DlFPKyVkfE_MTo9');
 
 function stuurWelkomMail(naam, email) {
@@ -2307,48 +2195,12 @@ function stuurWelkomMail(naam, email) {
   });
 }
 
-function stuurResetMail(naam, email, resetCode) {
-  var resetLink = window.location.href.split('?')[0] + '?reset=' + resetCode + '&user=' + naam;
-  return emailjs.send(EMAILJS_SERVICE, EMAILJS_TEMPLATE_RESET, {
-    naam: naam,
-    email: email,
-    reset_link: resetLink
-  });
-}
 
 /* ===== WACHTWOORD RESET ===== */
-function genereerResetCode() {
-  return Math.random().toString(36).substr(2, 12).toUpperCase();
-}
 
-function checkUrlReset() {
-  var params = new URLSearchParams(window.location.search);
-  var reset = params.get('reset');
-  var user = params.get('user');
-  if (!reset || !user) return;
-  checkResetCode(user, reset).then(function(geldig) {
-    if (!geldig) {
-      alert('Deze resetlink is verlopen of ongeldig.');
-      return;
-    }
-    document.getElementById('reset-overlay').style.display = 'flex';
-    document.getElementById('reset-overlay').dataset.user = user;
-    document.getElementById('reset-overlay').dataset.code = reset;
-  });
-}
 
 /* ===== UITNODIGINGSCODES ===== */
-var ADMIN_HASH = hashWachtwoord('Admin123!');
 
-function genereerCode() {
-  var tekens = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  function deel() {
-    var s = '';
-    for (var i = 0; i < 3; i++) s += tekens[Math.floor(Math.random() * tekens.length)];
-    return s;
-  }
-  return deel() + '-' + deel() + '-' + deel();
-}
 
 function adminTabWissel(tab) {
   ['codes','gebruikers','topseller','updates','meldingen'].forEach(function(t) {
@@ -2397,17 +2249,14 @@ function formatLaatstOnline(iso) {
 }
 
 // Beheerder aan/uit zetten
-function wisselBeheerder(username, isNuBeheerder) {
-  var actie = isNuBeheerder ? 'beheerder verwijderen' : 'beheerder maken';
-  if (!confirm('Wil je @' + username + ' ' + actie + '?')) return;
-  db.collection('accounts').doc(username).update({isBeheerder: !isNuBeheerder}).then(function() {
-    renderAdminGebruikers();
-    renderBeheerGebruikers();
-  }).catch(function(e){ alert('Fout: ' + e.message); });
+function wisselBeheerder() {
+  alert('Beheerdersrechten worden door de eigenaar van de app beheerd.');
 }
 
 // ===== BEHEERDERSPAGINA (voor gebruikers met isBeheerder) =====
 function openBeheerPagina() {
+  if (!isBeheerder()) return;
+  if (authRechten.admin === true) return openAdminPaneel();
   toonPagina('beheer');
   beheerTabWissel('codes');
 }
@@ -2466,11 +2315,10 @@ function renderAdminGebruikers() {
       gebruikers.map(function(g) {
         var online=formatLaatstOnline(g.laatstOnline), isRecent=g.laatstOnline&&(new Date()-new Date(g.laatstOnline))<300000;
         var isBeh = !!g.isBeheerder;
-        return '<div class="gebruiker-rij"><div class="gebruiker-avatar" onclick="toonGebruikerDetail(\''+escHtml(g.gebruiker)+'\')" style="cursor:pointer;">'+g.gebruiker.charAt(0).toUpperCase()+'</div><div class="gebruiker-info"><div class="gebruiker-naam gebruiker-naam-link" onclick="toonGebruikerDetail(\''+escHtml(g.gebruiker)+'\')" ><span class="online-dot '+(isRecent?'online':'offline')+'"></span>@'+escHtml(g.gebruiker)+(isBeh?' <span style="font-size:0.6rem;background:var(--accent);color:var(--bg);border-radius:4px;padding:1px 5px;vertical-align:middle;">beheerder</span>':'')+'</div><div class="gebruiker-email">'+escHtml(g.email)+'</div></div><div class="gebruiker-datum"><div style="font-size:0.62rem;color:var(--muted);">Lid sinds<br>'+escHtml(g.aangemaakt||'—')+'</div><div style="font-size:0.62rem;margin-top:4px;color:'+(isRecent?'var(--success)':'var(--muted)')+';">'+online+'</div></div><div style="display:flex;flex-direction:column;gap:4px;margin-left:8px;"><button onclick="wisselBeheerder(\''+escHtml(g.gebruiker)+'\','+isBeh+')" title="'+(isBeh?'Beheerder verwijderen':'Beheerder maken')+'" style="background:none;border:1px solid '+(isBeh?'var(--accent)':'var(--border)')+';color:'+(isBeh?'var(--accent)':'var(--muted)')+';cursor:pointer;font-size:0.7rem;padding:3px 7px;border-radius:6px;white-space:nowrap;">&#128737;</button><button onclick="bevestigVerwijderGebruiker(\''+escHtml(g.gebruiker)+'\')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.85rem;padding:3px 7px;border-radius:6px;" onmouseover="this.style.color=\'var(--error)\'" onmouseout="this.style.color=\'var(--muted)\'">&#10005;</button></div></div>';
+        return '<div class="gebruiker-rij"><div class="gebruiker-avatar" onclick="toonGebruikerDetail(\''+escHtml(g.gebruiker)+'\')" style="cursor:pointer;">'+g.gebruiker.charAt(0).toUpperCase()+'</div><div class="gebruiker-info"><div class="gebruiker-naam gebruiker-naam-link" onclick="toonGebruikerDetail(\''+escHtml(g.gebruiker)+'\')" ><span class="online-dot '+(isRecent?'online':'offline')+'"></span>@'+escHtml(g.gebruiker)+(isBeh?' <span style="font-size:0.6rem;background:var(--accent);color:var(--bg);border-radius:4px;padding:1px 5px;vertical-align:middle;">beheerder</span>':'')+'</div><div class="gebruiker-email">'+escHtml(g.email)+'</div></div><div class="gebruiker-datum"><div style="font-size:0.62rem;color:var(--muted);">Lid sinds<br>'+escHtml(g.aangemaakt||'—')+'</div><div style="font-size:0.62rem;margin-top:4px;color:'+(isRecent?'var(--success)':'var(--muted)')+';">'+online+'</div></div><div style="display:flex;flex-direction:column;gap:4px;margin-left:8px;"><button onclick="bevestigVerwijderGebruiker(\''+escHtml(g.gebruiker)+'\')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.85rem;padding:3px 7px;border-radius:6px;" onmouseover="this.style.color=\'var(--error)\'" onmouseout="this.style.color=\'var(--muted)\'">&#10005;</button></div></div>';
       }).join('');
   });
 }
-
 
 
 /* ===== GEBRUIKER DETAIL ===== */
@@ -2529,7 +2377,7 @@ function renderDetailStatistieken() {
   var totaalBetaald=betaald.reduce(function(s,b){ return s+((b.prijs == null ? 10 : b.prijs)); },0);
   var totaalOpenstaand=achteraf.reduce(function(s,b){ return s+((b.prijs == null ? 10 : b.prijs)); },0);
   var gemiddeld=betaald.length>0?(totaalBetaald/betaald.length).toFixed(2):'0.00';
-  var platforms={};
+  var platforms=Object.create(null);
   boek.forEach(function(b){ var p=b.platform||'overig'; platforms[p]=(platforms[p]||0)+1; });
   var platArr=Object.keys(platforms).sort(function(a,b){ return platforms[b]-platforms[a]; });
   document.getElementById('detail-statistieken').innerHTML=
@@ -2553,7 +2401,7 @@ function renderDetailStatistieken() {
     '</div>'+
     '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-top:12px;">'+
       '<div style="font-size:0.6rem;color:var(--muted);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:10px;">Platforms</div>'+
-      (platArr.length?platArr.map(function(p){ return '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:0.78rem;"><span style="color:var(--text);text-transform:capitalize;">'+p+'</span><span style="color:var(--accent);">'+platforms[p]+'x</span></div>'; }).join(''):'<div style="font-size:0.72rem;color:var(--muted);">Geen data voor deze periode</div>')+
+      (platArr.length?platArr.map(function(p){ return '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:0.78rem;"><span style="color:var(--text);text-transform:capitalize;">'+escHtml(p)+'</span><span style="color:var(--accent);">'+platforms[p]+'x</span></div>'; }).join(''):'<div style="font-size:0.72rem;color:var(--muted);">Geen data voor deze periode</div>')+
     '</div>';
 }
 
@@ -2587,9 +2435,9 @@ function renderDetailDag(ds) {
         '<div class="booking-left"><div class="booking-num">'+(i+1)+'</div>'+
         '<div><div class="booking-name">'+escHtml(b.naam)+detailTvBadge+'</div>'+
         '<div class="booking-time">&#9201; '+minNaarTijd(b.start)+' – '+minNaarTijd(b.eind)+'</div>'+
-        '<div class="booking-dur">'+(b.platform?b.platform+' &nbsp;&middot;&nbsp; ':'')+b.betaling+' &nbsp;&middot;&nbsp; &euro; '+((b.prijs == null ? 10 : b.prijs)).toFixed(2)+'</div>'+
+        '<div class="booking-dur">'+(b.platform?escHtml(b.platform)+' &nbsp;&middot;&nbsp; ':'')+escHtml(b.betaling)+' &nbsp;&middot;&nbsp; &euro; '+((b.prijs == null ? 10 : b.prijs)).toFixed(2)+'</div>'+
         '</div></div>'+
-        '<span style="font-size:0.68rem;padding:3px 8px;border-radius:5px;background:'+(b.betaling==='betaald'?'rgba(126,200,150,0.12)':'rgba(244,160,184,0.12)')+';color:'+(b.betaling==='betaald'?'var(--success)':'#f4a0b8')+';">'+b.betaling+'</span>'+
+        '<span style="font-size:0.68rem;padding:3px 8px;border-radius:5px;background:'+(b.betaling==='betaald'?'rgba(126,200,150,0.12)':'rgba(244,160,184,0.12)')+';color:'+(b.betaling==='betaald'?'var(--success)':'#f4a0b8')+';">'+escHtml(b.betaling)+'</span>'+
       '</div>';
       if (ruimteNa) {
         if (vv < detailSluit) html += '<div class="slot-indicator slot-next"><span class="slot-label">Volgende vanaf</span><span class="slot-time-gold">'+minNaarTijd(vv)+'</span></div>';
@@ -2742,8 +2590,8 @@ function toonGebruikerDetail(username) {
     var isOnline = account.laatstOnline&&(new Date()-new Date(account.laatstOnline))<5*60*1000;
     // Avatar met foto indien beschikbaar
     var avatarEl = document.getElementById('detail-avatar');
-    if (account.foto) {
-      avatarEl.innerHTML = '<img src="'+account.foto+'" style="width:48px;height:48px;border-radius:50%;object-fit:cover;" />';
+    if (veiligeFoto(account.foto)) {
+      avatarEl.innerHTML = '<img src="'+veiligeFoto(account.foto)+'" style="width:48px;height:48px;border-radius:50%;object-fit:cover;" />';
     } else {
       avatarEl.textContent = username.charAt(0).toUpperCase();
     }
@@ -2987,12 +2835,12 @@ function renderStatistieken() {
     document.getElementById('stat-grafiek-titel').textContent='Inkomsten per maand dit jaar';
   }
   setTimeout(function(){renderGrafiek(grafLabels,grafData);},50);
-  var platforms={};
+  var platforms=Object.create(null);
   boek.forEach(function(b){ var p=b.platform||'overig'; platforms[p]=(platforms[p]||0)+1; });
   var platArr=Object.keys(platforms).sort(function(a,b){return platforms[b]-platforms[a];});
   var platHtml='<div class="stat-sectie-titel">&#127942; Platforms</div>';
   if(!platArr.length)platHtml+='<p style="font-size:0.75rem;color:var(--muted);margin-top:8px;">Geen data</p>';
-  else platArr.forEach(function(p){platHtml+='<div class="platform-rij"><span class="platform-naam">'+p+'</span><span class="platform-count">'+platforms[p]+'x</span></div>';});
+  else platArr.forEach(function(p){platHtml+='<div class="platform-rij"><span class="platform-naam">'+escHtml(p)+'</span><span class="platform-count">'+platforms[p]+'x</span></div>';});
   document.getElementById('stat-platforms').innerHTML=platHtml;
   document.getElementById('stat-openstaand').innerHTML='<div class="stat-sectie-titel">&#128176; Totaal openstaand</div><div class="openstaand-bedrag">&euro; '+totaalAlleOpenstaand.toFixed(2)+'</div><div class="openstaand-count" style="color:var(--muted);font-size:0.72rem;">'+alleOpenstaand.length+' boeking(en) &mdash; <span style="color:var(--accent);text-decoration:underline;cursor:pointer;" onclick="toonOpenstaandLijst()">bekijk lijst</span></div>';
 }
@@ -3082,7 +2930,7 @@ function zoekPatheFilms() {
 
   var filmNaam = document.getElementById('pathe-film').value.trim();
 
-  fetch('/.netlify/functions/pathe', {
+  beveiligdeFetch('/.netlify/functions/pathe', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({datum: datum, vestiging: vestiging, vrijVoor: vrijVoor, vrijNa: vrijNa, filmNaam: filmNaam})
@@ -3295,6 +3143,7 @@ function renderTopSeller(context) {
 }
 
 function openRanglijst() {
+  if (!isBeheerder()) { voegLogToe('De ranglijst is alleen beschikbaar voor beheerders.', 'error'); return; }
   toonPagina('ranglijst');
   renderTopSeller('gebruiker');
 }
@@ -3394,8 +3243,8 @@ function _laadEnToonTopSeller() {
     // Helper: avatar HTML
     function avatarHtml(s, size, kleur) {
       var acc = accounts[s.gebruiker] || {};
-      if (acc.foto) {
-        return '<img src="'+acc.foto+'" style="width:'+size+'px;height:'+size+'px;border-radius:50%;object-fit:cover;flex-shrink:0;" />';
+      if (veiligeFoto(acc.foto)) {
+        return '<img src="'+veiligeFoto(acc.foto)+'" style="width:'+size+'px;height:'+size+'px;border-radius:50%;object-fit:cover;flex-shrink:0;" />';
       }
       return '<div style="width:'+size+'px;height:'+size+'px;border-radius:50%;background:'+kleur+';color:var(--bg);display:flex;align-items:center;justify-content:center;font-size:'+(size*0.4)+'px;font-weight:700;flex-shrink:0;">'+s.gebruiker.charAt(0).toUpperCase()+'</div>';
     }
@@ -3860,6 +3709,7 @@ function slaAbonnementOp(subscription) {
 }
 
 function verstuurPushNaarAllen(titel, tekst, url, type) {
+  if (!isBeheerder()) return;
   // Lees alle push-abonnementen uit Firestore, filter op type-voorkeur per gebruiker
   db.collection('pushSubscriptions').get().then(function(snap) {
     if (snap.empty) return;
@@ -3870,7 +3720,7 @@ function verstuurPushNaarAllen(titel, tekst, url, type) {
       return true;
     }).map(function(d) { return d.data().subscription; }).filter(Boolean);
     if (!subscriptions.length) return;
-    fetch('/.netlify/functions/send-push', {
+    beveiligdeFetch('/.netlify/functions/send-push', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -3920,85 +3770,11 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('vergeten-overlay').style.display = 'none';
     document.getElementById('auth-overlay').style.display = 'flex';
   });
-  document.getElementById('vergeten-btn').addEventListener('click', function() {
-    var invoer = document.getElementById('vergeten-user').value.trim().toLowerCase();
-    var fout = document.getElementById('vergeten-error');
-    var succes = document.getElementById('vergeten-success');
-    fout.style.display = 'none'; succes.style.display = 'none';
-    if (!invoer) { fout.textContent = 'Vul je gebruikersnaam of e-mailadres in.'; fout.style.display = 'block'; return; }
-    var btn = document.getElementById('vergeten-btn');
-    btn.disabled = true; btn.innerHTML = '<span class="loader"></span>Versturen...';
-
-    // Zoek eerst op gebruikersnaam, dan op email
-    function stuurReset(account, user) {
-      var code = genereerResetCode();
-      slaResetCode(user, code).then(function() {
-        stuurResetMail(user, account.email, code).then(function() {
-          succes.textContent = 'Reset mail verstuurd! Controleer je email.'; succes.style.display = 'block';
-          btn.disabled=false; btn.textContent='Reset mail versturen';
-        }).catch(function() {
-          fout.textContent='Fout bij versturen van email.'; fout.style.display='block';
-          btn.disabled=false; btn.textContent='Reset mail versturen';
-        });
-      });
-    }
-
-    // Eerst proberen op gebruikersnaam
-    getAccount(invoer).then(function(account) {
-      if (account) { stuurReset(account, invoer); return; }
-      // Dan zoeken op email
-      getAccountByEmail(invoer).then(function(data) {
-        if (!data) {
-          fout.textContent='Geen account gevonden met dit gebruikersnaam of e-mailadres.'; fout.style.display='block';
-          btn.disabled=false; btn.textContent='Reset mail versturen'; return;
-        }
-        stuurReset(data, data.gebruiker);
-      });
-    }).catch(function() { fout.textContent='Verbindingsfout.'; fout.style.display='block'; btn.disabled=false; btn.textContent='Reset mail versturen'; });
-  });
-
-  // Wachtwoord reset
-  document.getElementById('reset-btn').addEventListener('click', function() {
-    var overlay = document.getElementById('reset-overlay');
-    var user = overlay.dataset.user;
-    var pass = document.getElementById('reset-pass').value;
-    var pass2 = document.getElementById('reset-pass2').value;
-    var fout = document.getElementById('reset-error');
-    var succes = document.getElementById('reset-success');
-    fout.style.display='none'; succes.style.display='none';
-    if (pass.length < 4) { fout.textContent='Wachtwoord moet minimaal 4 tekens zijn.'; fout.style.display='block'; return; }
-    if (pass !== pass2) { fout.textContent='Wachtwoorden komen niet overeen.'; fout.style.display='block'; return; }
-    var btn = document.getElementById('reset-btn');
-    btn.disabled=true; btn.innerHTML='<span class="loader"></span>Opslaan...';
-    updateAccount(user, {hash: hashWachtwoord(pass)}).then(function() {
-      db.collection('resets').doc(user).delete();
-      succes.textContent='Wachtwoord opgeslagen! Je kunt nu inloggen.'; succes.style.display='block';
-      btn.disabled=false; btn.textContent='Wachtwoord opslaan';
-      setTimeout(function() { overlay.style.display='none'; document.getElementById('auth-overlay').style.display='flex'; history.replaceState({},'' ,window.location.pathname); }, 2000);
-    }).catch(function() { fout.textContent='Verbindingsfout.'; fout.style.display='block'; btn.disabled=false; btn.textContent='Wachtwoord opslaan'; });
-  });
-
-  // Admin
-  document.getElementById('admin-link').addEventListener('click', function() {
-    document.getElementById('auth-overlay').style.display = 'none';
-    document.getElementById('admin-overlay').style.display = 'flex';
-    document.getElementById('admin-login-sectie').style.display = 'block';
-    document.getElementById('admin-panel').style.display = 'none';
-    document.getElementById('admin-error').style.display = 'none';
-  });
+  document.getElementById('vergeten-btn').addEventListener('click', verstuurWachtwoordReset);
+  document.getElementById('verificatie-opnieuw').addEventListener('click', verstuurVerificatieOpnieuw);
+  document.getElementById('admin-link').addEventListener('click', openAdminPaneel);
   document.getElementById('admin-terug-link').addEventListener('click', function() {
     document.getElementById('admin-overlay').style.display = 'none';
-    document.getElementById('auth-overlay').style.display = 'flex';
-  });
-  document.getElementById('admin-login-btn').addEventListener('click', function() {
-    var pass = document.getElementById('admin-pass').value;
-    if (hashWachtwoord(pass) !== ADMIN_HASH) {
-      var el = document.getElementById('admin-error'); el.textContent='Wachtwoord onjuist.'; el.style.display='block'; return;
-    }
-    document.getElementById('admin-login-sectie').style.display = 'none';
-    document.getElementById('admin-panel').style.display = 'block';
-    document.getElementById('admin-error').style.display = 'none';
-    renderAdminCodes();
   });
   document.getElementById('admin-genereer-btn').addEventListener('click', function() {
     voegCodeToe(genereerCode()).then(renderAdminCodes);
@@ -4124,7 +3900,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 
-  checkUrlReset();
   laadThema();
   initScan();
 
@@ -4169,5 +3944,6 @@ document.addEventListener('DOMContentLoaded', function() {
   checkSessie();
 });
 </script>
+<script src="/auth.js"></script>
 </body>
 </html>
