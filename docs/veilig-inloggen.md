@@ -164,6 +164,27 @@ bevoegde beheerders. Oude resetcodes en onbekende verzamelingen zijn afgesloten.
 
 ## 4. Netlify en eerste login
 
+Heeft de bestaande site nog geen Git-koppeling, open dan eerst in Netlify de
+bestaande site en ga naar **Deploys**. Kies **Lock to stop auto publishing**.
+Zo blijft de huidige gepubliceerde versie beschikbaar terwijl de nieuwe
+versie wordt gebouwd. Stel deze koppeling en bouw bij voorkeur al voor het
+publiceren van de Firestore-regels en de migratie in.
+
+Ga vervolgens naar **Project configuration → Developer settings → Continuous
+deployment → Repository → Link repository** en koppel via GitHub de repository
+`iliassA17/kaaskoppen`. Kies als productiebranch **veilig-inloggen**. Laat de
+base directory en build command leeg en gebruik `.` als publish directory.
+De functiesmap en Node 22 zijn in `netlify.toml` vastgelegd. Wacht op een
+geslaagde build. Een publicatieslot pauzeert alleen het publiceren: een build
+kan gewoon doorgaan. Als koppelen geen build start, gebruik dan **Deploys →
+Trigger deploy → Deploy project**.
+
+Publiceer de nieuwe versie na de Firestore-regels en de geslaagde migratie.
+Gebruik daarvoor bij die geslaagde deploy **Publish deploy**; hef daarna het
+publicatieslot op met **Unlock to start auto publishing** als toekomstige
+GitHub-wijzigingen weer automatisch live mogen. Het koppelen van een repository
+aan de bestaande site behoudt het bestaande Netlify-domein.
+
 Deploy de branch `veilig-inloggen` via de GitHub-koppeling van Netlify, zodat de
 serverfuncties en hun afhankelijkheden ook worden verwerkt. Alleen Netlify Drop
 is onvoldoende voor deze functies. De bestaande `netlify.toml` bevat de
