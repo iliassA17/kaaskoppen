@@ -39,8 +39,8 @@ in `index.html` én `FIREBASE_PROJECT_ID` in Netlify aan.
 
 ## 2. Bestaande accounts veilig overzetten
 
-Plan een kort onderhoudsmoment en maak eerst een databaseback-up via je
-bestaande exportprocedure. Gebruik een vertrouwde computer met Node 22+ en
+Plan een kort onderhoudsmoment en maak eerst een databaseback-up. Gebruik een
+vertrouwde computer met Node 22+ en
 Google Application Default Credentials die bevoegd zijn om gebruikers en
 Firestore-gegevens in dit project te beheren. Deel geen sleutels of
 wachtwoorden in de chat en bewaar serviceaccountbestanden buiten de appmap.
@@ -79,6 +79,33 @@ verzonnen adressen en verwijder of hernoem geen accounts om de melding te
 omzeilen: boekingen zijn aan de bestaande gebruikersnamen gekoppeld.
 Controleer ook dat de bestaande e-mailadressen aan de juiste personen behoren:
 zij krijgen straks via hun inbox toegang.
+
+Maak na een geslaagde controle een lokale Firestore-back-up:
+
+```sh
+node scripts/backup-firestore.cjs --project boekingsschema
+```
+
+Dit gebruikt dezelfde Google Application Default Credentials, leest alle
+collecties en subcollecties en verandert niets in Firebase. Het schrijft pas
+een bestand als alle gegevens zijn gelezen en controleert het opgeslagen
+bestand met een checksum. Eerdere back-ups worden niet overschreven. Op
+Windows wordt het bestand automatisch in `%LOCALAPPDATA%\KaaskoppenBackups`
+opgeslagen, buiten de appmap. Het bevat persoonsgegevens en mogelijk oude
+wachtwoordhashes: bewaar het privé en upload het niet naar GitHub, Netlify of
+de chat. De terminal toont alleen het bestandspad en aantallen.
+
+Houd de app tijdens het maken van deze back-up ongebruikt en vraag andere
+gebruikers hetzelfde te doen. De uitlezing is geen atomaire database-export:
+wijzigingen tijdens het uitlezen kunnen een inconsistent beeld geven. Deze
+back-up bewaart veldtypen, maar bevat geen Firebase Authentication-gebruikers,
+regels of projectinstellingen. Het is een app-specifiek JSON-formaat, geen
+bestand voor de beheerde Firestore-import. Voor herstel kunnen de documenten
+met `decodeValue` uit het script door een beheerder worden teruggezet. De
+tests controleren dit op een lokale emulator. Bewaar ook de oorspronkelijke
+appversie en regels voor herstel; zet oude open regels niet publiek terug.
+Bij een nog niet ondersteund veldtype of een verwijzing naar een andere
+database stopt het script zonder een complete back-up te melden.
 
 Op Windows gebruik je `npm.cmd ci` in PowerShell. Kopieer de bestaande
 gebruikersnaam bij `--admin` exact, inclusief eventuele hoofdletters. Voer eerst

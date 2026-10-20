@@ -8,3 +8,4 @@ playwright-report/
 firebase-export-*/
 service-account*.json
 *-service-account.json
+*.firestore-backup.json
