@@ -68,6 +68,15 @@ verwijder zulke accounts niet zelf: bestaande boekingen verwijzen naar die namen
 De controle stopt ook bij dubbele e-mailadressen of bestaande conflicterende
 Firebase-identiteiten. Los die op met behoud van alle gekoppelde boekingen;
 het script voegt dergelijke accounts niet zomaar samen.
+Bij dubbele e-mailadressen worden alle groepen betrokken gebruikersnamen
+getoond, zonder de e-mailadressen zelf af te drukken. Hoofdletters en spaties
+rond een e-mailadres maken er geen ander adres van. Deze controle gebeurt
+voordat Firebase Authentication wordt benaderd, ook met `--apply`.
+Voor inloggen met e-mail en wachtwoord heeft elk account in dit project een
+uniek, bereikbaar e-mailadres van de eigenaar nodig. Controleer eerst welke
+accounts bij wie horen en welke behouden moeten blijven. Gebruik geen
+verzonnen adressen en verwijder of hernoem geen accounts om de melding te
+omzeilen: boekingen zijn aan de bestaande gebruikersnamen gekoppeld.
 Controleer ook dat de bestaande e-mailadressen aan de juiste personen behoren:
 zij krijgen straks via hun inbox toegang.
 

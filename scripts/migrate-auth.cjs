@@ -42,16 +42,28 @@ async function migrate({ database, authentication, apply = false, adminUsers = [
   for (const name of [...adminUsers, ...staffUsers]) {
     if (!names.has(name)) throw new Error('Een opgegeven beheerder heeft geen bestaand account.');
   }
-  const emails = new Set();
-  const planned = [];
+  const emails = new Map();
+  const profiles = [];
   for (const doc of accounts.docs) {
     const data = doc.data();
     if (data.gebruiker !== doc.id || typeof data.email !== 'string' || !data.email.includes('@')) {
       throw new Error('Account ' + JSON.stringify(doc.id) + ' heeft een ontbrekende of afwijkende gebruikersnaam of ongeldig e-mailadres. Er is niets gewijzigd.');
     }
     const email = data.email.trim().toLowerCase();
-    if (emails.has(email)) throw new Error('Meerdere accounts gebruiken hetzelfde e-mailadres. Los dit eerst op.');
-    emails.add(email);
+    if (!emails.has(email)) emails.set(email, []);
+    emails.get(email).push(doc.id);
+    profiles.push({ doc, data, email });
+  }
+  const duplicateGroups = [...emails.values()].filter(names => names.length > 1);
+  if (duplicateGroups.length) {
+    throw new Error('Meerdere accounts gebruiken hetzelfde e-mailadres:\n' +
+      duplicateGroups.map((names, i) => 'Groep ' + (i + 1) + ': ' + names.map(name => JSON.stringify(name)).join(', ')).join('\n') +
+      '\nDe gebruikersnamen binnen iedere groep delen een e-mailadres. Er is niets gewijzigd. ' +
+      'Voor deze manier van inloggen heeft elk account een eigen bereikbaar e-mailadres van de eigenaar nodig. ' +
+      'Verwijder of hernoem geen accounts; boekingen blijven aan de bestaande namen gekoppeld.');
+  }
+  const planned = [];
+  for (const { doc, data, email } of profiles) {
     const uid = data.uid || legacyUid(doc.id);
     const existing = await findUser(authentication, 'getUser', uid);
     const existingEmail = await findUser(authentication, 'getUserByEmail', email);

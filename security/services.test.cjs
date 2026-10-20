@@ -109,12 +109,29 @@ test('oude profielvelden leveren nooit automatisch beheerdersrechten op', async 
   assert.equal((await database.doc('accounts/alice').get()).data().isBeheerder, false);
 });
 
-test('dubbele e-mailadressen stoppen de migratie voordat gegevens gewijzigd worden', async () => {
+test('alle groepen dubbele e-mails worden zonder e-mailadressen gemeld voor enige Auth-aanroep of wijziging', async () => {
   await legacyAccount();
-  await legacyAccount('bob', { email: 'alice@example.test' });
-  await assert.rejects(migrate({ database, authentication, apply: true }), /hetzelfde e-mailadres/);
+  await legacyAccount('bob', { email: ' ALICE@EXAMPLE.TEST ' });
+  await legacyAccount('carol', { email: 'ander@example.test' });
+  await legacyAccount('dave', { email: 'ander@example.test' });
+  await legacyAccount('eve', { email: 'ander@example.test' });
+  const accountsBefore = (await database.collection('accounts').get()).docs.map(doc => [doc.id, doc.data()]);
+  const bookingsBefore = (await database.collection('boekingen').get()).docs.map(doc => [doc.id, doc.data()]);
+  const noAuthentication = new Proxy({}, { get() { throw new Error('Firebase Authentication mag nog niet benaderd worden.'); } });
+  for (const apply of [false, true]) {
+    await assert.rejects(migrate({ database, authentication: noAuthentication, apply }), error => {
+      assert.match(error.message, /hetzelfde e-mailadres/);
+      assert.match(error.message, /Groep 1: "alice", "bob"/);
+      assert.match(error.message, /Groep 2: "carol", "dave", "eve"/);
+      assert.match(error.message, /Er is niets gewijzigd/);
+      assert.doesNotMatch(error.message, /@example\.test/i);
+      return true;
+    });
+  }
   assert.equal((await authentication.listUsers()).users.length, 0);
-  assert.equal((await database.doc('accounts/alice').get()).data().hash, 'oude-onveilige-hash');
+  assert.deepEqual((await database.collection('accounts').get()).docs.map(doc => [doc.id, doc.data()]), accountsBefore);
+  assert.deepEqual((await database.collection('boekingen').get()).docs.map(doc => [doc.id, doc.data()]), bookingsBefore);
+  assert.equal((await database.collection('authUsers').get()).empty, true);
 });
 
 test('een bestaande andere Firebase-identiteit wordt niet ongemerkt overgenomen', async () => {
