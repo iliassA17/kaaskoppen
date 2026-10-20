@@ -2,7 +2,7 @@ const { test, expect } = require('@playwright/test');
 const { readFileSync } = require('node:fs');
 const { initializeApp } = require('firebase-admin/app');
 const { getAuth } = require('firebase-admin/auth');
-const { getFirestore } = require('firebase-admin/firestore');
+const { getFirestore, Timestamp } = require('firebase-admin/firestore');
 const { migrate } = require('../../scripts/migrate-auth.cjs');
 
 const projectId = 'demo-kaaskoppen';
@@ -39,8 +39,16 @@ test.beforeEach(async ({ page }) => {
     window.BOEKINGEN_TEST_CONFIG = { apiKey: 'demo-key', authDomain: 'demo-kaaskoppen.firebaseapp.com', projectId: 'demo-kaaskoppen' };
     window.emailjs = { init() {}, send: async () => {} };
   });
-  await page.route('**/*', route => {
+  await page.route('**/*', async route => {
     const url = new URL(route.request().url());
+    const endpoint = /^\/api\/(subscription-status|create-checkout-session|create-portal-session)$/.exec(url.pathname);
+    if (url.hostname === '127.0.0.1' && endpoint) {
+      const request = route.request();
+      const result = await require('../../netlify/functions/' + endpoint[1] + '.js').handler({
+        httpMethod: request.method(), headers: await request.allHeaders(), body: request.postData() || ''
+      });
+      return route.fulfill({status: result.statusCode, headers: result.headers, body: result.body});
+    }
     if (url.hostname === '127.0.0.1') return route.continue();
     const match = /^\/firebasejs\/9\.23\.0\/(firebase-(?:app|auth|firestore)-compat\.js)$/.exec(url.pathname);
     if (url.hostname === 'www.gstatic.com' && match) {
@@ -56,6 +64,118 @@ async function login(page, email = 'alice@example.test', pass = password) {
   await page.locator('#auth-pass').fill(pass);
   await page.locator('#auth-btn').click();
 }
+
+async function enableTrial(started) {
+  await database.doc('billing/config').set({enabled: true, taxIncluded: true,
+    provider: 'stripe', plans: {maand: {amountCents: 799}, halfjaar: {amountCents: 3999}, jaar: {amountCents: 5999}, levenslang: {amountCents: 9999}}});
+  if (started) await database.doc('billingAccess/alice-uid').set({status: 'trial', trialStartedAt: Timestamp.fromMillis(started)});
+}
+
+test('de eerste bevestigde login start een proefweek; herladen start geen nieuwe week', async ({ page }) => {
+  await seedUser();
+  await enableTrial();
+  await page.goto('/');
+  await login(page);
+  await expect(page.locator('#app')).toBeVisible();
+  await expect(page.locator('#abonnement-overlay')).toBeHidden();
+  await voegTestBoekingToe(page);
+  const original = (await database.doc('billingAccess/alice-uid').get()).data();
+  expect(original.status).toBe('trial');
+  await page.reload();
+  await expect(page.locator('#app')).toBeVisible();
+  expect((await database.doc('billingAccess/alice-uid').get()).data()).toEqual(original);
+});
+
+test('na afloop verschijnt het centrale keuzescherm met vier opties en blijft de database beschermd', async ({ page }) => {
+  await seedUser();
+  await enableTrial(Date.now() - 8 * 86400000);
+  await page.goto('/');
+  await login(page);
+  await expect(page.locator('#abonnement-overlay')).toBeVisible();
+  await expect(page.locator('#app')).toBeHidden();
+  await expect(page.locator('#abonnement-titel')).toContainText('afgelopen');
+  await expect(page.locator('.abonnement-optie h3')).toHaveText(['Per maand', 'Per halfjaar', 'Per jaar', 'Voor altijd']);
+  await expect(page.locator('.abonnement-prijs').first()).toContainText('7,99');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#abonnement-overlay')).toBeVisible();
+  const box = await page.locator('#abonnement-dialoog').boundingBox();
+  const viewport = page.viewportSize();
+  expect(Math.abs(box.x + box.width / 2 - viewport.width / 2)).toBeLessThan(2);
+  expect(Math.abs(box.y + box.height / 2 - viewport.height / 2)).toBeLessThan(2);
+  await page.screenshot({path: test.info().outputPath('abonnement-keuze.png')});
+  const code = await page.evaluate(() => db.doc('boekingen/alice').get({source: 'server'}).then(() => 'toegestaan', error => error.code));
+  expect(code).toBe('permission-denied');
+  await page.locator('[data-plan="levenslang"]').click();
+  await expect(page.locator('#abonnement-error')).toContainText('nog niet ingesteld');
+  expect((await database.doc('billingAccess/alice-uid').get()).data().status).toBe('trial');
+  await page.setViewportSize({width: 390, height: 844});
+  const mobileBox = await page.locator('#abonnement-dialoog').boundingBox();
+  expect(mobileBox.width).toBeLessThanOrEqual(390);
+  await page.locator('#abonnement-uitloggen').click();
+  await expect(page.locator('#auth-overlay')).toBeVisible();
+  await expect(page.locator('#abonnement-overlay')).toBeHidden();
+});
+
+test('de proefperiode verloopt ook terwijl de app open blijft; toegang herstelt na een vertrouwde toekenning', async ({ page }) => {
+  await seedUser();
+  await enableTrial(Date.now() - 7 * 86400000 + 10000);
+  await page.goto('/');
+  await login(page);
+  await expect(page.locator('#app')).toBeVisible();
+  await expect(page.locator('#abonnement-overlay')).toBeVisible({timeout: 15000});
+  await expect(page.locator('#app')).toBeHidden();
+  expect(await page.evaluate(() => boekingen)).toEqual([]);
+  // A compat SDK listener can return an already downloaded snapshot, including
+  // one marked fromCache=false. Use a fresh REST request to test new server
+  // access, rather than claiming that a paywall can retract old browser data.
+  const token = await page.evaluate(() => auth.currentUser.getIdToken());
+  const freshRead = await fetch('http://127.0.0.1:8080/v1/projects/' + projectId + '/databases/(default)/documents/boekingen/alice',
+    {headers: {Authorization: 'Bearer ' + token}});
+  expect(freshRead.status).toBe(403);
+  const writeCode = await page.evaluate(() => db.doc('boekingen/alice').update({prijs: 99}).then(() => 'toegestaan', error => error.code));
+  expect(writeCode).toBe('permission-denied');
+  expect((await database.doc('boekingen/alice').get()).exists).toBe(true);
+  await database.doc('billingAccess/alice-uid').set({status: 'lifetime'});
+  await expect(page.locator('#app')).toBeVisible();
+  await expect(page.locator('#abonnement-overlay')).toBeHidden();
+  expect(await page.evaluate(() => boekingen[0].naam)).toBe('Eigen boeking');
+});
+
+test('een tijdelijke storing in de toegangscontrole houdt de app dicht en kan zonder nieuwe login hersteld worden', async ({ page }) => {
+  await seedUser();
+  await enableTrial(Date.now());
+  await page.route('**/api/subscription-status', async route => {
+    if (!await page.evaluate(() => window.testRetryRequested === true)) return route.fulfill({status: 503, contentType: 'application/json', body: JSON.stringify({error: 'Tijdelijk niet beschikbaar.'})});
+    return route.fallback();
+  });
+  await page.goto('/');
+  await login(page);
+  await expect(page.locator('#abonnement-error')).toContainText('tijdelijk');
+  await expect(page.locator('#app')).toBeHidden();
+  expect(await page.evaluate(() => auth.currentUser.uid)).toBe('alice-uid');
+  await page.evaluate(() => document.getElementById('abonnement-opnieuw').addEventListener('click', () => { window.testRetryRequested = true; }, {capture: true}));
+  await page.locator('#abonnement-opnieuw').click();
+  await expect(page.locator('#app')).toBeVisible();
+  await expect(page.locator('#abonnement-overlay')).toBeHidden();
+});
+
+test('een vervalste betaal-terugkeerlink geeft geen toegang en betaalverzoeken bevatten alleen de gekozen optie', async ({ page }) => {
+  await seedUser();
+  await enableTrial(Date.now() - 8 * 86400000);
+  let requested;
+  await page.route('**/api/create-checkout-session', async route => {
+    requested = route.request().postDataJSON();
+    return route.fulfill({status: 200, contentType: 'application/json', body: JSON.stringify({url: 'https://onbekend.example/pay'})});
+  });
+  await page.goto('/?betaling=geslaagd');
+  await login(page);
+  await expect(page.locator('#abonnement-overlay')).toBeVisible();
+  await expect(page.locator('#app')).toBeHidden();
+  await page.locator('[data-plan="jaar"]').click();
+  await expect(page.locator('#abonnement-error')).toContainText('veilig');
+  expect(requested).toEqual({plan: 'jaar'});
+  expect((await database.doc('billingAccess/alice-uid').get()).data().status).toBe('trial');
+});
 
 async function voegTestBoekingToe(page, name = 'Nieuwe boeking') {
   await page.locator('#naam').fill(name);

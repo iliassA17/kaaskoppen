@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const { spawnSync } = require('node:child_process');
 const { initializeApp } = require('firebase-admin/app');
 const { getAuth } = require('firebase-admin/auth');
-const { getFirestore } = require('firebase-admin/firestore');
+const { getFirestore, Timestamp } = require('firebase-admin/firestore');
 const { migrate, legacyUid } = require('../scripts/migrate-auth.cjs');
 const { requireUser } = require('../netlify/lib/auth.cjs');
 
@@ -87,7 +87,7 @@ test('onveilige oude namen worden samen gemeld voordat ook maar een account word
 });
 
 test('beheercommando\'s weigeren uitgeschakelde TLS-controle voordat ze Firebase benaderen', () => {
-  for (const script of ['migrate-auth.cjs', 'set-role.cjs', 'backup-firestore.cjs']) {
+  for (const script of ['migrate-auth.cjs', 'set-role.cjs', 'backup-firestore.cjs', 'setup-subscriptions.cjs']) {
     const result = spawnSync(process.execPath, ['scripts/' + script, '--project', projectId, '--apply'], {
       cwd: require('node:path').resolve(__dirname, '..'),
       env: { ...process.env, NODE_TLS_REJECT_UNAUTHORIZED: '0', GOOGLE_APPLICATION_CREDENTIALS: '/bestaat-niet.json' },
@@ -154,10 +154,80 @@ async function eventFor({ verified = true, admin = false } = {}) {
   return { httpMethod: 'POST', headers: { authorization: 'Bearer ' + data.idToken }, body: '{}' };
 }
 
+async function subscriptionAccount(status) {
+  await database.doc('billing/config').set({enabled: true, taxIncluded: true,
+    plans: {maand: {amountCents: 1599}, halfjaar: {amountCents: 8000}, jaar: {amountCents: 15000}, levenslang: {amountCents: 50000}}});
+  await database.doc('authUsers/api-test').set({gebruiker: 'alice'});
+  await database.doc('accounts/alice').set({uid: 'api-test', gebruiker: 'alice', email: 'api@example.test'});
+  if (status) await database.doc('billingAccess/api-test').set(status);
+}
+
+test('de statusfunctie weigert ontbrekende sessies en onbevestigde adressen', async () => {
+  const {handler} = require('../netlify/functions/subscription-status.js');
+  assert.equal((await handler({httpMethod: 'GET', headers: {}})).statusCode, 405);
+  assert.equal((await handler({httpMethod: 'POST', headers: {}})).statusCode, 401);
+  assert.equal((await handler(await eventFor({verified: false}))).statusCode, 403);
+});
+
+test('de eerste statusaanvraag start precies één proefweek met Firestore-servertijd', async () => {
+  const event = await eventFor();
+  await subscriptionAccount();
+  const {handler} = require('../netlify/functions/subscription-status.js');
+  const before = Date.now();
+  const first = await handler(event);
+  assert.equal(first.statusCode, 200, first.body);
+  const result = JSON.parse(first.body);
+  assert.equal(result.allowed, true);
+  assert.equal(result.kind, 'trial');
+  assert.deepEqual(result.plans.map(plan => plan.id), ['maand', 'halfjaar', 'jaar', 'levenslang']);
+  const original = (await database.doc('billingAccess/api-test').get()).data();
+  assert.equal(original.status, 'trial');
+  assert.ok(original.trialStartedAt.toMillis() >= before && original.trialStartedAt.toMillis() <= Date.now());
+  assert.equal(result.expiresAt, original.trialStartedAt.toMillis() + 7 * 86400000);
+  assert.equal((await handler(event)).statusCode, 200);
+  assert.deepEqual((await database.doc('billingAccess/api-test').get()).data(), original);
+  assert.equal(await requireUser(event), null);
+});
+
+test('twee gelijktijdige eerste aanmeldingen behouden dezelfde proefperiode', async () => {
+  const event = await eventFor();
+  await subscriptionAccount();
+  const {handler} = require('../netlify/functions/subscription-status.js');
+  const responses = await Promise.all([handler(event), handler(event)]);
+  for (const response of responses) assert.equal(response.statusCode, 200, response.body);
+  const results = responses.map(response => JSON.parse(response.body));
+  assert.equal(results[0].expiresAt, results[1].expiresAt);
+});
+
+test('verlopen gebruikers krijgen wel de betaalopties maar geen toegang tot product-API’s', async () => {
+  const event = await eventFor();
+  await subscriptionAccount({status: 'trial', trialStartedAt: Timestamp.fromMillis(Date.now() - 8 * 86400000)});
+  const {handler} = require('../netlify/functions/subscription-status.js');
+  const before = (await database.doc('billingAccess/api-test').get()).data();
+  const response = await handler(event);
+  assert.equal(response.statusCode, 200);
+  assert.equal(JSON.parse(response.body).allowed, false);
+  assert.equal((await requireUser(event)).statusCode, 402);
+  assert.equal((await require('../netlify/functions/pathe.js').handler(event)).statusCode, 402);
+  assert.deepEqual((await database.doc('billingAccess/api-test').get()).data(), before);
+});
+
+test('een geldige betaalperiode en levenslange toegang werken zonder een nieuwe proefperiode', async () => {
+  const event = await eventFor();
+  for (const access of [{status: 'active', validUntil: Timestamp.fromMillis(Date.now() + 86400000)},
+    {status: 'lifetime'}, {status: 'free'}]) {
+    await subscriptionAccount(access);
+    assert.equal(await requireUser(event), null);
+    assert.deepEqual((await database.doc('billingAccess/api-test').get()).data(), access);
+  }
+});
+
 test('serverfuncties weigeren ontbrekende en vervalste sessies', async () => {
   const pathe = require('../netlify/functions/pathe.js');
   const push = require('../netlify/functions/send-push.js');
-  for (const handler of [pathe.handler, push.handler]) {
+  for (const handler of [pathe.handler, push.handler,
+    require('../netlify/functions/create-checkout-session.js').handler,
+    require('../netlify/functions/create-portal-session.js').handler]) {
     assert.equal((await handler({ httpMethod: 'POST', headers: {}, body: '{}' })).statusCode, 401);
     assert.equal((await handler({ httpMethod: 'POST', headers: { authorization: 'Bearer vervalst' }, body: '{}' })).statusCode, 401);
   }

@@ -157,6 +157,24 @@ for (const path of ['/', '/boekingen.html']) {
       });
     });
 
+    test('een late opslagfout herstelt geen boekingen achter het verlopen proefscherm', async ({ page }) => {
+      await page.locator('#add-btn').click();
+      await expect.poll(() => page.evaluate(() => testWrites.length)).toBe(1);
+      await page.locator('#starttijd').fill('12:00');
+      await page.evaluate(() => {
+        testSaveDelay = 500; testFailSave = true;
+        const original = slaOp;
+        slaOp = function() { return original.apply(this, arguments).finally(() => { window.testSaveSettled = true; }); };
+      });
+      await page.locator('#add-btn').click();
+      await expect.poll(() => page.evaluate(() => boekingOpslaanBezig)).toBe(true);
+      await page.evaluate(() => toonAbonnementKeuze({allowed: false, kind: 'expired'}));
+      await expect.poll(() => page.evaluate(() => window.testSaveSettled)).toBe(true);
+      expect(await page.evaluate(() => boekingen)).toEqual([]);
+      await expect(page.locator('#app')).toBeHidden();
+      await expect(page.locator('#abonnement-overlay')).toBeVisible();
+    });
+
     test('een boekingsnaam verschijnt als tekst in het logboek', async ({ page }) => {
       await page.locator('#naam').fill('<img src=x onerror="window.testInjection=true">');
       await page.locator('#add-btn').click();

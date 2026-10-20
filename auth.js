@@ -185,6 +185,7 @@ function checkSessie() {
   }
   auth.onAuthStateChanged(async function(user) {
     var generatie = ++authGeneratie;
+    stopAbonnementen();
     authProfiel = null; authRechten = {};
     verbergApp();
     if (!user || !user.emailVerified) return;
@@ -198,9 +199,17 @@ function checkSessie() {
       if (generatie !== authGeneratie || auth.currentUser !== user) return;
       authProfiel = {uid: user.uid, gebruiker: gebruiker};
       authRechten = token.claims;
-      await toonApp(gebruiker);
+      var access = await startAbonnementen(user, generatie);
+      if (!access || generatie !== authGeneratie) return;
+      if (access.allowed) await toonApp(gebruiker);
+      else toonAbonnementKeuze(access);
     } catch (error) {
       if (generatie !== authGeneratie) return;
+      if (authProfiel && auth.currentUser === user) {
+        abonnementStatus = Object.assign({}, abonnementStatus, {allowed: false});
+        toonAbonnementKeuze(abonnementStatus, 'Je gegevens konden niet worden geladen. Klik op Opnieuw controleren.');
+        return;
+      }
       await auth.signOut();
       toonAuthFout('Je account kon niet worden geladen. Neem contact op met de beheerder als je account nog moet worden overgezet.');
     }
@@ -226,5 +235,6 @@ async function beveiligdeFetch(url, options) {
   var result = await fetch(url, Object.assign({}, options, {
     headers: Object.assign({}, options && options.headers, {Authorization: 'Bearer ' + token})
   }));
+  if (result.status === 402 && url !== '/api/subscription-status') controleerAbonnementen().catch(function() {});
   return result;
 }

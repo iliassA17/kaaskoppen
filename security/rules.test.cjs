@@ -2,7 +2,7 @@ const { before, after, beforeEach, test } = require('node:test');
 const assert = require('node:assert/strict');
 const { readFileSync } = require('node:fs');
 const { initializeTestEnvironment, assertSucceeds, assertFails } = require('@firebase/rules-unit-testing');
-const { doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs, query, where, runTransaction } = require('firebase/firestore');
+const { doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs, query, where, runTransaction, serverTimestamp, Timestamp } = require('firebase/firestore');
 
 let env;
 const user = (name, extra = {}) => env.authenticatedContext(name + '-uid', {
@@ -29,6 +29,90 @@ beforeEach(async () => {
     await setDoc(doc(db, 'resets', 'alice'), { code: 'oud' });
     await setDoc(doc(db, 'meldingen', 'bericht'), { gebruiker: 'bob', titel: 'Vraag', inhoud: 'Inhoud', stemmen: { bob: 'voor' } });
   });
+});
+
+async function billing(status) {
+  await env.withSecurityRulesDisabled(async context => {
+    const db = context.firestore();
+    await setDoc(doc(db, 'billing/config'), {enabled: true});
+    if (status) await setDoc(doc(db, 'billingAccess/alice-uid'), status);
+  });
+}
+
+test('een proefweek kan alleen met de servertijd voor het eigen gekoppelde account starten', async () => {
+  await billing();
+  const db = user('alice');
+  await assertFails(getDoc(doc(db, 'boekingen/alice')));
+  await assertFails(setDoc(doc(db, 'billingAccess/alice-uid'), {status: 'trial', trialStartedAt: Timestamp.fromMillis(Date.now() + 86400000)}));
+  await assertFails(setDoc(doc(db, 'billingAccess/bob-uid'), {status: 'trial', trialStartedAt: serverTimestamp()}));
+  await assertFails(setDoc(doc(user('alice', {email_verified: false}), 'billingAccess/alice-uid'), {status: 'trial', trialStartedAt: serverTimestamp()}));
+  await assertSucceeds(setDoc(doc(db, 'billingAccess/alice-uid'), {status: 'trial', trialStartedAt: serverTimestamp()}));
+  await assertSucceeds(getDoc(doc(db, 'boekingen/alice')));
+  await assertSucceeds(updateDoc(doc(db, 'boekingen/alice'), {prijs: 0}));
+});
+
+test('een gebruiker kan de proefperiode niet herstarten, verlengen of als betaald markeren', async () => {
+  await billing({status: 'trial', trialStartedAt: Timestamp.fromMillis(Date.now() - 8 * 86400000)});
+  const db = user('alice');
+  for (const patch of [{trialStartedAt: serverTimestamp()}, {status: 'lifetime'}, {status: 'free'},
+    {status: 'active', validUntil: Timestamp.fromMillis(Date.now() + 86400000)}]) {
+    await assertFails(updateDoc(doc(db, 'billingAccess/alice-uid'), patch));
+  }
+  await assertFails(deleteDoc(doc(db, 'billingAccess/alice-uid')));
+  await assertFails(updateDoc(doc(db, 'billing/config'), {enabled: false}));
+  await assertFails(getDoc(doc(db, 'billingAccess/bob-uid')));
+});
+
+test('een verlopen proefperiode blokkeert boekingen en instellingen maar laat eigen profiel en betaalstatus bereikbaar', async () => {
+  await billing({status: 'trial', trialStartedAt: Timestamp.fromMillis(Date.now() - 8 * 86400000)});
+  const db = user('alice');
+  for (const path of ['boekingen/alice', 'instellingen/alice', 'pushSubscriptions/alice', 'meldingen/bericht']) {
+    await assertFails(getDoc(doc(db, path)));
+  }
+  await assertFails(getDocs(query(collection(db, 'boekingen'), where('gebruiker', '==', 'alice'))));
+  await assertFails(setDoc(doc(db, 'boekingen/nieuw'), {gebruiker: 'alice', prijs: 0}));
+  await assertFails(updateDoc(doc(db, 'boekingen/alice'), {prijs: 10}));
+  await assertFails(deleteDoc(doc(db, 'boekingen/alice')));
+  for (const path of ['accounts/alice', 'authUsers/alice-uid', 'billing/config', 'billingAccess/alice-uid']) {
+    await assertSucceeds(getDoc(doc(db, path)));
+  }
+});
+
+test('alleen geldige betaalde of vrijgestelde toegang geeft weer toegang tot bewaarde boekingen', async () => {
+  for (const status of [{status: 'free'}, {status: 'lifetime'},
+    {status: 'active', validUntil: Timestamp.fromMillis(Date.now() + 86400000)}]) {
+    await billing(status);
+    await assertSucceeds(getDoc(doc(user('alice'), 'boekingen/alice')));
+  }
+  for (const status of [{status: 'active', validUntil: Timestamp.fromMillis(Date.now() - 1000)},
+    {status: 'pending'}]) {
+    await billing(status);
+    await assertFails(getDoc(doc(user('alice'), 'boekingen/alice')));
+  }
+});
+
+test('de hoofdbeheerder houdt toegang; een gewone beheerder kan zichzelf geen abonnement geven', async () => {
+  await billing();
+  await assertSucceeds(getDoc(doc(user('alice', {admin: true}), 'boekingen/bob')));
+  await assertSucceeds(setDoc(doc(user('alice', {admin: true}), 'billingAccess/bob-uid'), {status: 'lifetime'}));
+  const db = user('alice', {beheerder: true});
+  await assertFails(getDoc(doc(db, 'boekingen/bob')));
+  await assertFails(setDoc(doc(db, 'billingAccess/alice-uid'), {status: 'free'}));
+  await assertFails(updateDoc(doc(db, 'billing/config'), {enabled: false}));
+});
+
+test('interne Stripe-klanten, betaalhistorie en verwerkingssloten zijn niet rechtstreeks bereikbaar', async () => {
+  for (const db of [user('alice'), user('alice', {beheerder: true}), env.unauthenticatedContext().firestore()]) {
+    for (const path of ['billingCustomers/alice-uid', 'billingCheckout/alice-uid', 'billingEvents/evt_1', 'billingLocks/alice-uid-sync']) {
+      await assertFails(getDoc(doc(db, path)));
+      await assertFails(setDoc(doc(db, path), {status: 'paid'}));
+    }
+  }
+});
+
+test('een ongeldige aan-uitinstelling schakelt de betaalbeveiliging niet stilzwijgend uit', async () => {
+  await env.withSecurityRulesDisabled(context => setDoc(doc(context.firestore(), 'billing/config'), {enabled: 'true'}));
+  await assertFails(getDoc(doc(user('alice'), 'boekingen/alice')));
 });
 
 test('zonder login zijn accountgegevens, boekingen en instellingen niet leesbaar', async () => {

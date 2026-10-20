@@ -345,8 +345,39 @@
   .nav-btn:hover { background:var(--border); }
   .nav-label { font-size:0.75rem;color:var(--text);min-width:100px;text-align:center; }
 </style>
+<style>
+  .abonnement-overlay[hidden]{display:none;}
+  .abonnement-overlay{position:fixed;inset:0;z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(10,12,18,0.9);overflow:auto;}
+  .abonnement-dialoog{width:min(760px,100%);max-height:calc(100dvh - 40px);overflow:auto;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px;color:var(--text);box-shadow:0 18px 70px #0007;}
+  .abonnement-dialoog h2{font-size:1.3rem;line-height:1.5;margin:0 0 12px;}
+  .abonnement-dialoog>p{font-size:0.83rem;line-height:1.7;color:var(--muted);}
+  .abonnement-opties{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:22px 0;}
+  .abonnement-optie{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:18px;}
+  .abonnement-optie h3{font-size:0.9rem;margin:0 0 12px;}
+  .abonnement-prijs{font-size:1.3rem;font-weight:700;color:var(--accent);}
+  .abonnement-optie p{font-size:0.75rem;color:var(--muted);margin:8px 0 15px;}
+  .abonnement-acties{display:flex;gap:12px;flex-wrap:wrap;}
+  .abonnement-acties button{flex:1;min-width:145px;}
+  .abonnement-dialoog [hidden]{display:none;}
+  @media(max-width:520px){.abonnement-opties{grid-template-columns:1fr;}.abonnement-dialoog{padding:20px;}}
+</style>
 </head>
 <body>
+
+<div class="abonnement-overlay" id="abonnement-overlay" hidden>
+  <section class="abonnement-dialoog" id="abonnement-dialoog" role="dialog" aria-modal="true" aria-labelledby="abonnement-titel" aria-describedby="abonnement-uitleg" tabindex="-1">
+    <h2 id="abonnement-titel">Je proefperiode is afgelopen</h2>
+    <p id="abonnement-uitleg">Kies een abonnement om verder te gaan. Je bestaande boekingen blijven bewaard.</p>
+    <p id="abonnement-error" role="alert" hidden></p>
+    <div class="abonnement-opties" id="abonnement-opties"></div>
+    <p id="abonnement-btw"></p>
+    <div class="abonnement-acties">
+      <button class="auth-btn" id="abonnement-opnieuw" type="button">Opnieuw controleren</button>
+      <button class="auth-btn" id="abonnement-beheren" type="button">Abonnement beheren</button>
+      <button class="auth-btn" id="abonnement-uitloggen" type="button">Uitloggen</button>
+    </div>
+  </section>
+</div>
 
 <!-- Auth scherm -->
 <div class="auth-overlay" id="auth-overlay">
@@ -702,6 +733,7 @@
     </div>
   </div>
   <p class="subtitle">Reserveringsbeheer &middot; 09:00 &ndash; 00:00</p>
+  <p id="proefperiode-info" hidden style="font-size:0.8rem;line-height:1.6;margin:0 0 20px;color:var(--accent);"></p>
   <div class="form-card">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
       <div class="form-title" style="margin-bottom:0;">Nieuwe boeking</div>
@@ -813,6 +845,8 @@
 
 <!-- Profiel pagina -->
 <div class="container" id="pagina-profiel" style="display:none;">
+  <button id="abonnement-beheren-profiel" class="auth-btn" type="button" hidden>Abonnement en facturen beheren</button>
+  <p id="abonnement-profiel-error" role="alert" hidden></p>
   <div class="pagina-header">
     <div style="display:flex;align-items:center;gap:12px;">
       <button class="nav-btn" id="profiel-terug">&#8592;</button>
@@ -1675,11 +1709,11 @@ function bewaarBoekingWijziging(wijziging, naOpslaan, isUndo) {
     if (generatie !== authGeneratie) return;
     return slaOp(opslagGebruiker, opslagLijst, JSON.parse(vorigeBoekingen));
   }).then(function() {
-    if (generatie !== authGeneratie) return false;
+    if (generatie !== authGeneratie || opslagGebruiker !== huidigeGebruiker) return false;
     if (naOpslaan) naOpslaan();
     return true;
   }, function(error) {
-    if (generatie !== authGeneratie) return false;
+    if (generatie !== authGeneratie || opslagGebruiker !== huidigeGebruiker) return false;
     boekingen = JSON.parse(vorigeBoekingen);
     undoStack = vorigeUndo;
     var melding = 'Niet opgeslagen. Controleer je verbinding en probeer opnieuw.';
@@ -1697,7 +1731,7 @@ function bewaarBoekingWijziging(wijziging, naOpslaan, isUndo) {
     renderOverzicht();
     return false;
   }).finally(function() {
-    if (generatie !== authGeneratie) return;
+    if (generatie !== authGeneratie || opslagGebruiker !== huidigeGebruiker) return;
     boekingOpslaanBezig = false;
     knoppen.forEach(function(btn, i) { btn.disabled = vorigeDisabled[i]; });
     updateUndoBtn();
@@ -1742,7 +1776,8 @@ function toonAuthSuccess(msg) {
 
 function toonApp(user) {
   if (!authProfiel || authProfiel.gebruiker !== user || !auth || !auth.currentUser ||
-      authProfiel.uid !== auth.currentUser.uid || !auth.currentUser.emailVerified) {
+      authProfiel.uid !== auth.currentUser.uid || !auth.currentUser.emailVerified ||
+      (abonnementStatus && !abonnementStatus.allowed)) {
     return Promise.reject(new Error('Niet ingelogd.'));
   }
   var generatie = authGeneratie;
@@ -4003,6 +4038,8 @@ document.addEventListener('DOMContentLoaded', function() {
   checkSessie();
 });
 </script>
+<script src="/subscription-access.js"></script>
+<script src="/subscriptions.js"></script>
 <script src="/auth.js"></script>
 </body>
 </html>

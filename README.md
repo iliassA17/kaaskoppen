@@ -9,6 +9,13 @@ Alleen de bestanden uploaden naar Netlify is onvoldoende. Zie
 [Veilig inloggen activeren](docs/veilig-inloggen.md) voor de volledige procedure,
 het behoud van bestaande accounts en het instellen van beheerdersrechten.
 
+De branch `proefperiode-abonnementen` bevat een proefweek en vier Stripe-betaalopties:
+€7,99 per maand, €39,99 per halfjaar, €59,99 per jaar of €99,99 levenslang,
+inclusief btw. De vijf bestaande accounts worden gratis vrijgesteld. Deze
+functie staat standaard uit en moet met het eigen Stripe-account en de
+beveiligde serverinstellingen worden geactiveerd. Zie
+[Proefperiode en abonnementen](docs/proefperiode-abonnementen.md).
+
 ## Ontwikkelen en testen
 
 Vereist: Node.js 22 of nieuwer, npm, Python 3 en Chromium. De Firebase-tests
@@ -46,10 +53,15 @@ maken geen verbinding met de bestaande database.
 
 ## Netlify
 
-`netlify.toml` publiceert de statische bestanden en de twee serverfuncties.
+`netlify.toml` publiceert de statische bestanden en de serverfuncties.
 De eenvoudige lokale server voert Netlify-functies niet uit. Voor die functies
 is een Netlify-ontwikkelomgeving of deployment nodig:
 
+- Toegang controleren: `subscription-status`. Dit is nodig bij inloggen, ook als
+  proefgebruik nog uitstaat; alleen statische bestanden uploaden is onvoldoende.
+- Stripe: `create-checkout-session`, `create-portal-session` en `stripe-webhook`.
+  Vereist privé omgevingsvariabelen en een webhook; zie
+  [Stripe activeren op Windows](docs/stripe-activeren-windows.md).
 - Pathé zoeken: `ANTHROPIC_API_KEY`.
 - Pushberichten: `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` en eventueel
   `VAPID_SUBJECT`. De publieke sleutel moet overeenkomen met die in de frontend.
@@ -62,16 +74,18 @@ De frontend laadt SDK's van `www.gstatic.com` en `cdn.jsdelivr.net`, gebruikt
 `securetoken.googleapis.com` en laadt lettertypen van `fonts.googleapis.com` en
 `fonts.gstatic.com`. EmailJS gebruikt `api.emailjs.com`. De filmzoekfunctie
 gebruikt vanuit de server `api.anthropic.com`. De server verifieert Firebase-
-tokens met publieke certificaten van `www.googleapis.com`; daarvoor is geen
+tokens met publieke certificaten van `www.googleapis.com`; de toegangscontrole
+leest Firestore met het token van de gebruiker. Daarvoor is geen
 serviceaccountsleutel op Netlify nodig. `FIREBASE_PROJECT_ID` is standaard
 `boekingsschema` en moet voor een ander Firebase-project worden aangepast.
 
 ## Grenzen van deze eerste verbeterronde
 
 Opslagfouten herstellen nu de lokale boekingen en undo-geschiedenis. Tijdens
-opslag worden andere boekingsacties tegengehouden. Dit voorkomt geen conflicten
-tussen verschillende apparaten: de bestaande opslag vervangt nog de volledige
-boekingenlijst van de gebruiker. De nieuwe inlogbeveiliging werkt pas op de
+opslag worden andere boekingsacties tegengehouden. Een transactie wijzigt alleen
+de getroffen documenten en weigert een verouderde wijziging van dezelfde boeking.
+Boekingen van een tweede apparaat en oude, niet gewijzigde records blijven staan.
+De nieuwe inlogbeveiliging werkt pas op de
 live site zodra de procedure in `docs/veilig-inloggen.md` is uitgevoerd.
 
 De ranglijst is voorlopig alleen voor beheerders beschikbaar: de oude ranglijst

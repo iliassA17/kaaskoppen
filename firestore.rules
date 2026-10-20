@@ -4,12 +4,33 @@ service cloud.firestore {
     function signedIn() { return request.auth != null; }
     function verified() { return signedIn() && request.auth.token.email_verified == true; }
     function admin() { return verified() && request.auth.token.get('admin', false) == true; }
-    function staff() { return admin() || (verified() && request.auth.token.get('beheerder', false) == true); }
+    function billingEnabled() {
+      return exists(/databases/$(database)/documents/billing/config) &&
+        get(/databases/$(database)/documents/billing/config).data.enabled == true;
+    }
+    function billingDisabled() {
+      return !exists(/databases/$(database)/documents/billing/config) ||
+        get(/databases/$(database)/documents/billing/config).data.enabled == false;
+    }
+    function validAccess() {
+      let access = get(/databases/$(database)/documents/billingAccess/$(request.auth.uid)).data;
+      return access.status in ['free', 'lifetime'] ||
+        // Creation already requires the exact server time. A read stream may
+        // predate that commit; enforce the immutable end of the trial here.
+        (access.status == 'trial' && access.trialStartedAt is timestamp &&
+          request.time < access.trialStartedAt + duration.value(7, 'd')) ||
+        (access.status == 'active' && access.validUntil is timestamp && request.time < access.validUntil);
+    }
+    function member() {
+      return verified() && (admin() || billingDisabled() ||
+        (billingEnabled() && exists(/databases/$(database)/documents/billingAccess/$(request.auth.uid)) && validAccess()));
+    }
+    function staff() { return admin() || (member() && request.auth.token.get('beheerder', false) == true); }
     function username() {
       return get(/databases/$(database)/documents/authUsers/$(request.auth.uid)).data.gebruiker;
     }
     function owner(name) {
-      return verified() && username() == name &&
+      return member() && username() == name &&
         get(/databases/$(database)/documents/accounts/$(name)).data.uid == request.auth.uid;
     }
     function validUsername(name) {
@@ -29,6 +50,22 @@ service cloud.firestore {
         (!('naam' in data) || (data.naam is string && data.naam.size() <= 500)) &&
         (!('betaling' in data) || data.betaling in ['betaald', 'achteraf']) &&
         (!('platform' in data) || data.platform in ['', 'marktplaats', 'instagram', 'snapchat', 'tiktok', 'overig']);
+    }
+
+    match /billing/{document} {
+      allow get: if document == 'config' && verified();
+      allow list: if admin();
+      allow create, update, delete: if admin();
+    }
+    match /billingAccess/{uid} {
+      allow get: if admin() || (signedIn() && request.auth.uid == uid);
+      allow list: if admin();
+      allow create: if admin() || (verified() && request.auth.uid == uid && billingEnabled() &&
+        get(/databases/$(database)/documents/authUsers/$(uid)).data.gebruiker is string &&
+        get(/databases/$(database)/documents/accounts/$(username())).data.uid == uid &&
+        request.resource.data.keys().hasOnly(['status', 'trialStartedAt']) &&
+        request.resource.data.status == 'trial' && request.resource.data.trialStartedAt == request.time);
+      allow update, delete: if admin();
     }
 
     match /authUsers/{uid} {
@@ -98,11 +135,11 @@ service cloud.firestore {
       allow delete: if admin() || owner(name);
     }
     match /updates/{id} {
-      allow read: if verified();
+      allow read: if member();
       allow create, update, delete: if staff();
     }
     match /meldingen/{id} {
-      allow read: if verified();
+      allow read: if member();
       allow create: if verified() && owner(request.resource.data.gebruiker) &&
         request.resource.data.keys().hasOnly(['titel', 'inhoud', 'gebruiker', 'datum', 'stemmen']) &&
         request.resource.data.titel is string && request.resource.data.titel.size() <= 200 &&
