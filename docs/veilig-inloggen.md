@@ -57,11 +57,41 @@ eigenaar. Met `--staff ANDERE_GEBRUIKERSNAAM` kun je een medewerker aanwijzen.
 Deze vlaggen verlenen echte rechten: neem geen lijst uit oude profielvelden
 over zonder te controleren wie deze personen zijn.
 
-De controle stopt bij dubbele e-mailadressen, afwijkende gebruikersnamen of
-bestaande conflicterende Firebase-identiteiten. Los die op met behoud van alle
-gekoppelde boekingen; het script voegt dergelijke accounts niet zomaar samen.
+De controle behoudt bestaande namen precies zoals ze zijn, ook korte namen,
+hoofdletters, spaties en accenten. De strengere naamregels gelden alleen voor
+nieuwe registraties. Bestaande namen mogen voor een veilige weergave maximaal
+128 tekens bevatten: letters, accenten, cijfers, spaties, punten, `@`, `_` en
+`-`, met minstens een letter of cijfer. Gereserveerde namen zijn uitgesloten.
+Bij niet ondersteunde namen toont de controle de betreffende namen. Hernoem of
+verwijder zulke accounts niet zelf: bestaande boekingen verwijzen naar die namen.
+
+De controle stopt ook bij dubbele e-mailadressen of bestaande conflicterende
+Firebase-identiteiten. Los die op met behoud van alle gekoppelde boekingen;
+het script voegt dergelijke accounts niet zomaar samen.
 Controleer ook dat de bestaande e-mailadressen aan de juiste personen behoren:
 zij krijgen straks via hun inbox toegang.
+
+Op Windows gebruik je `npm.cmd ci` in PowerShell. Kopieer de bestaande
+gebruikersnaam bij `--admin` exact, inclusief eventuele hoofdletters. Voer eerst
+alleen de controle zonder `--apply` uit. Een geslaagde controle toont bijvoorbeeld
+`{"accounts":5,"codes":3,"applied":false}`; de aantallen verschillen per project.
+
+Het script weigert verbinding als `NODE_TLS_REJECT_UNAUTHORIZED` op `0` staat.
+Herstel de certificaatcontrole in het huidige PowerShell-venster met:
+
+```powershell
+Remove-Item Env:NODE_TLS_REJECT_UNAUTHORIZED -ErrorAction SilentlyContinue
+```
+
+Als deze onveilige instelling in je persoonlijke Windows-omgevingsvariabelen is
+opgeslagen, verwijder haar ook daar met:
+
+```powershell
+[Environment]::SetEnvironmentVariable('NODE_TLS_REJECT_UNAUTHORIZED', $null, 'User')
+```
+
+Verschijnt daarna een certificaatfout, los dan de oorzaak in de vertrouwde
+certificaten op. Schakel de certificaatcontrole niet opnieuw uit.
 
 Voer tijdens het onderhoudsmoment eerst de nieuwe Firestore-regels uit stap 3
 door. Daardoor kunnen oude clients geen onbeveiligde wijzigingen meer doen.

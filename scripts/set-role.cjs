@@ -3,6 +3,9 @@ const { getAuth } = require('firebase-admin/auth');
 const { getFirestore } = require('firebase-admin/firestore');
 
 async function main() {
+  if (process.env.NODE_TLS_REJECT_UNAUTHORIZED === '0') {
+    throw new Error('Certificaatcontrole is uitgeschakeld (NODE_TLS_REJECT_UNAUTHORIZED=0). Verwijder deze instelling voordat je verdergaat. Er is niets gewijzigd.');
+  }
   const args = process.argv.slice(2);
   const value = flag => args[args.indexOf(flag) + 1];
   const projectId = args.includes('--project') && value('--project');

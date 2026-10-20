@@ -3,6 +3,7 @@ const { readFileSync } = require('node:fs');
 const { initializeApp } = require('firebase-admin/app');
 const { getAuth } = require('firebase-admin/auth');
 const { getFirestore } = require('firebase-admin/firestore');
+const { migrate } = require('../../scripts/migrate-auth.cjs');
 
 const projectId = 'demo-kaaskoppen';
 const password = 'EenSterkWachtwoord!42';
@@ -83,6 +84,25 @@ test('geverifieerd inloggen, sessieherstel en uitloggen gebruiken Firebase', asy
   await expect(page.locator('#app')).toBeHidden();
   await expect(page.locator('#auth-overlay')).toBeVisible();
   expect(await page.evaluate(() => boekingen)).toEqual([]);
+});
+
+test('een oude naam met hoofdletters, spaties en accent werkt na migratie en behoudt boekingen', async ({ page }) => {
+  const name = 'Jos\u00e9 de Vries';
+  await database.collection('accounts').doc(name).set({ gebruiker: name, email: 'legacy@example.test', hash: 'oude-hash' });
+  await database.doc('boekingen/bestaand').set({ gebruiker: name, datumStr: '2026-11-02', start: 600, eind: 695,
+    naam: 'Eigen boeking', prijs: 0, tijdvak: 0, betaling: 'betaald' });
+  await migrate({ database, authentication, apply: true });
+  const migrated = await authentication.getUserByEmail('legacy@example.test');
+  await authentication.updateUser(migrated.uid, { password, emailVerified: true });
+  await page.goto('/');
+  await login(page, 'legacy@example.test');
+  await expect(page.locator('#app')).toBeVisible();
+  expect(await page.evaluate(() => huidigeGebruiker)).toBe(name);
+  expect(await page.evaluate(() => boekingen.map(b => [b.gebruiker, b.prijs]))).toEqual([[name, 0]]);
+  await page.reload();
+  await expect(page.locator('#app')).toBeVisible();
+  expect(await page.evaluate(() => huidigeGebruiker)).toBe(name);
+  expect(await page.evaluate(() => boekingen[0].prijs)).toBe(0);
 });
 
 test('verkeerd wachtwoord en onbevestigde e-mail houden de app gesloten', async ({ page }) => {

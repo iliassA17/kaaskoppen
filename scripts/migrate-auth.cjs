@@ -3,6 +3,22 @@ const { initializeApp, applicationDefault } = require('firebase-admin/app');
 const { getAuth } = require('firebase-admin/auth');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 
+function requireVerifiedTls() {
+  if (process.env.NODE_TLS_REJECT_UNAUTHORIZED === '0') {
+    throw new Error('Certificaatcontrole is uitgeschakeld (NODE_TLS_REJECT_UNAUTHORIZED=0). Verwijder deze instelling voordat je verdergaat. Er is niets gewijzigd.');
+  }
+}
+
+function safeLegacyUsername(name) {
+  // Keep existing Firestore keys exactly as they are: bookings refer to these
+  // names. New registrations still use the stricter rules in auth.js/rules.
+  // This alphabet also stays safe in the legacy admin screen's inline handlers.
+  return [...name].length <= 128 && /[\p{L}\p{N}]/u.test(name) &&
+    /^[\p{L}\p{M}\p{N} .@_-]+$/u.test(name) &&
+    !['constructor', 'prototype', '__proto__'].includes(name) &&
+    !/^__.*__$/.test(name);
+}
+
 function legacyUid(name) {
   return 'legacy_' + createHash('sha256').update(name).digest('hex').slice(0, 48);
 }
@@ -13,8 +29,15 @@ async function findUser(authentication, method, value) {
 }
 
 async function migrate({ database, authentication, apply = false, adminUsers = [], staffUsers = [] }) {
+  requireVerifiedTls();
   const accounts = await database.collection('accounts').get();
   const codes = await database.collection('codes').get();
+  const unsupportedNames = accounts.docs.map(doc => doc.id).filter(name => !safeLegacyUsername(name));
+  if (unsupportedNames.length) {
+    throw new Error('Deze bestaande gebruikersnamen kunnen nog niet veilig worden overgezet: ' +
+      unsupportedNames.map(name => JSON.stringify(name)).join(', ') +
+      '. Er is niets gewijzigd. Hernoem of verwijder deze accounts niet zelf: boekingen zijn aan de bestaande namen gekoppeld.');
+  }
   const names = new Set(accounts.docs.map(doc => doc.id));
   for (const name of [...adminUsers, ...staffUsers]) {
     if (!names.has(name)) throw new Error('Een opgegeven beheerder heeft geen bestaand account.');
@@ -23,11 +46,8 @@ async function migrate({ database, authentication, apply = false, adminUsers = [
   const planned = [];
   for (const doc of accounts.docs) {
     const data = doc.data();
-    if (!/^[a-z0-9][a-z0-9_-]{2,31}$/.test(doc.id) || ['constructor', 'prototype'].includes(doc.id)) {
-      throw new Error('Een bestaande gebruikersnaam voldoet niet aan de nieuwe naamregels. Corrigeer die eerst met behoud van de gekoppelde gegevens.');
-    }
     if (data.gebruiker !== doc.id || typeof data.email !== 'string' || !data.email.includes('@')) {
-      throw new Error('Een account heeft een ontbrekende gebruikersnaam of ongeldig e-mailadres.');
+      throw new Error('Account ' + JSON.stringify(doc.id) + ' heeft een ontbrekende of afwijkende gebruikersnaam of ongeldig e-mailadres. Er is niets gewijzigd.');
     }
     const email = data.email.trim().toLowerCase();
     if (emails.has(email)) throw new Error('Meerdere accounts gebruiken hetzelfde e-mailadres. Los dit eerst op.');
@@ -77,6 +97,7 @@ async function migrate({ database, authentication, apply = false, adminUsers = [
 }
 
 async function main() {
+  requireVerifiedTls();
   const args = process.argv.slice(2);
   const projectIndex = args.indexOf('--project');
   const projectId = args[projectIndex + 1];

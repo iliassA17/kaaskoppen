@@ -1,5 +1,6 @@
 const { before, beforeEach, test } = require('node:test');
 const assert = require('node:assert/strict');
+const { spawnSync } = require('node:child_process');
 const { initializeApp } = require('firebase-admin/app');
 const { getAuth } = require('firebase-admin/auth');
 const { getFirestore } = require('firebase-admin/firestore');
@@ -51,6 +52,52 @@ test('migratie behoudt boekingen, verwijdert oude hashes en is herhaalbaar', asy
   assert.equal((await database.doc('resets/alice').get()).exists, false);
   await migrate(options);
   assert.equal((await authentication.listUsers()).users.length, 1);
+});
+
+test('bestaande korte namen, hoofdletters, spaties en accenten behouden hun koppelingen', async () => {
+  const names = ['a', '12', 'Ilias', '_naam', 'Jan de Vries', 'Jos\u00e9.1', 'x'.repeat(40)];
+  for (const [i, name] of names.entries()) await legacyAccount(name, { email: `legacy${i}@example.test` });
+  assert.deepEqual(await migrate({ database, authentication }), { accounts: names.length, codes: 0, applied: false });
+  await migrate({ database, authentication, apply: true, adminUsers: ['Ilias'] });
+  for (const name of names) {
+    const profile = (await database.collection('accounts').doc(name).get()).data();
+    assert.equal(profile.gebruiker, name);
+    assert.equal(profile.uid, legacyUid(name));
+    assert.deepEqual((await database.doc('authUsers/' + profile.uid).get()).data(), { gebruiker: name });
+    assert.equal((await database.collection('boekingen').doc(name).get()).data().gebruiker, name);
+    assert.equal((await authentication.getUser(profile.uid)).displayName, name);
+  }
+  assert.equal((await authentication.getUser(legacyUid('Ilias'))).customClaims.admin, true);
+  await migrate({ database, authentication, apply: true });
+  assert.equal((await authentication.listUsers()).users.length, names.length);
+});
+
+test('onveilige oude namen worden samen gemeld voordat ook maar een account wordt overgezet', async () => {
+  await legacyAccount();
+  // Firestore itself rejects reserved __...__ document IDs on creation.
+  const names = ['constructor', 'prototype', "O'Neil", '<script>'];
+  for (const [i, name] of names.entries()) await legacyAccount(name, { email: `blocked${i}@example.test` });
+  await assert.rejects(migrate({ database, authentication, apply: true }), error => {
+    for (const name of names) assert.ok(error.message.includes(JSON.stringify(name)));
+    assert.match(error.message, /Hernoem of verwijder deze accounts niet zelf/);
+    return true;
+  });
+  assert.equal((await authentication.listUsers()).users.length, 0);
+  assert.equal((await database.doc('accounts/alice').get()).data().hash, 'oude-onveilige-hash');
+});
+
+test('beheercommando\'s weigeren uitgeschakelde TLS-controle voordat ze Firebase benaderen', () => {
+  for (const script of ['migrate-auth.cjs', 'set-role.cjs']) {
+    const result = spawnSync(process.execPath, ['scripts/' + script, '--project', projectId, '--apply'], {
+      cwd: require('node:path').resolve(__dirname, '..'),
+      env: { ...process.env, NODE_TLS_REJECT_UNAUTHORIZED: '0', GOOGLE_APPLICATION_CREDENTIALS: '/bestaat-niet.json' },
+      encoding: 'utf8', timeout: 10000,
+    });
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /Certificaatcontrole is uitgeschakeld/);
+    assert.equal(result.stdout, '');
+    assert.doesNotMatch(result.stderr, /bestaat-niet|ENOENT/);
+  }
 });
 
 test('oude profielvelden leveren nooit automatisch beheerdersrechten op', async () => {

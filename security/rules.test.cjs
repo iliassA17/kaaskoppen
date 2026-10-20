@@ -55,6 +55,24 @@ test('een gebruiker kan de eigen boekingen inclusief nulprijs lezen en bewaren',
   await assertSucceeds(setDoc(doc(db, 'instellingen', 'alice'), { standaardPrijs: 0 }));
 });
 
+test('een vertrouwd gemigreerde oude naam blijft eigenaar, zonder de nieuwe naamregels te versoepelen', async () => {
+  const name = 'Jos\u00e9 de Vries';
+  await env.withSecurityRulesDisabled(async context => {
+    const db = context.firestore();
+    await setDoc(doc(db, 'accounts', name), { uid: 'legacy-uid', gebruiker: name, email: 'legacy@example.test' });
+    await setDoc(doc(db, 'authUsers', 'legacy-uid'), { gebruiker: name });
+    await setDoc(doc(db, 'boekingen', 'oud'), { gebruiker: name, prijs: 10 });
+  });
+  const db = env.authenticatedContext('legacy-uid', { email: 'legacy@example.test', email_verified: true }).firestore();
+  await assertSucceeds(getDoc(doc(db, 'accounts', name)));
+  await assertSucceeds(getDocs(query(collection(db, 'boekingen'), where('gebruiker', '==', name))));
+  await assertSucceeds(updateDoc(doc(db, 'boekingen', 'oud'), { prijs: 0 }));
+  await assertFails(getDoc(doc(db, 'boekingen', 'alice')));
+  await assertFails(getDoc(doc(user('alice'), 'boekingen', 'oud')));
+  await assertFails(signup(user('nieuw', { email_verified: false }), 'a'));
+  await assertFails(signup(user('nieuw', { email_verified: false }), 'Nieuwe Naam'));
+});
+
 test('een ander account, andere filters en een onbeperkte zoekopdracht geven geen toegang', async () => {
   const db = user('alice');
   for (const path of ['accounts/bob', 'boekingen/bob', 'instellingen/bob', 'pushSubscriptions/bob']) {
