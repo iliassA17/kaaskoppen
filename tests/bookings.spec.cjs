@@ -33,7 +33,9 @@ async function openApp(page, path = '/') {
           return { docs, empty: docs.length === 0 };
         },
         doc(id) {
+          id = id || 'test-' + crypto.randomUUID();
           return {
+            id,
             testCollection: name,
             testId: id,
             async get() {
@@ -77,6 +79,16 @@ async function openApp(page, path = '/') {
             },
           };
         },
+        async runTransaction(callback) {
+          const batch = this.batch();
+          const result = await callback({
+            get: ref => ref.get(),
+            set: (ref, data) => batch.set(ref, data),
+            delete: ref => batch.delete(ref),
+          });
+          await batch.commit();
+          return result;
+        },
       }),
     };
     window.emailjs = { init() {}, send: async () => {} };
@@ -105,6 +117,7 @@ for (const path of ['/', '/boekingen.html']) {
       expect(await page.evaluate(() => boekingen[0].prijs)).toBe(0);
       await page.evaluate(() => openBewerkModal('2026-11-02', 600, 0));
       await expect(page.locator('#bewerk-prijs')).toHaveValue('0');
+      await page.locator('#bewerk-naam').fill('Gratis bijgewerkt');
       await page.locator('#bewerk-opslaan-btn').click();
       await expect.poll(() => page.evaluate(() => testWrites.length)).toBe(2);
       expect(await page.evaluate(() => boekingen[0].prijs)).toBe(0);
@@ -223,6 +236,7 @@ for (const path of ['/', '/boekingen.html']) {
     }
 
     test('toevoegen, betalen, verwijderen en ongedaan maken werken achter elkaar', async ({ page }) => {
+      await page.evaluate(() => document.querySelector('[data-groep="betaling"][data-waarde="achteraf"]').click());
       await page.locator('#add-btn').click();
       await expect.poll(() => page.evaluate(() => testWrites.length)).toBe(1);
       await page.evaluate(() => markeerBetaald('2026-11-02', 600, 0));

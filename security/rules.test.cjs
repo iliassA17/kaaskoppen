@@ -55,6 +55,26 @@ test('een gebruiker kan de eigen boekingen inclusief nulprijs lezen en bewaren',
   await assertSucceeds(setDoc(doc(db, 'instellingen', 'alice'), { standaardPrijs: 0 }));
 });
 
+test('een transactie mag afwezigheid controleren maar kan geen boeking van een ander lezen of maken', async () => {
+  const db = user('alice');
+  await assertSucceeds(runTransaction(db, async tx => {
+    const ref = doc(db, 'boekingen', 'nieuw-document');
+    const snapshot = await tx.get(ref);
+    assert.equal(snapshot.exists(), false);
+    tx.set(ref, { gebruiker: 'alice', prijs: 0 });
+  }));
+  await assertFails(runTransaction(db, async tx => { await tx.get(doc(db, 'boekingen', 'bob')); }));
+  await assertFails(runTransaction(db, async tx => {
+    const ref = doc(db, 'boekingen', 'vervalst-document');
+    await tx.get(ref);
+    tx.set(ref, { gebruiker: 'bob', prijs: 0 });
+  }));
+  for (const context of [env.unauthenticatedContext(), env.authenticatedContext('geen-profiel', { email_verified: true }),
+    env.authenticatedContext('alice-uid', { email_verified: false })]) {
+    await assertFails(getDoc(doc(context.firestore(), 'boekingen', 'niet-bestaand')));
+  }
+});
+
 test('een vertrouwd gemigreerde oude naam blijft eigenaar, zonder de nieuwe naamregels te versoepelen', async () => {
   const name = 'Jos\u00e9 de Vries';
   await env.withSecurityRulesDisabled(async context => {

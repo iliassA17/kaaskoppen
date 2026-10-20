@@ -57,6 +57,129 @@ async function login(page, email = 'alice@example.test', pass = password) {
   await page.locator('#auth-btn').click();
 }
 
+async function voegTestBoekingToe(page, name = 'Nieuwe boeking') {
+  await page.locator('#naam').fill(name);
+  await page.locator('#datum').fill('2026-11-03');
+  await page.locator('#starttijd').fill('10:00');
+  await page.locator('#prijs-input').fill('0');
+  await page.evaluate(() => {
+    window.testOpslagFout = null;
+    const original = slaOp;
+    slaOp = function() {
+      return original.apply(this, arguments).catch(error => {
+        window.testOpslagFout = error.code || error.message;
+        throw error;
+      });
+    };
+  });
+  await page.locator('#add-btn').click();
+  await expect.poll(() => page.evaluate(() => boekingOpslaanBezig)).toBe(false);
+  expect(await page.evaluate(() => window.testOpslagFout)).toBeNull();
+  await expect(page.locator('#logboek')).toContainText('toegevoegd');
+}
+
+test('nieuwe boeking bewaren werkt ook naast een oud veld dat niet aan de nieuwe regels voldoet', async ({ page }) => {
+  await seedUser();
+  await database.doc('boekingen/alice').update({ platform: null });
+  const oldBooking = (await database.doc('boekingen/alice').get()).data();
+  await page.goto('/');
+  await login(page);
+  await expect(page.locator('#app')).toBeVisible();
+  await voegTestBoekingToe(page);
+  expect((await database.doc('boekingen/alice').get()).data()).toEqual(oldBooking);
+  const saved = await database.collection('boekingen').where('naam', '==', 'Nieuwe boeking').get();
+  expect(saved.size).toBe(1);
+  expect(saved.docs[0].data().prijs).toBe(0);
+  expect(saved.docs[0].data()._documentId).toBeUndefined();
+  await page.reload();
+  await expect(page.locator('#app')).toBeVisible();
+  expect(await page.evaluate(() => boekingen.filter(b => b.naam === 'Nieuwe boeking').map(b => b.prijs))).toEqual([0]);
+});
+
+test('toevoegen naast 502 bestaande boekingen wijzigt uitsluitend de nieuwe boeking', async ({ page }) => {
+  await seedUser();
+  for (let offset = 0; offset < 501; offset += 200) {
+    const batch = database.batch();
+    for (let i = offset; i < Math.min(offset + 200, 501); i++) {
+      const date = new Date(Date.UTC(2023, 0, 1 + i)).toISOString().slice(0, 10);
+      batch.set(database.doc('boekingen/oud-' + i), { gebruiker: 'alice', datumStr: date, start: 600, eind: 695,
+        naam: 'Bestaand ' + i, prijs: 10, tijdvak: 0, betaling: 'betaald' });
+    }
+    await batch.commit();
+  }
+  const oldVersion = (await database.doc('boekingen/alice').get()).updateTime;
+  await page.goto('/');
+  await login(page);
+  await expect(page.locator('#app')).toBeVisible();
+  expect(await page.evaluate(() => boekingen.length)).toBe(502);
+  await voegTestBoekingToe(page);
+  expect((await database.doc('boekingen/alice').get()).updateTime.isEqual(oldVersion)).toBe(true);
+  expect((await database.collection('boekingen').where('gebruiker', '==', 'alice').get()).size).toBe(503);
+});
+
+test('toevoegen overschrijft of verwijdert geen andere wijzigingen van een tweede apparaat', async ({ page }) => {
+  await seedUser();
+  await page.goto('/');
+  await login(page);
+  await expect(page.locator('#app')).toBeVisible();
+  await database.doc('boekingen/alice').update({ naam: 'Op ander apparaat gewijzigd' });
+  await database.doc('boekingen/ander-apparaat').set({ gebruiker: 'alice', datumStr: '2026-11-04', start: 600,
+    eind: 695, naam: 'Op ander apparaat toegevoegd', prijs: 10, tijdvak: 0, betaling: 'betaald' });
+  await voegTestBoekingToe(page);
+  expect((await database.doc('boekingen/alice').get()).data().naam).toBe('Op ander apparaat gewijzigd');
+  expect((await database.doc('boekingen/ander-apparaat').get()).exists).toBe(true);
+});
+
+test('bewerken behoudt het document-ID en nulprijs, en verwijderen en ongedaan maken blijven werken', async ({ page }) => {
+  await seedUser();
+  await page.goto('/');
+  await login(page);
+  await expect(page.locator('#app')).toBeVisible();
+  await page.evaluate(() => openBewerkModal('2026-11-02', 600, 0));
+  await page.locator('#bewerk-tijd').fill('12:00');
+  await page.locator('#bewerk-prijs').fill('0');
+  await page.locator('#bewerk-opslaan-btn').click();
+  await expect(page.locator('#bewerk-overlay')).toBeHidden();
+  const edited = (await database.doc('boekingen/alice').get()).data();
+  expect(edited.start).toBe(720);
+  expect(edited.prijs).toBe(0);
+  expect(edited._documentId).toBeUndefined();
+  await page.evaluate(() => verwijderBoeking('2026-11-02', 720, 0));
+  expect((await database.doc('boekingen/alice').get()).exists).toBe(false);
+  await page.evaluate(() => ongedaanMaken());
+  expect((await database.doc('boekingen/alice').get()).data()).toEqual(edited);
+  await page.reload();
+  await expect(page.locator('#app')).toBeVisible();
+  expect(await page.evaluate(() => boekingen.map(b => [b.start, b.prijs]))).toEqual([[720, 0]]);
+});
+
+test('een gelijktijdig gewijzigde boeking geeft een duidelijke melding en wordt niet overschreven', async ({ page }) => {
+  await seedUser();
+  await page.goto('/');
+  await login(page);
+  await expect(page.locator('#app')).toBeVisible();
+  await database.doc('boekingen/alice').update({ naam: 'Actuele naam' });
+  await page.evaluate(() => openBewerkModal('2026-11-02', 600, 0));
+  await page.locator('#bewerk-naam').fill('Verouderde wijziging');
+  await page.locator('#bewerk-opslaan-btn').click();
+  await expect(page.locator('#bewerk-error')).toContainText('inmiddels gewijzigd');
+  expect((await database.doc('boekingen/alice').get()).data().naam).toBe('Actuele naam');
+});
+
+test('een geweigerde boeking toont een rechtenmelding en laat de database ongewijzigd', async ({ page }) => {
+  await seedUser();
+  await page.goto('/');
+  await login(page);
+  await expect(page.locator('#app')).toBeVisible();
+  await page.locator('#datum').fill('2026-11-03');
+  await page.locator('#starttijd').fill('10:00');
+  await page.locator('#naam').fill('x'.repeat(501));
+  await page.locator('#add-btn').click();
+  await expect(page.locator('#logboek')).toContainText('permission-denied');
+  expect((await database.collection('boekingen').get()).size).toBe(1);
+  expect(await page.evaluate(() => boekingen.length)).toBe(1);
+});
+
 test('een vervalste oude browsersessie geeft geen toegang', async ({ page }) => {
   await seedUser();
   await page.addInitScript(() => localStorage.setItem('auth_sessie', 'alice'));
@@ -99,6 +222,8 @@ test('een oude naam met hoofdletters, spaties en accent werkt na migratie en beh
   await expect(page.locator('#app')).toBeVisible();
   expect(await page.evaluate(() => huidigeGebruiker)).toBe(name);
   expect(await page.evaluate(() => boekingen.map(b => [b.gebruiker, b.prijs]))).toEqual([[name, 0]]);
+  await voegTestBoekingToe(page);
+  expect((await database.collection('boekingen').where('gebruiker', '==', name).get()).size).toBe(2);
   await page.reload();
   await expect(page.locator('#app')).toBeVisible();
   expect(await page.evaluate(() => huidigeGebruiker)).toBe(name);

@@ -77,7 +77,12 @@ service cloud.firestore {
     }
 
     match /boekingen/{id} {
-      allow read: if staff() || owner(resource.data.gebruiker);
+      // Transactions check that a new document is absent before creating it.
+      // This grants no access to another user's existing booking or queries.
+      allow get: if staff() ||
+        (!exists(/databases/$(database)/documents/boekingen/$(id)) && owner(username())) ||
+        owner(resource.data.gebruiker);
+      allow list: if staff() || owner(resource.data.gebruiker);
       allow create: if owner(request.resource.data.gebruiker) && validBooking(request.resource.data);
       allow update: if owner(resource.data.gebruiker) && request.resource.data.gebruiker == resource.data.gebruiker && validBooking(request.resource.data);
       allow delete: if admin() || owner(resource.data.gebruiker);

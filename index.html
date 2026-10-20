@@ -1124,27 +1124,75 @@ if (window.location.hostname === '127.0.0.1' && window.BOEKINGEN_TEST_CONFIG) {
   db.useEmulator('127.0.0.1', 8080);
 }
 
-function slaOp(gebruiker, lijst) {
+function boekingData(boeking, gebruiker) {
+  var data = Object.assign({}, boeking);
+  if (gebruiker !== undefined) data.gebruiker = gebruiker;
+  delete data._documentId;
+  return data;
+}
+
+function zelfdeBoeking(a, b) {
+  function gesorteerd(key, value) {
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      var result = Object.create(null);
+      Object.keys(value).sort().forEach(function(k) { result[k] = value[k]; });
+      return result;
+    }
+    return value;
+  }
+  return JSON.stringify(a, gesorteerd) === JSON.stringify(b, gesorteerd);
+}
+
+function boekingOpslagFout(code) {
+  var error = new Error(code);
+  error.code = code;
+  return error;
+}
+
+function slaOp(gebruiker, lijst, vorigeLijst) {
   gebruiker = gebruiker || huidigeGebruiker;
   lijst = lijst || JSON.parse(JSON.stringify(boekingen));
   var generatie = authGeneratie;
   var ref = db.collection('boekingen');
-  return ref.where('gebruiker','==',gebruiker).get().then(function(snap) {
-    if (generatie !== authGeneratie || gebruiker !== huidigeGebruiker) throw new Error('Sessie gewijzigd.');
-    var batch = db.batch();
-    snap.docs.forEach(function(d){ batch.delete(d.ref); });
-    lijst.forEach(function(b) {
-      var docRef = ref.doc(gebruiker+'_'+b.datumStr+'_'+b.start+'_tv'+(b.tijdvak == null ? 0 : b.tijdvak));
-      batch.set(docRef, Object.assign({},b,{gebruiker:gebruiker}));
+  function opId(boekingsLijst) {
+    var records = new Map();
+    boekingsLijst.forEach(function(b) {
+      var id = b._documentId || (gebruiker+'_'+b.datumStr+'_'+b.start+'_tv'+(b.tijdvak == null ? 0 : b.tijdvak));
+      if (records.has(id)) throw boekingOpslagFout('invalid-argument');
+      records.set(id, boekingData(b, gebruiker));
     });
-    return batch.commit();
+    return records;
+  }
+  var vorige = opId(vorigeLijst || []), volgende = opId(lijst);
+  var wijzigingen = [];
+  var ids = new Set(Array.from(vorige.keys()).concat(Array.from(volgende.keys())));
+  ids.forEach(function(id) {
+    var voor = vorige.get(id), na = volgende.get(id);
+    if (!zelfdeBoeking(voor, na)) wijzigingen.push({ref: ref.doc(id), voor: voor, na: na});
+  });
+  if (!wijzigingen.length) return Promise.resolve();
+  if (wijzigingen.length > 400) return Promise.reject(boekingOpslagFout('resource-exhausted'));
+  // Read only the documents this action changes. Existing legacy records and
+  // unrelated changes on another device must never be rewritten or removed.
+  return db.runTransaction(function(transaction) {
+    return Promise.all(wijzigingen.map(function(w) { return transaction.get(w.ref); })).then(function(snapshots) {
+      if (generatie !== authGeneratie || gebruiker !== huidigeGebruiker) throw boekingOpslagFout('unauthenticated');
+      wijzigingen.forEach(function(w, i) {
+        var snap = snapshots[i];
+        var actueel = snap.exists ? boekingData(snap.data()) : undefined;
+        if (zelfdeBoeking(actueel, w.na)) return; // An earlier attempt may already have succeeded.
+        if (!zelfdeBoeking(actueel, w.voor)) throw boekingOpslagFout('aborted');
+        if (w.na) transaction.set(w.ref, w.na);
+        else transaction.delete(w.ref);
+      });
+    });
   });
 }
 function laadBoekingen() {
   var gebruiker = huidigeGebruiker, generatie = authGeneratie;
   return db.collection('boekingen').where('gebruiker','==',gebruiker).get().then(function(snap) {
     if (generatie !== authGeneratie || gebruiker !== huidigeGebruiker) return;
-    boekingen = snap.docs.map(function(d){ return d.data(); });
+    boekingen = snap.docs.map(function(d){ return Object.assign({}, d.data(), {_documentId: d.id}); });
   });
 }
 function syncTijdvakFormSelect() {
@@ -1619,22 +1667,31 @@ function bewaarBoekingWijziging(wijziging, naOpslaan, isUndo) {
   knoppen.forEach(function(btn) { btn.disabled = true; });
   if (!isUndo) slaSnapshot();
   wijziging();
+  boekingen.forEach(function(b) {
+    if (!b._documentId) b._documentId = db.collection('boekingen').doc().id;
+  });
   var opslagLijst = JSON.parse(JSON.stringify(boekingen));
   return Promise.resolve().then(function() {
     if (generatie !== authGeneratie) return;
-    return slaOp(opslagGebruiker, opslagLijst);
+    return slaOp(opslagGebruiker, opslagLijst, JSON.parse(vorigeBoekingen));
   }).then(function() {
     if (generatie !== authGeneratie) return false;
     if (naOpslaan) naOpslaan();
     return true;
-  }, function() {
+  }, function(error) {
     if (generatie !== authGeneratie) return false;
     boekingen = JSON.parse(vorigeBoekingen);
     undoStack = vorigeUndo;
-    voegLogToe('Niet opgeslagen. Controleer je verbinding en probeer opnieuw.', 'error');
+    var melding = 'Niet opgeslagen. Controleer je verbinding en probeer opnieuw.';
+    if (error && error.code === 'permission-denied') melding = 'Niet opgeslagen: de database weigert deze wijziging (permission-denied).';
+    else if (error && error.code === 'unauthenticated') melding = 'Niet opgeslagen: log opnieuw in en probeer nogmaals.';
+    else if (error && error.code === 'aborted') melding = 'Niet opgeslagen: deze boeking is inmiddels gewijzigd. Vernieuw de pagina en probeer opnieuw.';
+    else if (error && error.code === 'resource-exhausted') melding = 'Niet opgeslagen: te veel wijzigingen tegelijk. Probeer een kleinere selectie.';
+    else if (error && error.code === 'invalid-argument') melding = 'Niet opgeslagen: controleer de datum, tijd en prijs van de boeking.';
+    voegLogToe(melding, 'error');
     var fout = document.getElementById('bewerk-error');
     if (document.getElementById('bewerk-overlay').style.display === 'flex') {
-      fout.textContent = 'Niet opgeslagen. Je wijziging is niet bewaard. Probeer opnieuw.';
+      fout.textContent = melding;
       fout.style.display = 'block';
     }
     renderOverzicht();
@@ -3624,9 +3681,11 @@ function renderBeheerMeldingen() {
 
 /* ===== BELL: CHECK NIEUWE UPDATES ===== */
 function checkNieuweUpdates() {
-  db.collection('updates').get().then(function(snap) {
-    if (snap.empty) return;
-    db.collection('accounts').doc(huidigeGebruiker).get().then(function(doc) {
+  var gebruiker = huidigeGebruiker, generatie = authGeneratie;
+  return db.collection('updates').get().then(function(snap) {
+    if (snap.empty || generatie !== authGeneratie || gebruiker !== huidigeGebruiker) return;
+    return db.collection('accounts').doc(gebruiker).get().then(function(doc) {
+      if (generatie !== authGeneratie || gebruiker !== huidigeGebruiker) return;
       var gelezen = doc.exists && doc.data().gelezenUpdates ? doc.data().gelezenUpdates : [];
       var heeftNieuw = snap.docs.some(function(d){ return gelezen.indexOf(d.id) === -1; });
       if (heeftNieuw) {
@@ -3645,7 +3704,7 @@ function checkNieuweUpdates() {
         }
       }
     });
-  });
+  }).catch(function() { /* Updates are optional; signing out can cancel this read. */ });
 }
 
 /* ===== PUSH NOTIFICATIES ===== */

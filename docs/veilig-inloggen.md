@@ -234,5 +234,21 @@ gebruikers kan later op een beperkte openbare gegevensbron worden aangesloten.
 Een gewone gebruiker kan een melding plaatsen, maar geen push naar alle
 abonnees versturen. Beheerders kunnen wel algemene updates en push publiceren.
 
-Deze wijziging lost het afzonderlijke probleem van gelijktijdige wijzigingen
-van de volledige boekingenlijst vanaf meerdere apparaten nog niet op.
+Boekingen worden per document opgeslagen. Een nieuwe boeking herschrijft geen
+oude records; een oud veld dat niet aan de nieuwe invoerregels voldoet blokkeert
+daardoor geen nieuwe boekingen. De oorspronkelijke document-ID's blijven bij
+bewerken behouden. Een transactie vergelijkt gewijzigde records met de eerder
+geladen versie en weigert het overschrijven van een gelijktijdige wijziging.
+Wijzigingen aan andere records blijven staan. Alleen de gewijzigde documenten
+worden gelezen en geschreven, ook bij honderden bestaande boekingen.
+
+Voor deze transacties moeten de bijgewerkte `firestore.rules` gepubliceerd zijn:
+een geverifieerde gebruiker met een geldige profielkoppeling mag controleren
+dat een boekingsdocument nog niet bestaat. Bestaande privéboekingen van andere
+gebruikers blijven afgeschermd en aanmaken voor een andere eigenaar blijft
+verboden. Publiceer daarna de bijbehorende Netlify-build van `veilig-inloggen`.
+De accountmigratie hoeft voor deze opslagreparatie niet opnieuw te worden uitgevoerd.
+
+De app bewaakt tijdvakconflicten in de geladen planning. Gelijktijdig op twee
+apparaten verschillende nieuwe boekingen in hetzelfde tijdvak plaatsen vereist
+nog een aparte controle op de server. Deze reparatie verandert die controle niet.
