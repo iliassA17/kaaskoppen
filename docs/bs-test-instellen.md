@@ -119,6 +119,19 @@ reset bestaande wachtwoorden niet wanneer je het opnieuw uitvoert.
     de nieuwe testsite-hostnaam toe, zonder https:// of een pad.
 11. Activeer het klantenportaal in Stripe Sandbox volgens de Stripe-handleiding.
 
+### Als Netlify de publieke Firebase-websleutel meldt
+
+De Firebase-websleutel in index.html hoort bij de publieke browserconfiguratie.
+Netlify kan deze als `likely secret` herkennen. netlify.toml bevat daarom
+`SECRETS_SCAN_SMART_DETECTION_OMIT_VALUES` met uitsluitend die exacte publieke
+BS-testwaarde. Andere sleutels blijven gecontroleerd; schakel secrets scanning
+niet uit. Firestore-regels en Firebase Authentication bepalen de toegang tot
+de gegevens. De privé serviceaccount-JSON en Stripe-sleutels horen nooit in
+de browserbestanden of deze uitzonderingslijst.
+
+Bij een mislukte deploy op de oude commit: open **Deploys → Trigger deploy →
+Deploy project** om de nieuwste versie van **stripe-sandbox** te publiceren.
+
 ## Proefweek inschakelen en verlopen testen
 
 Als de testsite, geheime instellingen en webhook gereed zijn:
