@@ -162,6 +162,15 @@ webhooks verwerken. Je kunt levenslang als laatste optie testen.
 
 ## Automatische tests
 
+netlify.toml gebruikt de esbuild-bundler voor de Functions. Firebase Admin laadt
+via jwks-rsa een ES-module met require(); zonder bundeling crasht dit op de
+Node/Lambda-runtime (`ERR_REQUIRE_ESM`). esbuild zet deze afhankelijkheden om
+naar een compatibele bundel. security/runtime.test.cjs bouwt alle Functions met
+Netlify's eigen bundler en start de gemaakte bestanden vervolgens met
+`--no-experimental-require-module`. Zo blijft deze fout niet verborgen door een
+lokaal nieuwere Node-versie. Firebase Admin en de beveiligingsinstellingen
+blijven behouden.
+
 ~~~sh
 npm test
 npm run test:security

@@ -8,6 +8,10 @@
   # Keep secrets scanning enabled; allow only this exact public key.
   SECRETS_SCAN_SMART_DETECTION_OMIT_VALUES = "AIzaSyAd20JV7U52dVIP-9jP3XOvwkujR9AF7Lo"
 
+[functions]
+  # Compile ESM dependencies into the CommonJS handlers used by Lambda.
+  node_bundler = "esbuild"
+
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"
