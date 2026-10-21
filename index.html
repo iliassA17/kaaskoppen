@@ -359,6 +359,39 @@
   .abonnement-acties{display:flex;gap:12px;flex-wrap:wrap;}
   .abonnement-acties button{flex:1;min-width:145px;}
   .abonnement-dialoog [hidden]{display:none;}
+  .abonnement-menu-item{display:block;width:100%;text-align:left;background:none;border:0;}
+  .abonnement-beheer{padding-top:16px;}
+  .abonnement-beheer [hidden]{display:none!important;}
+  .abonnement-beheer .pagina-header{gap:16px;align-items:flex-start;}
+  .abonnement-beheer h1{font-size:clamp(1.45rem,4vw,2.2rem);}
+  .abonnement-intro{color:var(--muted);font-size:0.8rem;line-height:1.8;margin:-8px 0 28px;}
+  .abonnement-samenvatting{display:grid;grid-template-columns:1.2fr 1fr;gap:18px;margin-bottom:26px;}
+  .abonnement-kaart,.factuur-kaart{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:24px;}
+  .abonnement-kaart h2{font-size:1.4rem;margin:12px 0;color:var(--accent);}
+  .abonnement-kaart p{font-size:0.78rem;line-height:1.8;color:var(--muted);margin:8px 0 0;}
+  .abonnement-label{font-size:0.66rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);}
+  .factuur-status{display:inline-block;border:1px solid var(--border);border-radius:30px;padding:5px 10px;font-size:0.65rem;line-height:1.5;}
+  .factuur-status.betaald{color:var(--success);border-color:var(--success);}
+  .factuur-status.openstaand{color:var(--accent);border-color:var(--accent);}
+  .factuur-status.oninbaar{color:var(--error);border-color:var(--error);}
+  .abonnement-pagina-acties,.factuur-acties{display:flex;gap:10px;flex-wrap:wrap;margin:16px 0 26px;}
+  .factuur-knop{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:11px 15px;color:var(--text);font-family:inherit;font-size:0.72rem;text-decoration:none;cursor:pointer;line-height:1.5;}
+  .factuur-knop:hover{border-color:var(--accent);color:var(--accent);}
+  .factuur-knop.primair{background:var(--accent);border-color:var(--accent);color:#171511;}
+  .factuur-knop:disabled{opacity:0.5;cursor:wait;}
+  .facturen-kop{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:30px 0 16px;}
+  .facturen-kop h2{font-size:1.2rem;}
+  .facturen-lijst{display:grid;gap:14px;}
+  .factuur-kop{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;}
+  .factuur-kop h3{font-size:0.85rem;overflow-wrap:anywhere;margin:0;}
+  .factuur-details{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin:20px 0 0;}
+  .factuur-details dt{font-size:0.65rem;color:var(--muted);margin-bottom:7px;line-height:1.7;}
+  .factuur-details dd{font-size:0.82rem;margin:0;line-height:1.6;}
+  .factuur-acties{margin:20px 0 0;}
+  .facturen-leeg{padding:32px 24px;border:1px dashed var(--border);border-radius:14px;color:var(--muted);font-size:0.8rem;line-height:1.9;}
+  .abonnement-pagina-fout{color:var(--error);font-size:0.8rem;line-height:1.8;margin:16px 0;}
+  .abonnement-laden{color:var(--muted);font-size:0.8rem;margin:20px 0;}
+  @media(max-width:620px){.abonnement-samenvatting{grid-template-columns:1fr;}.abonnement-kaart,.factuur-kaart{padding:20px;}.factuur-details{grid-template-columns:1fr 1fr;}.abonnement-pagina-acties .factuur-knop{flex:1;}.facturen-kop{align-items:flex-start;}}
   @media(max-width:520px){.abonnement-opties{grid-template-columns:1fr;}.abonnement-dialoog{padding:20px;}}
 </style>
 </head>
@@ -705,6 +738,7 @@
   <div class="menu-item" id="menu-ranglijst">&#127942; Ranglijst</div>
   <div class="menu-item" id="menu-nieuws">&#128240; Nieuws</div>
   <div class="menu-item" id="menu-profiel">&#128100; Profiel</div>
+  <button class="menu-item abonnement-menu-item" id="menu-abonnement" type="button">&#128179; Abonnement beheren</button>
   <div class="menu-item" id="menu-instellingen">&#9881; Instellingen</div>
   <div class="menu-item" id="menu-beheer" style="display:none;">&#128737; Beheerderspagina</div>
   <div class="menu-item menu-item-danger" id="menu-logout">&#8618; Uitloggen</div>
@@ -843,6 +877,46 @@
     </div>
     <div id="logboek"><div class="log-empty">Nog geen meldingen</div></div>
   </div>
+</div>
+
+<!-- Abonnement en eigen facturen -->
+<div class="container abonnement-beheer" id="pagina-abonnement" style="display:none;" aria-busy="false">
+  <div class="pagina-header">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <button class="nav-btn" id="abonnement-pagina-terug" type="button" aria-label="Terug">&#8592;</button>
+      <h1 style="margin-bottom:0;" id="abonnement-pagina-titel" tabindex="-1">Abonnement beheren</h1>
+    </div>
+    <button class="hamburger-btn" id="hamburger-btn-abonnement" type="button" aria-label="Menu"><span></span><span></span><span></span></button>
+  </div>
+  <p class="abonnement-intro">Je abonnement, betalingen en facturen op één plek.</p>
+  <p class="abonnement-laden" id="abonnement-overzicht-laden" role="status" hidden>Je abonnement en facturen worden opgehaald…</p>
+  <p class="abonnement-pagina-fout" id="abonnement-overzicht-fout" role="alert" hidden></p>
+  <div id="abonnement-overzicht-inhoud" hidden>
+    <div class="abonnement-samenvatting">
+      <section class="abonnement-kaart" aria-labelledby="abonnement-huidig-label">
+        <span class="abonnement-label" id="abonnement-huidig-label">Jouw abonnement</span>
+        <h2 id="abonnement-huidig-naam"></h2>
+        <span class="factuur-status" id="abonnement-huidig-status"></span>
+        <p id="abonnement-huidig-prijs"></p>
+        <p id="abonnement-huidig-periode"></p>
+      </section>
+      <section class="abonnement-kaart" aria-labelledby="abonnement-volgend-label">
+        <span class="abonnement-label" id="abonnement-volgend-label">Volgende betaling</span>
+        <h2 id="abonnement-volgend-bedrag"></h2>
+        <p id="abonnement-volgend-datum"></p>
+        <p id="abonnement-volgend-uitleg"></p>
+      </section>
+    </div>
+    <div class="abonnement-pagina-acties">
+      <button class="factuur-knop" id="abonnement-portaal-openen" type="button" hidden>Betaalgegevens en opzeggen</button>
+      <button class="factuur-knop primair" id="abonnement-betaalopties-openen" type="button" hidden>Betaalopties bekijken</button>
+    </div>
+    <div class="facturen-kop"><h2>Facturen</h2></div>
+    <div class="facturen-lijst" id="abonnement-facturen-lijst"></div>
+    <p class="facturen-leeg" id="abonnement-facturen-leeg" hidden></p>
+    <div class="abonnement-pagina-acties"><button class="factuur-knop" id="abonnement-facturen-meer" type="button" hidden>Meer facturen laden</button></div>
+  </div>
+  <button class="factuur-knop" id="abonnement-overzicht-verversen" type="button">Opnieuw ophalen</button>
 </div>
 
 <!-- Profiel pagina -->
@@ -1486,8 +1560,10 @@ function toonPagina(pagina) {
   document.getElementById('pagina-beheer').style.display = pagina==='beheer' ? 'block' : 'none';
   document.getElementById('pagina-ranglijst').style.display = pagina==='ranglijst' ? 'block' : 'none';
   document.getElementById('pagina-nieuws').style.display = pagina==='nieuws' ? 'block' : 'none';
+  document.getElementById('pagina-abonnement').style.display = pagina==='abonnement' ? 'block' : 'none';
+  abonnementBeheerOpen = pagina === 'abonnement';
   document.getElementById('menu-bar').classList.remove('open');
-  ['hamburger-btn','hamburger-btn-profiel','hamburger-btn-inst','hamburger-btn-stat','hamburger-btn-pathe','hamburger-btn-beheer','hamburger-btn-ranglijst','hamburger-btn-nieuws'].forEach(function(id){ var el=document.getElementById(id); if(el) el.classList.remove('open'); });
+  ['hamburger-btn','hamburger-btn-profiel','hamburger-btn-inst','hamburger-btn-stat','hamburger-btn-pathe','hamburger-btn-beheer','hamburger-btn-ranglijst','hamburger-btn-nieuws','hamburger-btn-abonnement'].forEach(function(id){ var el=document.getElementById(id); if(el) el.classList.remove('open'); });
   window.scrollTo({top:0, behavior:'smooth'});
 }
 
@@ -1804,6 +1880,7 @@ function toonApp(user) {
     var herstelpagina = sessionStorage.getItem('huidigePagina') || 'schema';
     if (gotoParam === 'nieuws' || gotoParam === 'meldingen') { openNieuwsPagina(); }
     else if (herstelpagina === 'profiel') { openProfiel(); }
+    else if (herstelpagina === 'abonnement') { openAbonnementOverzicht(); }
     else if (herstelpagina === 'instellingen') { openInstellingen(); }
     else if (herstelpagina === 'statistieken') { toonPagina('statistieken'); renderStatistieken(); }
     else if (herstelpagina === 'pathe') { openPathe(); }
@@ -3887,21 +3964,21 @@ document.addEventListener('DOMContentLoaded', function() {
     e.stopPropagation();
     document.getElementById('melding-bar').classList.remove('open');
     var open = document.getElementById('menu-bar').classList.toggle('open');
-    ['hamburger-btn','hamburger-btn-profiel','hamburger-btn-inst','hamburger-btn-nieuws'].forEach(function(id){ var el=document.getElementById(id); if(el) el.classList.toggle('open', open); });
+    ['hamburger-btn','hamburger-btn-profiel','hamburger-btn-inst','hamburger-btn-nieuws','hamburger-btn-abonnement'].forEach(function(id){ var el=document.getElementById(id); if(el) el.classList.toggle('open', open); });
   }
   ['bel-btn','bel-btn-profiel','bel-btn-inst','bel-btn-stat','bel-btn-pathe','bel-btn-nieuws'].forEach(function(id){ var el=document.getElementById(id); if(el) el.addEventListener('click', toggleMeldingBar); });
-  ['hamburger-btn','hamburger-btn-profiel','hamburger-btn-inst','hamburger-btn-stat','hamburger-btn-pathe','hamburger-btn-beheer','hamburger-btn-ranglijst','hamburger-btn-nieuws'].forEach(function(id){ var el=document.getElementById(id); if(el) el.addEventListener('click', toggleMenuBar); });
+  ['hamburger-btn','hamburger-btn-profiel','hamburger-btn-inst','hamburger-btn-stat','hamburger-btn-pathe','hamburger-btn-beheer','hamburger-btn-ranglijst','hamburger-btn-nieuws','hamburger-btn-abonnement'].forEach(function(id){ var el=document.getElementById(id); if(el) el.addEventListener('click', toggleMenuBar); });
   document.getElementById('melding-sluit').addEventListener('click', function(){ document.getElementById('melding-bar').classList.remove('open'); });
   document.getElementById('melding-bar').addEventListener('click', function(e){ e.stopPropagation(); });
   document.getElementById('menu-bar').addEventListener('click', function(e){ e.stopPropagation(); });
   document.getElementById('menu-sluit').addEventListener('click', function(){
     document.getElementById('menu-bar').classList.remove('open');
-    ['hamburger-btn','hamburger-btn-profiel','hamburger-btn-inst','hamburger-btn-nieuws'].forEach(function(id){ var el=document.getElementById(id); if(el) el.classList.remove('open'); });
+    ['hamburger-btn','hamburger-btn-profiel','hamburger-btn-inst','hamburger-btn-nieuws','hamburger-btn-abonnement'].forEach(function(id){ var el=document.getElementById(id); if(el) el.classList.remove('open'); });
   });
   document.addEventListener('click', function(){
     document.getElementById('menu-bar').classList.remove('open');
     document.getElementById('melding-bar').classList.remove('open');
-    ['hamburger-btn','hamburger-btn-profiel','hamburger-btn-inst','hamburger-btn-nieuws'].forEach(function(id){ var el=document.getElementById(id); if(el) el.classList.remove('open'); });
+    ['hamburger-btn','hamburger-btn-profiel','hamburger-btn-inst','hamburger-btn-nieuws','hamburger-btn-abonnement'].forEach(function(id){ var el=document.getElementById(id); if(el) el.classList.remove('open'); });
   });
 
   // Menu items
@@ -4042,6 +4119,7 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 <script src="/subscription-access.js"></script>
 <script src="/subscriptions.js"></script>
+<script src="/billing-overview.js"></script>
 <script src="/auth.js"></script>
 </body>
 </html>

@@ -4,6 +4,7 @@ const {initializeApp} = require('firebase-admin/app');
 const {getFirestore, Timestamp} = require('firebase-admin/firestore');
 const Stripe = require('stripe');
 const {createCheckout, createPortal, processEvent, metadataFor} = require('../netlify/lib/billing.cjs');
+const {billingOverview} = require('../netlify/lib/billing-overview.cjs');
 const {setupSubscriptions, AMOUNTS} = require('../scripts/setup-subscriptions.cjs');
 const {PLANS} = require('../subscription-access.js');
 const projectId = 'demo-kaaskoppen', uid = 'alice-uid';
@@ -54,7 +55,14 @@ beforeEach(async () => {
     billingPortal: {sessions: {create: async params => {
       state.calls.push(['portal', params]); return {url: 'https://billing.stripe.com/p/session/test'};
     }}},
-    invoices: {list: async () => list(state.invoices.filter(invoice => invoice.status === 'paid')),
+    invoices: {list: async params => {
+      state.calls.push(['invoices', params]);
+      const invoices = state.invoices.filter(invoice => (!params.status || invoice.status === params.status) &&
+        (!params.customer || invoice.customer === params.customer));
+      const start = params.starting_after ? invoices.findIndex(invoice => invoice.id === params.starting_after) + 1 : 0;
+      const limit = params.limit || invoices.length;
+      return {...list(invoices.slice(start, start + limit)), has_more: start + limit < invoices.length};
+    }, retrieve: async invoiceId => state.invoices.find(invoice => invoice.id === invoiceId),
       listLineItems: () => list(state.lines)},
     invoicePayments: {list: async () => list(state.invoicePayments)},
     paymentIntents: {retrieve: async paymentId => {
@@ -97,8 +105,83 @@ test('de vier betaalopties gebruiken uitsluitend serverprijzen, vaste looptijden
     assert.equal(params.client_reference_id, uid);
     assert.equal(params.success_url, 'https://app.example.test/?betaling=geslaagd');
     assert.equal((params.subscription_data || params.payment_intent_data).metadata.plan, plan);
+    if (plan === 'levenslang') assert.deepEqual(params.invoice_creation, {enabled: true});
   }
   await assert.rejects(createCheckout(identity, 'onbekend', deps), error => error.statusCode === 400);
+});
+
+test('proefgebruikers en vrijgestelde accounts zien hun status zonder een Stripe-klant aan te maken', async () => {
+  const started = Timestamp.now();
+  await database.doc('billingAccess/' + uid).set({status: 'trial', trialStartedAt: started});
+  const trial = await billingOverview(identity, {}, deps);
+  assert.equal(trial.access.kind, 'trial');
+  assert.equal(trial.access.expiresAt, started.toMillis() + 7 * 86400000);
+  assert.deepEqual(trial.invoices, []);
+  assert.equal(trial.hasCustomer, false);
+  assert.equal(state.calls.length, 0);
+  await database.doc('billingAccess/' + uid).set({status: 'free'});
+  assert.equal((await billingOverview(identity, {}, deps)).access.kind, 'free');
+  assert.equal((await database.doc('billingCustomers/' + uid).get()).exists, false);
+});
+
+test('abonnementsoverzicht toont gekozen plan, volgende betaling en uitsluitend eigen betaalde en open facturen', async () => {
+  await boundCustomer(); const end = subscriptionPayment();
+  await database.doc('billingAccess/' + uid).set({status: 'active', validUntil: Timestamp.fromMillis(end * 1000)});
+  state.invoices = [
+    {id: 'in_open', customer: 'cus_alice', status: 'open', number: '2026-002', currency: 'eur', total: 799,
+      amount_paid: 0, amount_remaining: 799, created: end - 100, due_date: end + 100,
+      invoice_pdf: 'https://pay.stripe.com/invoice/test/pdf', hosted_invoice_url: 'https://invoice.stripe.com/i/test'},
+    {id: 'in_paid', customer: 'cus_alice', status: 'paid', number: '2026-001', currency: 'eur', total: 799,
+      amount_paid: 799, amount_remaining: 0, created: end - 500, status_transitions: {paid_at: end - 400}},
+    {id: 'in_foreign', customer: 'cus_bob', status: 'paid', number: 'PRIVE-BOB'},
+    {id: 'in_draft', customer: 'cus_alice', status: 'draft'},
+  ];
+  const result = await billingOverview(identity, {}, deps);
+  assert.equal(result.subscription.plan, 'maand');
+  assert.equal(result.subscription.amountCents, 799);
+  assert.equal(result.subscription.nextPaymentAt, end * 1000);
+  assert.deepEqual(result.invoices.map(invoice => invoice.id), ['in_open', 'in_paid']);
+  assert.equal(result.invoices[0].remainingCents, 799);
+  assert.equal(result.invoices[0].dueAt, (end + 100) * 1000);
+  assert.equal(result.invoices[1].paidAt, (end - 400) * 1000);
+  assert.equal(result.invoices[0].pdfUrl, 'https://pay.stripe.com/invoice/test/pdf');
+  assert.equal(state.calls.find(call => call[0] === 'invoices')[1].customer, 'cus_alice');
+  state.subscriptions[0].cancel_at_period_end = true;
+  const cancelled = await billingOverview(identity, {}, deps);
+  assert.equal(cancelled.subscription.cancelAtPeriodEnd, true);
+  assert.equal(cancelled.subscription.nextPaymentAt, null);
+});
+
+test('ook verlopen toegang houdt eigen facturen bereikbaar; vreemde klanten, cursors en onveilige links worden geweigerd', async () => {
+  await boundCustomer();
+  await database.doc('billingAccess/' + uid).set({status: 'expired'});
+  state.invoices = [{id: 'in_own', customer: 'cus_alice', status: 'paid', total: 9999,
+    invoice_pdf: 'https://invoice.stripe.com.evil.test/invoice.pdf', hosted_invoice_url: 'javascript:alert(1)'},
+  {id: 'in_foreign', customer: 'cus_bob', status: 'paid'}];
+  const result = await billingOverview(identity, {}, deps);
+  assert.equal(result.access.allowed, false);
+  assert.equal(result.invoices.length, 1);
+  assert.equal(result.invoices[0].pdfUrl, null);
+  assert.equal(result.invoices[0].paymentUrl, null);
+  await assert.rejects(billingOverview(identity, {after: 'in_foreign'}, deps), error => error.statusCode === 400);
+  await assert.rejects(billingOverview(identity, {after: '../bob'}, deps), error => error.statusCode === 400);
+  state.customer.metadata.uid = 'bob-uid';
+  await assert.rejects(billingOverview(identity, {}, deps), /betaalaccount/);
+});
+
+test('factuurpaginering slaat geen facturen over en levenslange toegang krijgt geen volgende afschrijving', async () => {
+  await boundCustomer();
+  state.invoices = Array.from({length: 25}, (_, index) => ({id: 'in_' + index, customer: 'cus_alice', status: 'paid', total: 799}));
+  await database.doc('billingAccess/' + uid).set({status: 'lifetime'});
+  const first = await billingOverview(identity, {}, deps);
+  assert.equal(first.subscription.plan, 'levenslang');
+  assert.equal(first.subscription.nextPaymentAt, null);
+  assert.equal(first.invoices.length, 20);
+  assert.equal(first.nextCursor, 'in_19');
+  const second = await billingOverview(identity, {after: first.nextCursor}, deps);
+  assert.equal(second.invoices.length, 5);
+  assert.equal(second.nextCursor, null);
+  assert.equal(new Set([...first.invoices, ...second.invoices].map(invoice => invoice.id)).size, 25);
 });
 
 test('afwijkende Stripe-prijzen en dubbele betalingen worden tegengehouden', async () => {

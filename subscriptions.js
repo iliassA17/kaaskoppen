@@ -11,6 +11,7 @@ function herstelAbonnementAchtergrond() {
 }
 
 function stopAbonnementen() {
+  resetAbonnementOverzicht();
   abonnementVersie++;
   clearTimeout(abonnementTimer);
   abonnementListeners.forEach(function(stop) { stop(); });
@@ -25,6 +26,7 @@ function stopAbonnementen() {
 }
 
 function toonAbonnementKeuze(status, fout) {
+  abonnementBeheerOpen = false;
   verbergApp();
   document.getElementById('auth-overlay').style.display = 'none';
   var overlay = document.getElementById('abonnement-overlay');
@@ -77,7 +79,7 @@ function toonAbonnementKeuze(status, fout) {
 async function openStripePagina(endpoint, plan, host, feedback) {
   var generatie = authGeneratie, uid = auth && auth.currentUser && auth.currentUser.uid;
   var error = feedback || document.getElementById('abonnement-error');
-  var buttons = Array.from(document.querySelectorAll('#abonnement-dialoog button, #abonnement-beheren-profiel'));
+  var buttons = Array.from(document.querySelectorAll('#abonnement-dialoog button, #abonnement-beheren-profiel, #abonnement-portaal-openen'));
   var disabled = buttons.map(function(button) { return button.disabled; });
   buttons.forEach(function(button) { button.disabled = true; });
   error.hidden = true;
@@ -121,9 +123,8 @@ function planAbonnementControle(status) {
   info.hidden = status.kind !== 'trial' || !status.allowed;
   if (!info.hidden) info.textContent = 'Je gratis proefweek loopt tot ' +
     new Date(status.expiresAt).toLocaleString('nl-NL', {day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'}) + '. Daarna kies je zelf of je verdergaat met een betaaloptie.';
-  document.getElementById('abonnement-beheren-profiel').hidden = !status.enabled || status.provider !== 'stripe' ||
-    !['active', 'lifetime'].includes(status.kind);
-  document.getElementById('abonnement-beheren').hidden = status.provider !== 'stripe';
+  document.getElementById('abonnement-beheren-profiel').hidden = !status.enabled;
+  document.getElementById('abonnement-beheren').hidden = !authProfiel;
   if (!status.allowed || !Number.isFinite(status.expiresAt)) return;
   var delay = Math.max(100, Math.min(60000, status.expiresAt - status.serverNow + 100));
   abonnementTimer = setTimeout(function() { controleerAbonnementen().catch(function() {}); }, delay);
@@ -139,8 +140,11 @@ async function controleerAbonnementen() {
       if (versie !== abonnementVersie || generatie !== authGeneratie) return null;
       abonnementStatus = status;
       planAbonnementControle(status);
-      if (!status.allowed) toonAbonnementKeuze(status);
-      else if (previous && !previous.allowed) {
+      if (!status.allowed) {
+        if (abonnementBeheerOpen) toonBeheerZonderToegang();
+        else toonAbonnementKeuze(status);
+      }
+      else if (previous && !previous.allowed && !abonnementBeheerOpen) {
         document.getElementById('abonnement-overlay').hidden = true;
         herstelAbonnementAchtergrond();
         await toonApp(authProfiel.gebruiker);
@@ -149,7 +153,8 @@ async function controleerAbonnementen() {
     } catch (error) {
       if (versie === abonnementVersie && generatie === authGeneratie) {
         abonnementStatus = Object.assign({}, abonnementStatus, {allowed: false});
-        toonAbonnementKeuze(abonnementStatus, 'Je toegang kan tijdelijk niet worden gecontroleerd. Klik op Opnieuw controleren.');
+        if (abonnementBeheerOpen) toonBeheerZonderToegang();
+        else toonAbonnementKeuze(abonnementStatus, 'Je toegang kan tijdelijk niet worden gecontroleerd. Klik op Opnieuw controleren.');
       }
       throw error;
     } finally {
@@ -187,10 +192,8 @@ async function startAbonnementen(user, generatie) {
 document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('abonnement-opnieuw').addEventListener('click', function() { controleerAbonnementen().catch(function() {}); });
   document.getElementById('abonnement-uitloggen').addEventListener('click', uitloggen);
-  document.getElementById('abonnement-beheren').addEventListener('click', beheerAbonnement);
-  document.getElementById('abonnement-beheren-profiel').addEventListener('click', function() {
-    openStripePagina('/api/create-portal-session', null, 'billing.stripe.com', document.getElementById('abonnement-profiel-error'));
-  });
+  document.getElementById('abonnement-beheren').addEventListener('click', openAbonnementOverzicht);
+  document.getElementById('abonnement-beheren-profiel').addEventListener('click', openAbonnementOverzicht);
   document.getElementById('abonnement-dialoog').addEventListener('keydown', function(event) {
     if (event.key !== 'Tab') return;
     var buttons = Array.from(this.querySelectorAll('button:not([disabled])')).filter(function(button) { return !button.hidden; });

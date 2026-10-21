@@ -131,7 +131,10 @@ async function createCheckout(identity, plan, deps = dependencies()) {
       line_items: [{price: price.id, quantity: 1}],
       success_url: deps.appUrl + '/?betaling=geslaagd', cancel_url: deps.appUrl + '/?betaling=geannuleerd'};
     if (mode === 'subscription') params.subscription_data = {metadata};
-    else params.payment_intent_data = {metadata};
+    else {
+      params.payment_intent_data = {metadata};
+      params.invoice_creation = {enabled: true};
+    }
     const session = await deps.stripe.checkout.sessions.create(params, {idempotencyKey: 'checkout-' + lease.token});
     await ref.set({sessionId: session.id, plan, createdAt: FieldValue.serverTimestamp()});
     return {url: session.url};
@@ -251,4 +254,4 @@ async function refreshAccess(uid, deps = dependencies()) {
 }
 
 module.exports = {BillingError, dependencies, configuration, validPrice, createCheckout, createPortal,
-  entitlement, processEvent, refreshAccess, WEBHOOK_EVENTS, metadataFor};
+  entitlement, processEvent, refreshAccess, WEBHOOK_EVENTS, metadataFor, matches};

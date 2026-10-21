@@ -160,6 +160,28 @@ Sandbox-abonnement volledig zijn beëindigd en de bijbehorende testbetaling
 zijn terugbetaald voordat een nieuwe optie kan worden gekozen. Laat de
 webhooks verwerken. Je kunt levenslang als laatste optie testen.
 
+## Abonnement en facturen in de app
+
+Open het menu en kies **Abonnement beheren**. Deze pagina toont de proefweek,
+gratis toegang of het gekozen abonnement, de verwachte volgende verlenging en
+de eigen betaalde/openstaande facturen. Facturen bevatten factuurdatum,
+betaaldatum of vervaldatum wanneer Stripe die levert, bedragen, een PDF-link
+en bij openstaande facturen een link om te betalen. Oudere facturen laden via
+**Meer facturen laden**. Betaalgegevens en opzeggen verlopen via het bestaande
+Stripe-klantenportaal.
+
+`/api/billing-overview` gebruikt een bevestigde Firebase-sessie en de privé
+Stripe-klantkoppeling van die UID. De browser kan geen klant/UID meegeven.
+Ook verlopen gebruikers kunnen uitsluitend hun eigen financiële gegevens
+ophalen; hun boekingen blijven geblokkeerd. Deze leesfunctie maakt geen
+Stripe-klanten of facturen aan en slaat geen facturen in de browser op.
+
+Nieuwe Checkout-betalingen voor **Voor altijd** vragen Stripe om een factuur
+aan te maken. Bestaande eenmalige betalingen zonder Stripe-factuur worden
+niet achteraf automatisch gefactureerd. De overige betaalopties gebruiken de
+facturen die Stripe voor abonnementen aanmaakt. Er zijn geen extra
+omgevingsvariabelen of webhookgebeurtenissen nodig.
+
 ## Automatische tests
 
 netlify.toml gebruikt de esbuild-bundler voor de Functions. Firebase Admin laadt

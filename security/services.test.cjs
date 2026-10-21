@@ -166,7 +166,29 @@ test('de statusfunctie weigert ontbrekende sessies en onbevestigde adressen', as
   const {handler} = require('../netlify/functions/subscription-status.js');
   assert.equal((await handler({httpMethod: 'GET', headers: {}})).statusCode, 405);
   assert.equal((await handler({httpMethod: 'POST', headers: {}})).statusCode, 401);
-  assert.equal((await handler(await eventFor({verified: false}))).statusCode, 403);
+  const unverified = await eventFor({verified: false});
+  assert.equal((await handler(unverified)).statusCode, 403);
+  assert.equal((await require('../netlify/functions/billing-overview.js').handler(unverified)).statusCode, 403);
+});
+
+test('facturen vereisen een bevestigde sessie en accepteren nooit een klant of gebruiker uit de browser', async () => {
+  const {createHandler} = require('../netlify/functions/billing-overview.js');
+  let calls = 0;
+  const handler = createHandler(async (identity, input) => {
+    calls++;
+    assert.equal(identity.user.uid, 'api-test');
+    assert.deepEqual(input, {after: null});
+    return {invoices: []};
+  });
+  assert.equal((await handler({httpMethod: 'POST', headers: {}})).statusCode, 401);
+  const event = await eventFor();
+  const result = await handler(event);
+  assert.equal(result.statusCode, 200);
+  assert.match(result.headers['Cache-Control'], /no-store/);
+  for (const body of ['{"customer":"cus_bob"}', '{"uid":"bob"}', 'null', '[]', '{']) {
+    assert.equal((await handler({...event, body})).statusCode, 400);
+  }
+  assert.equal(calls, 1);
 });
 
 test('de eerste statusaanvraag start precies één proefweek met Firestore-servertijd', async () => {
@@ -227,7 +249,8 @@ test('serverfuncties weigeren ontbrekende en vervalste sessies', async () => {
   const push = require('../netlify/functions/send-push.js');
   for (const handler of [pathe.handler, push.handler,
     require('../netlify/functions/create-checkout-session.js').handler,
-    require('../netlify/functions/create-portal-session.js').handler]) {
+    require('../netlify/functions/create-portal-session.js').handler,
+    require('../netlify/functions/billing-overview.js').handler]) {
     assert.equal((await handler({ httpMethod: 'POST', headers: {}, body: '{}' })).statusCode, 401);
     assert.equal((await handler({ httpMethod: 'POST', headers: { authorization: 'Bearer vervalst' }, body: '{}' })).statusCode, 401);
   }

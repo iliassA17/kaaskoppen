@@ -41,7 +41,7 @@ test.beforeEach(async ({ page }) => {
   });
   await page.route('**/*', async route => {
     const url = new URL(route.request().url());
-    const endpoint = /^\/api\/(subscription-status|create-checkout-session|create-portal-session)$/.exec(url.pathname);
+    const endpoint = /^\/api\/(subscription-status|create-checkout-session|create-portal-session|billing-overview)$/.exec(url.pathname);
     if (url.hostname === '127.0.0.1' && endpoint) {
       const request = route.request();
       const result = await require('../../netlify/functions/' + endpoint[1] + '.js').handler({
@@ -70,6 +70,119 @@ async function enableTrial(started) {
     provider: 'stripe', plans: {maand: {amountCents: 799}, halfjaar: {amountCents: 3999}, jaar: {amountCents: 5999}, levenslang: {amountCents: 9999}}});
   if (started) await database.doc('billingAccess/alice-uid').set({status: 'trial', trialStartedAt: Timestamp.fromMillis(started)});
 }
+
+function billingFixture() {
+  const date = Date.UTC(2026, 10, 21, 12);
+  return {access: {allowed: true, kind: 'active', expiresAt: date}, hasCustomer: true, taxIncluded: true,
+    subscription: {plan: 'maand', label: 'Per maand', amountCents: 799, currency: 'EUR', status: 'active',
+      currentPeriodEnd: date, nextPaymentAt: date, cancelAtPeriodEnd: false}, nextCursor: null,
+    invoices: [
+      {id: 'in_open', number: 'BS-2026-002', status: 'open', totalCents: 799, paidCents: 0, remainingCents: 799,
+        currency: 'EUR', createdAt: date - 86400000, dueAt: date, pdfUrl: 'https://pay.stripe.com/invoice/open/pdf',
+        paymentUrl: 'https://invoice.stripe.com/i/open'},
+      {id: 'in_paid', number: 'BS-2026-001', status: 'paid', totalCents: 799, paidCents: 799, remainingCents: 0,
+        currency: 'EUR', createdAt: date - 31 * 86400000, paidAt: date - 30 * 86400000,
+        pdfUrl: 'https://pay.stripe.com/invoice/paid/pdf', paymentUrl: 'https://invoice.stripe.com/i/paid'},
+    ]};
+}
+
+test('abonnement beheren staat in het menu en toont eigen betaalstatus, datums, PDF’s en volgende betaling', async ({page}) => {
+  await seedUser(); await enableTrial();
+  const fixture = billingFixture(); let requestedAfter = null;
+  fixture.nextCursor = 'in_paid';
+  await page.route('**/api/billing-overview', async route => {
+    expect(await route.request().headerValue('authorization')).toMatch(/^Bearer /);
+    const body = route.request().postDataJSON(); requestedAfter = body.after;
+    const data = body.after ? {...fixture, invoices: [{...fixture.invoices[1], id: 'in_older', number: 'BS-2026-000'}], nextCursor: null} : fixture;
+    return route.fulfill({status: 200, contentType: 'application/json', body: JSON.stringify(data)});
+  });
+  await page.goto('/'); await login(page);
+  await expect(page.locator('#app')).toBeVisible();
+  await page.locator('#hamburger-btn').click();
+  await page.locator('#menu-abonnement').click();
+  await expect(page.locator('#menu-bar')).toBeHidden();
+  await expect(page.locator('#pagina-abonnement')).toBeVisible();
+  await expect(page.locator('#abonnement-huidig-naam')).toHaveText('Per maand');
+  await expect(page.locator('#abonnement-volgend-datum')).toContainText('21 november 2026');
+  await expect(page.locator('.factuur-kaart')).toHaveCount(2);
+  await expect(page.locator('.factuur-status.openstaand')).toHaveText('Nog te betalen');
+  await expect(page.locator('.factuur-kaart').last()).toContainText('Betaald op');
+  await expect(page.getByRole('link', {name: 'Download factuur (PDF)'}).first()).toHaveAttribute('href', fixture.invoices[0].pdfUrl);
+  await expect(page.getByRole('link', {name: 'Factuur betalen'})).toHaveAttribute('href', fixture.invoices[0].paymentUrl);
+  await page.setViewportSize({width: 390, height: 844});
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  expect((await page.locator('#abonnement-pagina-titel').boundingBox()).y).toBeGreaterThanOrEqual(28);
+  await page.screenshot({path: test.info().outputPath('abonnement-beheer-mobiel.png'), fullPage: true, animations: 'disabled'});
+  await page.setViewportSize({width: 1365, height: 1050});
+  await page.screenshot({path: test.info().outputPath('abonnement-beheer.png'), fullPage: true, animations: 'disabled'});
+  await page.locator('#abonnement-facturen-meer').click();
+  await expect(page.locator('.factuur-kaart')).toHaveCount(3);
+  expect(requestedAfter).toBe('in_paid');
+  await expect(page.locator('#abonnement-facturen-meer')).toBeHidden();
+  await page.reload();
+  await expect(page.locator('#pagina-abonnement')).toBeVisible();
+  await page.locator('#abonnement-pagina-terug').click();
+  await expect(page.locator('#app')).toBeVisible();
+});
+
+test('proefgebruikers zien een helder leeg factuuroverzicht en kunnen bij een storing opnieuw ophalen', async ({page}) => {
+  await seedUser(); await enableTrial();
+  let attempts = 0;
+  await page.route('**/api/billing-overview', async route => {
+    attempts++;
+    return route.fulfill({status: attempts === 1 ? 503 : 200, contentType: 'application/json', body: JSON.stringify(attempts === 1 ?
+      {error: 'Facturen zijn tijdelijk niet beschikbaar.'} :
+      {access: {allowed: true, kind: 'trial', expiresAt: Date.now() + 86400000}, subscription: null, invoices: [], nextCursor: null, hasCustomer: false})});
+  });
+  await page.goto('/'); await login(page);
+  await expect(page.locator('#app')).toBeVisible();
+  await page.evaluate(() => openAbonnementOverzicht());
+  await expect(page.locator('#abonnement-overzicht-fout')).toContainText('tijdelijk');
+  await page.locator('#abonnement-overzicht-verversen').click();
+  await expect(page.locator('#abonnement-huidig-naam')).toHaveText('Gratis proefweek');
+  await expect(page.locator('#abonnement-facturen-leeg')).toContainText('Tijdens je gratis proefweek');
+  await expect(page.locator('#abonnement-portaal-openen')).toBeHidden();
+});
+
+test('verlopen gebruikers kunnen facturen openen zonder de boekingsblokkade te omzeilen', async ({page}) => {
+  await seedUser(); await enableTrial(Date.now() - 8 * 86400000);
+  const data = billingFixture(); data.access = {allowed: false, kind: 'expired', expiresAt: Date.now() - 1000};
+  data.invoices[0].number = '<img src=x onerror=alert(1)>';
+  data.invoices[0].pdfUrl = 'javascript:alert(1)';
+  await page.route('**/api/billing-overview', route => route.fulfill({status: 200, contentType: 'application/json', body: JSON.stringify(data)}));
+  await page.goto('/'); await login(page);
+  await expect(page.locator('#abonnement-overlay')).toBeVisible();
+  await page.locator('#abonnement-beheren').click();
+  await expect(page.locator('#pagina-abonnement')).toBeVisible();
+  await expect(page.locator('.factuur-kaart')).toHaveCount(2);
+  await expect(page.locator('.factuur-kaart').first()).toContainText('<img src=x onerror=alert(1)>');
+  await expect(page.locator('.factuur-kaart img')).toHaveCount(0);
+  await expect(page.locator('.factuur-kaart').first().getByRole('link', {name: 'Download factuur (PDF)'})).toHaveCount(0);
+  await expect(page.locator('#hamburger-btn-abonnement')).toBeHidden();
+  await expect(page.locator('#app')).toBeHidden();
+  await page.locator('#abonnement-pagina-terug').click();
+  await expect(page.locator('#abonnement-overlay')).toBeVisible();
+  await expect(page.locator('#app')).toBeHidden();
+});
+
+test('een factuurantwoord na uitloggen verschijnt nooit in de volgende sessie', async ({page}) => {
+  await seedUser(); await enableTrial();
+  let release;
+  const wait = new Promise(resolve => { release = resolve; });
+  await page.route('**/api/billing-overview', async route => {
+    await wait;
+    return route.fulfill({status: 200, contentType: 'application/json', body: JSON.stringify(billingFixture())});
+  });
+  await page.goto('/'); await login(page);
+  await expect(page.locator('#app')).toBeVisible();
+  await page.evaluate(() => { openAbonnementOverzicht(); });
+  await expect(page.locator('#abonnement-overzicht-laden')).toBeVisible();
+  await page.evaluate(() => auth.signOut());
+  await expect(page.locator('#auth-overlay')).toBeVisible();
+  release();
+  await expect(page.locator('#pagina-abonnement')).toBeHidden();
+  await expect(page.locator('.factuur-kaart')).toHaveCount(0);
+});
 
 test('de eerste bevestigde login start een proefweek; herladen start geen nieuwe week', async ({ page }) => {
   await seedUser();
