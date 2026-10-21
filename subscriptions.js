@@ -5,6 +5,17 @@ var abonnementVersie = 0;
 var abonnementControle = null;
 var abonnementInert = [];
 
+function abonnementPrijsVergelijking(plan, plans) {
+  if (![6, 12].includes(plan.months) || !Number.isSafeInteger(plan.amountCents) || plan.amountCents <= 0) return null;
+  var money = new Intl.NumberFormat('nl-NL', {style: 'currency', currency: 'EUR'});
+  var monthly = (plans || []).find(function(option) { return option.id === 'maand'; });
+  var saving = monthly && Number.isSafeInteger(monthly.amountCents) && monthly.amountCents > 0 ?
+    monthly.amountCents * plan.months - plan.amountCents : 0;
+  return {monthly: '(omgerekend ' + money.format(plan.amountCents / plan.months / 100) + ' per maand)',
+    saving: saving > 0 ? 'Je bespaart ' + money.format(saving / 100) +
+      (plan.months === 6 ? ' per halfjaar' : ' per jaar') + ' ten opzichte van maandelijks betalen.' : null};
+}
+
 function herstelAbonnementAchtergrond() {
   abonnementInert.forEach(function(entry) { entry.element.inert = entry.inert; });
   abonnementInert = [];
@@ -42,7 +53,8 @@ function toonAbonnementKeuze(status, fout) {
   error.hidden = !fout;
   var container = document.getElementById('abonnement-opties');
   container.replaceChildren();
-  ((status && status.plans) || SubscriptionAccess.planOptions(null)).forEach(function(plan) {
+  var plans = (status && status.plans) || SubscriptionAccess.planOptions(null);
+  plans.forEach(function(plan) {
     var card = document.createElement('div');
     card.className = 'abonnement-optie';
     var title = document.createElement('h3');
@@ -61,7 +73,20 @@ function toonAbonnementKeuze(status, fout) {
     button.dataset.plan = plan.id;
     button.disabled = !!fout || plan.amountCents == null;
     button.addEventListener('click', function() { startAbonnementBetaling(plan.id); });
-    card.append(title, price, interval, button);
+    card.append(title, price);
+    var comparison = abonnementPrijsVergelijking(plan, plans);
+    if (comparison) {
+      var monthlyPrice = document.createElement('p');
+      monthlyPrice.className = 'abonnement-maandprijs';
+      monthlyPrice.textContent = comparison.monthly;
+      card.appendChild(monthlyPrice);
+      if (comparison.saving) {
+        var saving = document.createElement('p');
+        saving.textContent = comparison.saving;
+        card.appendChild(saving);
+      }
+    }
+    card.append(interval, button);
     container.appendChild(card);
   });
   document.getElementById('abonnement-btw').textContent = status && status.taxIncluded ? 'Alle prijzen zijn inclusief btw.' : '';

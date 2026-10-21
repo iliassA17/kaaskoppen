@@ -89,6 +89,8 @@ function renderAbonnementSamenvatting(data) {
     price = factuurBedrag(subscription.amountCents, subscription.currency) +
       (months === null ? ' eenmalig' : months === 1 ? ' per maand' : ' per ' + months + ' maanden') +
       (data.taxIncluded ? ' · inclusief btw' : '');
+    var comparison = abonnementPrijsVergelijking({months: months, amountCents: subscription.amountCents}, data.plans);
+    if (comparison && subscription.currency === 'EUR') price += ' ' + comparison.monthly;
     if (subscription.cancelAtPeriodEnd) period = 'Opgezegd. Je abonnement stopt op ' +
       factuurDatum(subscription.cancelAt || subscription.currentPeriodEnd) + '.';
     else if (access.expiresAt) period = 'Je betaalde toegang loopt tot ' + factuurDatum(access.expiresAt) + '.';

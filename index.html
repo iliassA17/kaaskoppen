@@ -352,10 +352,12 @@
   .abonnement-dialoog h2{font-size:1.3rem;line-height:1.5;margin:0 0 12px;}
   .abonnement-dialoog>p{font-size:0.83rem;line-height:1.7;color:var(--muted);}
   .abonnement-opties{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:22px 0;}
-  .abonnement-optie{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:18px;}
+  .abonnement-optie{display:flex;flex-direction:column;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:18px;}
+  .abonnement-optie .auth-btn{margin-top:auto;}
   .abonnement-optie h3{font-size:0.9rem;margin:0 0 12px;}
   .abonnement-prijs{font-size:1.3rem;font-weight:700;color:var(--accent);}
   .abonnement-optie p{font-size:0.75rem;color:var(--muted);margin:8px 0 15px;}
+  .abonnement-optie .abonnement-maandprijs{color:var(--accent);line-height:1.6;margin:8px 0;}
   .abonnement-acties{display:flex;gap:12px;flex-wrap:wrap;}
   .abonnement-acties button{flex:1;min-width:145px;}
   .abonnement-dialoog [hidden]{display:none;}
