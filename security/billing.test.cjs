@@ -40,7 +40,10 @@ beforeEach(async () => {
     customers: {retrieve: async () => state.customer, create: async params => {
       state.calls.push(['customer', params]); return state.customer;
     }},
-    subscriptions: {list: () => list(state.subscriptions)},
+    subscriptions: {list: () => list(state.subscriptions), retrieve: async subscriptionId => {
+      state.calls.push(['subscription', subscriptionId]);
+      return state.subscriptions.find(subscription => subscription.id === subscriptionId);
+    }},
     checkout: {sessions: {
       list: () => list(state.sessions.filter(session => session.status === 'complete')),
       retrieve: async sessionId => state.sessions.find(session => session.id === sessionId),
@@ -209,6 +212,46 @@ test('vrijgestelde accounts betalen niet en bestaande Stripe-abonnementen krijge
   await assert.rejects(createCheckout(identity, 'maand', deps), /al betaalde toegang/);
   state.invoices = [];
   await assert.rejects(createCheckout(identity, 'maand', deps), /al een abonnement/);
+});
+
+test('een betaald en beëindigd abonnement kan dezelfde dag door een ander plan worden gevolgd', async () => {
+  await createCheckout(identity, 'maand', deps);
+  subscriptionPayment();
+  state.subscriptions[0].status = 'canceled';
+  Object.assign(state.sessions[0], {status: 'complete', payment_status: 'paid', subscription: 'sub_month'});
+  await database.doc('billingAccess/' + uid).set({status: 'expired'});
+
+  const result = await createCheckout(identity, 'halfjaar', deps);
+  assert.match(result.url, /^https:\/\/checkout\.stripe\.com\//);
+  const checkouts = state.calls.filter(call => call[0] === 'checkout');
+  assert.equal(checkouts.length, 2);
+  assert.deepEqual(checkouts[1][1].line_items, [{price: 'price_halfjaar', quantity: 1}]);
+  assert.equal((await database.doc('billingCheckout/' + uid).get()).data().plan, 'halfjaar');
+  assert.equal((await database.doc('boekingen/alice').get()).data().prijs, 0);
+  assert.equal(state.invoices.length, 1);
+});
+
+test('een recente afgeronde Checkout blijft beschermd bij onbetaalde of niet-bevestigde beëindiging', async () => {
+  await createCheckout(identity, 'maand', deps);
+  subscriptionPayment();
+  const subscription = state.subscriptions[0];
+  const session = state.sessions[0];
+  Object.assign(session, {status: 'complete', payment_status: 'unpaid', subscription: subscription.id});
+  subscription.status = 'canceled';
+  await assert.rejects(createCheckout(identity, 'halfjaar', deps), /vorige betaling wordt nog verwerkt/);
+
+  session.payment_status = 'paid';
+  subscription.metadata.uid = 'bob-uid';
+  await assert.rejects(createCheckout(identity, 'halfjaar', deps), /niet worden gecontroleerd/);
+
+  subscription.metadata.uid = uid;
+  subscription.customer = 'cus_bob';
+  await assert.rejects(createCheckout(identity, 'halfjaar', deps), /niet worden gecontroleerd/);
+
+  subscription.customer = 'cus_alice';
+  delete session.subscription;
+  await assert.rejects(createCheckout(identity, 'halfjaar', deps), /vorige betaling wordt nog verwerkt/);
+  assert.equal(state.calls.filter(call => call[0] === 'checkout').length, 1);
 });
 
 test('levenslange toegang volgt een betaalde Stripe-betaling; herhaalde en oude berichten verlengen niets', async () => {

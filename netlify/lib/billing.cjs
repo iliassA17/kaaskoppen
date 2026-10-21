@@ -116,7 +116,19 @@ async function createCheckout(identity, plan, deps = dependencies()) {
       if (session.status === 'open' && previous.plan === plan) return {url: session.url};
       if (session.status === 'open') await deps.stripe.checkout.sessions.expire(session.id);
       if (session.status === 'complete' && session.created * 1000 > Date.now() - 86400000) {
-        throw new BillingError('Je vorige betaling wordt nog verwerkt. Klik op Opnieuw controleren.', 409);
+        // A settled payment for an ended subscription is no longer pending,
+        // even when a Stripe test clock ended it within the same real day.
+        let endedPaidSubscription = false;
+        if (session.mode === 'subscription' && session.payment_status === 'paid' && id(session.subscription)) {
+          const subscription = await deps.stripe.subscriptions.retrieve(id(session.subscription));
+          if (id(subscription?.customer) !== customer || !matches(subscription?.metadata, identity.user.uid, deps.projectId)) {
+            throw new BillingError('Het vorige abonnement kan niet worden gecontroleerd.');
+          }
+          endedPaidSubscription = ['canceled', 'incomplete_expired'].includes(subscription.status);
+        }
+        if (!endedPaidSubscription) {
+          throw new BillingError('Je vorige betaling wordt nog verwerkt. Klik op Opnieuw controleren.', 409);
+        }
       }
     }
     const chosen = config.plans?.[plan];
