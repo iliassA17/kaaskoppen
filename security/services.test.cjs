@@ -87,7 +87,7 @@ test('onveilige oude namen worden samen gemeld voordat ook maar een account word
 });
 
 test('beheercommando\'s weigeren uitgeschakelde TLS-controle voordat ze Firebase benaderen', () => {
-  for (const script of ['migrate-auth.cjs', 'set-role.cjs', 'backup-firestore.cjs', 'setup-subscriptions.cjs']) {
+  for (const script of ['migrate-auth.cjs', 'set-role.cjs', 'backup-firestore.cjs', 'setup-subscriptions.cjs', 'setup-sandbox.cjs']) {
     const result = spawnSync(process.execPath, ['scripts/' + script, '--project', projectId, '--apply'], {
       cwd: require('node:path').resolve(__dirname, '..'),
       env: { ...process.env, NODE_TLS_REJECT_UNAUTHORIZED: '0', GOOGLE_APPLICATION_CREDENTIALS: '/bestaat-niet.json' },

@@ -1,5 +1,11 @@
 # Boekingsschema
 
+**Deze branch `stripe-sandbox` is de afzonderlijke testversie voor Firebase-project
+`bs-test-b94c7` (BS test).** Gebruik hiervoor een nieuwe Netlify-site en
+Stripe Sandbox. De server weigert andere cloudprojecten en livesleutels.
+Zie [BS test instellen](docs/bs-test-instellen.md). De productieversie staat op
+de branch `proefperiode-abonnementen`.
+
 De aangeleverde boekingsapp met prijs- en betrouwbaarheidsverbeteringen en een
 nieuwe login via Firebase Authentication. De hoofdpagina is `index.html`.
 `boekingen.html` verwijst door naar dezelfde beveiligde app.

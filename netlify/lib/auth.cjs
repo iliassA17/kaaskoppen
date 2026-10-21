@@ -4,7 +4,7 @@ const { getAuth } = require('firebase-admin/auth');
 function firebaseAuth() {
   const name = 'netlify-auth';
   const app = getApps().find(app => app.name === name) || initializeApp({
-    projectId: process.env.FIREBASE_PROJECT_ID || 'boekingsschema',
+    projectId: require('./project.cjs').projectId(),
   }, name);
   return getAuth(app);
 }

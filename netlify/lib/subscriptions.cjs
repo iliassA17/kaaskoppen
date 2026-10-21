@@ -1,7 +1,7 @@
 const model = require('../../subscription-access.js');
 
 function baseUrl() {
-  const projectId = process.env.FIREBASE_PROJECT_ID || 'boekingsschema';
+  const projectId = require('./project.cjs').projectId();
   const host = process.env.FIRESTORE_EMULATOR_HOST;
   return (host ? 'http://' + host : 'https://firestore.googleapis.com') +
     '/v1/projects/' + encodeURIComponent(projectId) + '/databases/(default)/documents';

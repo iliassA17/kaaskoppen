@@ -77,6 +77,7 @@ async function main() {
   const args = process.argv.slice(2), index = args.indexOf('--project');
   const projectId = index >= 0 && args[index + 1];
   if (!projectId || projectId.startsWith('--')) throw new Error('Gebruik --project PROJECT_ID [--apply] [--enable].');
+  require('../netlify/lib/project.cjs').assertSandboxProject(projectId);
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--project') { i++; continue; }
     if (!['--apply', '--enable'].includes(args[i])) throw new Error('Onbekend argument: ' + args[i]);

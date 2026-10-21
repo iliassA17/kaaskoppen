@@ -15,8 +15,9 @@ const matches = (metadata, uid, projectId) => metadata?.uid === uid &&
 function dependencies() {
   if (process.env.NODE_TLS_REJECT_UNAUTHORIZED === '0') throw new BillingError('Veilige betaalverbinding is niet ingesteld.');
   const key = process.env.STRIPE_SECRET_KEY;
-  const projectId = process.env.FIREBASE_PROJECT_ID || 'boekingsschema';
-  if (!/^sk_(test|live)_/.test(key || '') || !process.env.FIREBASE_SERVICE_ACCOUNT) {
+  const projectId = require('./project.cjs').projectId();
+  if (key?.startsWith('sk_live_')) throw new BillingError('Gebruik uitsluitend een Stripe-testsleutel op deze testversie.');
+  if (!/^sk_test_/.test(key || '') || !process.env.FIREBASE_SERVICE_ACCOUNT) {
     throw new BillingError('Betalen is nog niet ingesteld. Neem contact op met de beheerder.');
   }
   if (key.startsWith('sk_live_') && (process.env.BILLING_LIVE_ENABLED !== 'true' ||
