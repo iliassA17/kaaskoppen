@@ -84,8 +84,8 @@ async function main() {
     if (!['--apply', '--enable'].includes(args[i])) throw new Error('Onbekend argument: ' + args[i]);
   }
   const key = process.env.STRIPE_SECRET_KEY;
-  if (key && !/^sk_(test|live)_/.test(key)) throw new Error('De Stripe secret key heeft geen geldig formaat.');
-  if (key && !/^sk_live_/.test(key)) throw new Error('Gebruik uitsluitend een Stripe-livesleutel bij de productie-inrichting.');
+  if (key && !/^(?:sk|rk)_(test|live)_/.test(key)) throw new Error('De Stripe secret key heeft geen geldig formaat.');
+  if (key && !/^(?:sk|rk)_live_/.test(key)) throw new Error('Gebruik uitsluitend een Stripe-livesleutel bij de productie-inrichting.');
   if (args.includes('--apply') && !key) throw new Error('De Stripe secret key ontbreekt. Er is niets gewijzigd.');
   const credentialPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
   if (!credentialPath) throw new Error('Stel eerst het pad naar je privé serviceaccount van boekingsschema in.');

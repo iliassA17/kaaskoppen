@@ -12,8 +12,9 @@ const production = {projectId: 'boekingsschema', key: 'sk_live_local_fixture',
 
 test('productie accepteert alleen de echte combinatie van project, livesleutel, serviceaccount en site', () => {
   assert.equal(assertBillingEnvironment(production), true);
+  assert.equal(assertBillingEnvironment({...production, key: 'rk_live_local_fixture'}), true);
   for (const invalid of [
-    {key: 'sk_test_local_fixture'}, {liveEnabled: 'false'}, {liveEnabled: undefined},
+    {key: 'sk_test_local_fixture'}, {key: 'rk_test_local_fixture'}, {liveEnabled: 'false'}, {liveEnabled: undefined},
     {context: 'deploy-preview'}, {context: 'branch-deploy'},
     {projectId: 'bs-test-b94c7'}, {serviceProjectId: 'bs-test-b94c7'},
     {appOrigin: 'https://boekingsschema-stripe-test.netlify.app'},
@@ -26,7 +27,9 @@ test('productie accepteert alleen de echte combinatie van project, livesleutel, 
 test('de emulatoruitzondering vereist beide lokale diensten en accepteert geen livesleutel', () => {
   const local = {...production, projectId: 'demo-kaaskoppen', serviceProjectId: 'demo-kaaskoppen', key: 'sk_test_local_fixture'};
   assert.equal(assertBillingEnvironment(local), false);
+  assert.equal(assertBillingEnvironment({...local, key: 'rk_test_local_fixture'}), false);
   assert.throws(() => assertBillingEnvironment({...local, key: 'sk_live_local_fixture'}));
+  assert.throws(() => assertBillingEnvironment({...local, key: 'rk_live_local_fixture'}));
   for (const missing of ['FIREBASE_AUTH_EMULATOR_HOST', 'FIRESTORE_EMULATOR_HOST']) {
     const previous = process.env[missing];
     try {
@@ -42,6 +45,7 @@ test('het productie-inrichtingscommando weigert een testproject en testsleutel v
   for (const [project, key, message] of [
     ['bs-test-b94c7', 'sk_live_local_fixture', /uitsluitend.*boekingsschema/],
     ['boekingsschema', 'sk_test_local_fixture', /uitsluitend.*livesleutel/],
+    ['boekingsschema', 'rk_test_local_fixture', /uitsluitend.*livesleutel/],
     ['demo-kaaskoppen', 'sk_live_local_fixture', /verwacht.*boekingsschema/],
   ]) {
     const result = spawnSync(process.execPath, ['scripts/setup-subscriptions.cjs', '--project', project, '--apply'], {
@@ -49,7 +53,7 @@ test('het productie-inrichtingscommando weigert een testproject en testsleutel v
     });
     assert.equal(result.status, 1);
     assert.match(result.stderr, message);
-    assert.doesNotMatch(result.stderr, /sk_live_local_fixture|sk_test_local_fixture/);
+    assert.doesNotMatch(result.stderr, /(?:sk|rk)_(?:live|test)_local_fixture/);
   }
 });
 
@@ -62,7 +66,7 @@ test('een BS-test-serviceaccount kan geen productieprijzen of vrijstellingen inr
     fs.writeFileSync(file, JSON.stringify({project_id: 'bs-test-b94c7'}));
     const result = spawnSync(process.execPath, ['scripts/setup-subscriptions.cjs', '--project', 'boekingsschema', '--apply'], {
       encoding: 'utf8', timeout: 10000,
-      env: {...process.env, STRIPE_SECRET_KEY: 'sk_live_local_fixture', GOOGLE_APPLICATION_CREDENTIALS: file},
+      env: {...process.env, STRIPE_SECRET_KEY: 'rk_live_local_fixture', GOOGLE_APPLICATION_CREDENTIALS: file},
     });
     assert.equal(result.status, 1);
     assert.match(result.stderr, /serviceaccount hoort niet bij Firebase-project boekingsschema/);

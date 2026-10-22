@@ -26,10 +26,10 @@ function assertBillingEnvironment({projectId, key, liveEnabled, context, appOrig
   assertProductionProject(projectId);
   if (serviceProjectId !== projectId) throw new Error('Het serviceaccount hoort niet bij het ingestelde Firebase-project.');
   if (isEmulator(projectId)) {
-    if (!/^sk_test_/.test(key || '')) throw new Error('De lokale emulators accepteren uitsluitend Stripe-testsleutels.');
+    if (!/^(?:sk|rk)_test_/.test(key || '')) throw new Error('De lokale emulators accepteren uitsluitend Stripe-testsleutels.');
     return false;
   }
-  if (!/^sk_live_/.test(key || '')) throw new Error('Gebruik uitsluitend een Stripe-livesleutel bij je echte Firebase-project.');
+  if (!/^(?:sk|rk)_live_/.test(key || '')) throw new Error('Gebruik uitsluitend een Stripe-livesleutel bij je echte Firebase-project.');
   if (liveEnabled !== 'true' || (context && context !== 'production')) {
     throw new Error('Live betalingen zijn uitsluitend op de productieomgeving beschikbaar.');
   }

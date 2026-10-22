@@ -16,7 +16,7 @@ function dependencies() {
   if (process.env.NODE_TLS_REJECT_UNAUTHORIZED === '0') throw new BillingError('Veilige betaalverbinding is niet ingesteld.');
   const key = process.env.STRIPE_SECRET_KEY;
   const projectId = require('./project.cjs').projectId();
-  if (!/^sk_(test|live)_/.test(key || '') || !process.env.FIREBASE_SERVICE_ACCOUNT) {
+  if (!/^(?:sk|rk)_(test|live)_/.test(key || '') || !process.env.FIREBASE_SERVICE_ACCOUNT) {
     throw new BillingError('Betalen is nog niet ingesteld. Neem contact op met de beheerder.');
   }
   let appUrl, account;

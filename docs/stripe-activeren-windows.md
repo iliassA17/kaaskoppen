@@ -36,7 +36,10 @@ als bij de eerdere migratie, maar nu met de nieuwe bestanden.
 2. Maak een account aan of log in.
 3. Rond de gevraagde bedrijfs- en bankgegevens af voor echte betalingen.
 4. Gebruik eerst een **Sandbox/testomgeving** om betalingen te controleren.
-   Een testsleutel begint met **sk_test_**; een livesleutel met **sk_live_**.
+   Een testsleutel begint met **sk_test_** of **rk_test_**; een livesleutel met
+   **sk_live_** of **rk_live_**. De productieversie ondersteunt ook een sleutel
+   met beperkte machtigingen. Kies in de nieuwe Stripe-wizard voor
+   **Volledige toegang, behalve gevoelige bewerkingen** voor deze integratie.
 
 5. Controleer in je **liveaccount** via **Instellingen → Betaalmethoden** dat
    **iDEAL | Wero** aanstaat voor eenmalige én terugkerende betalingen en dat
