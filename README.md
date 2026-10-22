@@ -1,10 +1,12 @@
 # Boekingsschema
 
-**Deze branch `stripe-sandbox` is de afzonderlijke testversie voor Firebase-project
-`bs-test-b94c7` (BS test).** Gebruik hiervoor een nieuwe Netlify-site en
-Stripe Sandbox. De server weigert andere cloudprojecten en livesleutels.
-Zie [BS test instellen](docs/bs-test-instellen.md). De productieversie staat op
-de branch `proefperiode-abonnementen`.
+**Deze branch `stripe-productie` is de voorbereide productieversie voor
+Firebase-project `boekingsschema` en https://boekingschema.netlify.app.**
+Hij bevat de geteste verbeteringen uit `stripe-sandbox`, waaronder factuurbeheer,
+herstel van betaalde toegang en sneller sessieherstel. De testsite blijft de
+afzonderlijke branch `stripe-sandbox` gebruiken. Echte betalingen vereisen een
+livesleutel, een passend productie-serviceaccount en `BILLING_LIVE_ENABLED=true`.
+Zie [Stripe activeren op Windows](docs/stripe-activeren-windows.md).
 
 De aangeleverde boekingsapp met prijs- en betrouwbaarheidsverbeteringen en een
 nieuwe login via Firebase Authentication. De hoofdpagina is `index.html`.
@@ -15,7 +17,7 @@ Alleen de bestanden uploaden naar Netlify is onvoldoende. Zie
 [Veilig inloggen activeren](docs/veilig-inloggen.md) voor de volledige procedure,
 het behoud van bestaande accounts en het instellen van beheerdersrechten.
 
-De branch `proefperiode-abonnementen` bevat een proefweek en vier Stripe-betaalopties:
+Deze versie bevat een proefweek en vier Stripe-betaalopties:
 €7,99 per maand, €39,99 per halfjaar, €59,99 per jaar of €99,99 levenslang,
 inclusief btw. De vijf bestaande accounts worden gratis vrijgesteld. Deze
 functie staat standaard uit en moet met het eigen Stripe-account en de

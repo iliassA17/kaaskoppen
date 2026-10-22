@@ -1,6 +1,6 @@
 # Stripe activeren op Windows
 
-De code staat op GitHub in de branch **proefperiode-abonnementen**.
+De geteste productiecode staat op GitHub in de branch **stripe-productie**.
 De abonnementsfunctie staat nog uit. De onderstaande stappen verbinden jouw
 eigen Stripe-account en activeren de nieuwe versie.
 
@@ -14,7 +14,7 @@ De vijf oorspronkelijke accounts krijgen gratis blijvende toegang.
 
 ## 1. Open de nieuwe bestanden op je computer
 
-1. Open [de nieuwe GitHub-branch](https://github.com/iliassA17/kaaskoppen/tree/proefperiode-abonnementen).
+1. Open [de productiebranch](https://github.com/iliassA17/kaaskoppen/tree/stripe-productie).
 2. Klik **Code → Download ZIP**.
 3. Open in Windows de map **Downloads**.
 4. Klik met de rechtermuisknop op de zip en kies **Alles uitpakken**.
@@ -24,7 +24,7 @@ De vijf oorspronkelijke accounts krijgen gratis blijvende toegang.
 7. Plak deze opdracht en druk op Enter:
 
 ~~~powershell
-npm ci
+npm.cmd ci
 ~~~
 
 Wacht tot je opnieuw de PowerShell-prompt ziet. Dit is dezelfde soort map
@@ -38,6 +38,11 @@ als bij de eerdere migratie, maar nu met de nieuwe bestanden.
 4. Gebruik eerst een **Sandbox/testomgeving** om betalingen te controleren.
    Een testsleutel begint met **sk_test_**; een livesleutel met **sk_live_**.
 
+5. Controleer in je **liveaccount** via **Instellingen → Betaalmethoden** dat
+   **iDEAL | Wero** aanstaat voor eenmalige én terugkerende betalingen en dat
+   **SEPA-incasso** aanstaat. Sandbox-instellingen worden niet automatisch
+   overgenomen. Controleer ook de betaalmethoden bij **Billing → Facturen**.
+
 Een Netlify Preview Deploy heeft op zichzelf geen aparte database. Gebruik
 voor Stripe Sandbox een **apart Firebase-testproject en een aparte Netlify-testsite**
 met fictieve accounts. Geef geen accounts in je echte database betaalde toegang
@@ -49,6 +54,10 @@ Voor een volledige Sandbox-test moet de Firebase-configuratie in **index.html**
 naar het testproject wijzen. De servervariabelen en het serviceaccount moeten
 datzelfde testproject gebruiken. Het inrichtingsscript verwacht bij de eerste
 inrichting vijf gekoppelde accounts; gebruik daar vijf fictieve accounts.
+
+Gebruik voor Sandbox de afzonderlijke branch **stripe-sandbox** en diens
+handleiding **docs/bs-test-instellen.md**. De branch **stripe-productie** weigert
+BS test als serverproject en weigert testsleutels bij je echte database.
 
 Hieronder staan de waarden voor productie: Firebase-project **boekingsschema**
 en site **boekingschema.netlify.app**. Voor een testsite gebruik je de bij elkaar
@@ -106,6 +115,7 @@ node .\scripts\setup-subscriptions.cjs --project boekingsschema
 
 In het antwoord horen **"existingAccounts":5** en **"applied":false** te staan.
 Controleer de vier bedragen en of **stripeMode** de juiste omgeving noemt.
+Voor deze productiebranch moet **stripeMode** **live** zijn.
 Bij de eerste inrichting hoort **enabled** nog false te zijn.
 
 Sla vervolgens de voorbereiding op:
@@ -140,7 +150,10 @@ Omdat de functie nog uitstaat, houden bestaande gebruikers hun toegang.
 2. Open **Project configuration / Site configuration → Environment variables**.
 3. Klik voor iedere regel hieronder op **Add a variable → Add a single variable**.
 4. Vul bij **Key** de naam in en bij **Value** de bijbehorende waarde.
-5. Kies de scope **Functions** als je scopes kunt kiezen.
+5. Vink bij geheime waarden **Contains secret values** aan. Laat de automatisch
+   gekozen **Specific scopes** staan en controleer dat **Functions** geselecteerd
+   is. Hiervoor is geen upgrade nodig. Vul de geheime waarde alleen bij
+   **Production** in als je meerdere regels voor deploycontexten ziet.
 6. Gebruik livesleutels en BILLING_LIVE_ENABLED=true uitsluitend bij het
    deploycontext **Production**, niet bij Preview Deploys.
 
@@ -163,8 +176,12 @@ vereist daarna een nieuwe gepubliceerde deployment.
 ## 7. Publiceer de nieuwe code op Netlify
 
 1. Open **Project configuration → Build & deploy → Continuous deployment**.
+   Staat je bestaande site nog op handmatige uploads? Kies dan eerst
+   **Link repository**, vervolgens **GitHub → iliassA17/kaaskoppen** bij deze
+   bestaande site. Gebruik geen nieuwe sitenaam: de productieversie verwacht
+   het bestaande adres **boekingschema.netlify.app**.
 2. Zoek **Branches and deploy contexts / Production branch**.
-3. Kies **proefperiode-abonnementen** als productiebranch en sla op.
+3. Kies **stripe-productie** als productiebranch en sla op.
 4. Controleer dat de publicatiemap **.** is en Functions uit
    **netlify/functions** komen. Dit staat al in **netlify.toml**.
    Er is geen aparte frontend-buildopdracht nodig.
@@ -175,7 +192,7 @@ vereist daarna een nieuwe gepubliceerde deployment.
    geslaagde build betekent niet dat je bezoekers al de nieuwe versie zien.
 
 Je bestaande accounts kunnen nog steeds inloggen. De functie staat nog uit.
-Upload niet uitsluitend de losse HTML: ook de vier nieuwe Netlify Functions
+Upload niet uitsluitend de losse HTML: ook alle Netlify Functions
 moeten bij de deployment aanwezig zijn.
 
 ## 8. Verbind de Stripe-webhook
@@ -243,8 +260,8 @@ Controleer op de aparte testsite met de bijbehorende testdatabase en Stripe Sand
 
 In de Sandbox werkt testkaart **4242 4242 4242 4242**, met een toekomstige
 vervaldatum en een willekeurige CVC. Deze kaart werkt niet in live mode.
-Gebruik de activeringsopdrachten hieronder voor het testproject met diens
-project-ID en testsleutel. Pas een trialdatum alleen in de testdatabase aan.
+Gebruik voor Sandbox uitsluitend de opdrachten uit **docs/bs-test-instellen.md**
+in de branch **stripe-sandbox**. Pas een trialdatum alleen in de testdatabase aan.
 
 Als de productie-instellingen, webhook en gepubliceerde code gereed zijn,
 ga je terug naar PowerShell met je productiecredentials en controleer je:
@@ -271,6 +288,24 @@ Remove-Item Env:STRIPE_SECRET_KEY
 ~~~
 
 Dit verwijdert de instelling uit je terminal, niet uit Netlify.
+
+## Betalingsherstel en livecontrole
+
+Een opgezegd Stripe-abonnement wordt door betaling van een oude factuur niet
+opnieuw automatisch verlengd. De app geeft wel toegang tot het einde van de
+daadwerkelijk betaalde factuurperiode, zolang de betaling niet is teruggedraaid.
+Het overzicht vermeldt deze betaalde toegang en dat de verlenging uitstaat.
+Een mislukte incasso is in de Sandbox hersteld via SEPA. iDEAL als alternatieve
+herstelbetaling voor automatisch geïncasseerde facturen is nog niet ingericht.
+
+De vijf bestaande accounts hoeven geen echte betaling te doen. Controleer na
+activeren eerst hun gratis toegang en bestaande boekingen. Een eerste echte
+betaling vergt een afzonderlijk nieuw account zonder vrijstelling en wordt echt
+afgeschreven; gebruik hiervoor geen Stripe-testbankrekening of testkaart.
+
+De productiebranch is vast gekoppeld aan **https://boekingschema.netlify.app**
+(één s in boekingschema). De testsite heet
+**https://boekingsschema-stripe-test.netlify.app** en blijft afzonderlijk.
 
 ## Als iets niet werkt
 

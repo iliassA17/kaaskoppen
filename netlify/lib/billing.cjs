@@ -16,13 +16,8 @@ function dependencies() {
   if (process.env.NODE_TLS_REJECT_UNAUTHORIZED === '0') throw new BillingError('Veilige betaalverbinding is niet ingesteld.');
   const key = process.env.STRIPE_SECRET_KEY;
   const projectId = require('./project.cjs').projectId();
-  if (key?.startsWith('sk_live_')) throw new BillingError('Gebruik uitsluitend een Stripe-testsleutel op deze testversie.');
-  if (!/^sk_test_/.test(key || '') || !process.env.FIREBASE_SERVICE_ACCOUNT) {
+  if (!/^sk_(test|live)_/.test(key || '') || !process.env.FIREBASE_SERVICE_ACCOUNT) {
     throw new BillingError('Betalen is nog niet ingesteld. Neem contact op met de beheerder.');
-  }
-  if (key.startsWith('sk_live_') && (process.env.BILLING_LIVE_ENABLED !== 'true' ||
-      (process.env.CONTEXT && process.env.CONTEXT !== 'production'))) {
-    throw new BillingError('Live betalingen zijn uitsluitend op de productieomgeving beschikbaar.');
   }
   let appUrl, account;
   try {
@@ -32,10 +27,16 @@ function dependencies() {
   if (appUrl.protocol !== 'https:' || appUrl.username || appUrl.password || account.project_id !== projectId) {
     throw new BillingError('De betaalomgeving is niet volledig ingesteld.');
   }
+  let liveMode;
+  try {
+    liveMode = require('./project.cjs').assertBillingEnvironment({projectId, key,
+      liveEnabled: process.env.BILLING_LIVE_ENABLED, context: process.env.CONTEXT,
+      appOrigin: appUrl.origin, siteUrl: process.env.URL, serviceProjectId: account.project_id});
+  } catch (error) { throw new BillingError(error.message); }
   const name = 'billing-admin';
   const app = getApps().find(app => app.name === name) || initializeApp({projectId, credential: cert(account)}, name);
   return {database: getFirestore(app), stripe: new Stripe(key, {timeout: 15000, maxNetworkRetries: 1}),
-    projectId, appUrl: appUrl.origin, liveMode: key.startsWith('sk_live_')};
+    projectId, appUrl: appUrl.origin, liveMode};
 }
 
 async function configuration(deps, requireEnabled = true) {

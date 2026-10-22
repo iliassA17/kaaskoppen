@@ -4,9 +4,9 @@
 
 [build.environment]
   NODE_VERSION = "22"
-  # Public Firebase browser configuration for BS test, not an Admin/Stripe secret.
+  # Public Firebase browser configuration, not an Admin/Stripe secret.
   # Keep secrets scanning enabled; allow only this exact public key.
-  SECRETS_SCAN_SMART_DETECTION_OMIT_VALUES = "AIzaSyAd20JV7U52dVIP-9jP3XOvwkujR9AF7Lo"
+  SECRETS_SCAN_SMART_DETECTION_OMIT_VALUES = "AIzaSyC6mnjCOrhXb8GD8s5CKjgEhsr0izoOjz4"
 
 [functions]
   # Compile ESM dependencies into the CommonJS handlers used by Lambda.

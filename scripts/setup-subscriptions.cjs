@@ -1,4 +1,4 @@
-const {initializeApp, applicationDefault} = require('firebase-admin/app');
+const {initializeApp, cert} = require('firebase-admin/app');
 const {getFirestore, FieldValue} = require('firebase-admin/firestore');
 const {PLANS} = require('../subscription-access.js');
 const {validPrice} = require('../netlify/lib/billing.cjs');
@@ -77,18 +77,26 @@ async function main() {
   const args = process.argv.slice(2), index = args.indexOf('--project');
   const projectId = index >= 0 && args[index + 1];
   if (!projectId || projectId.startsWith('--')) throw new Error('Gebruik --project PROJECT_ID [--apply] [--enable].');
-  require('../netlify/lib/project.cjs').assertSandboxProject(projectId);
+  require('../netlify/lib/project.cjs').assertProductionProject(projectId);
+  if (projectId !== 'boekingsschema') throw new Error('Het productie-inrichtingscommando verwacht --project boekingsschema.');
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--project') { i++; continue; }
     if (!['--apply', '--enable'].includes(args[i])) throw new Error('Onbekend argument: ' + args[i]);
   }
   const key = process.env.STRIPE_SECRET_KEY;
   if (key && !/^sk_(test|live)_/.test(key)) throw new Error('De Stripe secret key heeft geen geldig formaat.');
+  if (key && !/^sk_live_/.test(key)) throw new Error('Gebruik uitsluitend een Stripe-livesleutel bij de productie-inrichting.');
   if (args.includes('--apply') && !key) throw new Error('De Stripe secret key ontbreekt. Er is niets gewijzigd.');
-  const app = initializeApp({projectId, credential: applicationDefault()});
+  const credentialPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+  if (!credentialPath) throw new Error('Stel eerst het pad naar je privé serviceaccount van boekingsschema in.');
+  let account;
+  try { account = JSON.parse(require('node:fs').readFileSync(credentialPath, 'utf8')); }
+  catch { throw new Error('Het privé serviceaccountbestand kan niet worden gelezen. Controleer het pad.'); }
+  if (account.project_id !== projectId) throw new Error('Dit serviceaccount hoort niet bij Firebase-project boekingsschema. Er is niets gewijzigd.');
+  const app = initializeApp({projectId, credential: cert(account)});
   const stripe = key ? new (require('stripe'))(key, {timeout: 15000, maxNetworkRetries: 1}) : null;
   console.log(JSON.stringify(await setupSubscriptions({database: getFirestore(app), stripe, projectId,
-    liveMode: key?.startsWith('sk_live_') === true, apply: args.includes('--apply'), enable: args.includes('--enable')})));
+    liveMode: true, apply: args.includes('--apply'), enable: args.includes('--enable')})));
 }
 if (require.main === module) main().catch(error => {
   // Stripe errors may include request details; keep secret-bearing errors out of
