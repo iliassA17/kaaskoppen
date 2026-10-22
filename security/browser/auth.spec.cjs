@@ -467,6 +467,85 @@ test('geverifieerd inloggen, sessieherstel en uitloggen gebruiken Firebase', asy
   expect(await page.evaluate(() => boekingen)).toEqual([]);
 });
 
+test('het eerste scherm blijft neutraal totdat Firebase weet of er een sessie is', async ({page}) => {
+  let release;
+  const gate = new Promise(resolve => { release = resolve; });
+  await page.route('**/firebase-auth-compat.js', async route => {
+    await gate; return route.fallback();
+  });
+  try {
+    await page.goto('/', {waitUntil: 'commit'});
+    await expect(page.locator('#sessie-laden')).toBeVisible();
+    await expect(page.locator('#auth-overlay')).toBeHidden();
+    await expect(page.locator('#app')).toBeHidden();
+    await page.screenshot({path: test.info().outputPath('sessie-herstellen.png')});
+    release();
+    await expect(page.locator('#auth-overlay')).toBeVisible();
+    await expect(page.locator('#sessie-laden')).toBeHidden();
+  } finally { release(); }
+});
+
+test('herladen herstelt de sessie zonder het inlogformulier te laten zien', async ({page}) => {
+  await seedUser(); await enableTrial();
+  await page.addInitScript(() => {
+    if (sessionStorage.getItem('test-volg-sessie') !== 'ja') return;
+    window.testLoginFlits = false;
+    new MutationObserver(() => {
+      const login = document.getElementById('auth-overlay');
+      if (login && login.getBoundingClientRect().width > 0) window.testLoginFlits = true;
+    }).observe(document, {subtree: true, childList: true, attributes: true, attributeFilter: ['style', 'hidden']});
+  });
+  await page.goto('/'); await login(page);
+  await expect(page.locator('#app')).toBeVisible();
+  await page.evaluate(() => sessionStorage.setItem('test-volg-sessie', 'ja'));
+  let reloaded = false, delayed = false, release;
+  const gate = new Promise(resolve => { release = resolve; });
+  page.on('framenavigated', frame => { if (frame === page.mainFrame()) reloaded = true; });
+  await page.route('**/api/subscription-status', async route => {
+    if (reloaded && !delayed) { delayed = true; await gate; }
+    return route.fallback();
+  });
+  try {
+    await page.reload({waitUntil: 'domcontentloaded'});
+    await expect(page.locator('#sessie-laden')).toBeVisible();
+    await expect(page.locator('#auth-overlay')).toBeHidden();
+    await expect(page.locator('#app')).toBeHidden();
+    release();
+    await expect(page.locator('#app')).toBeVisible();
+    await expect(page.locator('#sessie-laden')).toBeHidden();
+    expect(await page.evaluate(() => window.testLoginFlits)).toBe(false);
+    expect(await page.evaluate(() => auth.currentUser.uid)).toBe('alice-uid');
+  } finally { release(); }
+});
+
+test('een geldige sessie opent tijdens een trage betaalcontrole en sluit zodra die toegang intrekt', async ({page}) => {
+  await seedUser(); await enableTrial();
+  await database.doc('billingAccess/alice-uid').set({status: 'active', validUntil: Timestamp.fromMillis(Date.now() + 86400000)});
+  let release, started = false;
+  const gate = new Promise(resolve => { release = resolve; });
+  await page.route('**/api/subscription-status', async route => {
+    if (route.request().postDataJSON()?.refresh === true && !started) {
+      started = true;
+      await gate;
+      await database.doc('billingAccess/alice-uid').set({status: 'expired'});
+    }
+    return route.fallback();
+  });
+  try {
+    await page.goto('/'); await login(page);
+    await expect(page.locator('#app')).toBeVisible();
+    await expect.poll(() => started).toBe(true);
+    await expect(page.locator('#sessie-laden')).toBeHidden();
+    await expect(page.locator('#auth-overlay')).toBeHidden();
+    expect(await page.evaluate(() => boekingen[0].prijs)).toBe(0);
+    release();
+    await expect(page.locator('#abonnement-overlay')).toBeVisible();
+    await expect(page.locator('#app')).toBeHidden();
+    expect(await page.evaluate(() => boekingen)).toEqual([]);
+    expect(await page.evaluate(() => auth.currentUser.uid)).toBe('alice-uid');
+  } finally { release(); }
+});
+
 test('een oude naam met hoofdletters, spaties en accent werkt na migratie en behoudt boekingen', async ({ page }) => {
   const name = 'Jos\u00e9 de Vries';
   await database.collection('accounts').doc(name).set({ gebruiker: name, email: 'legacy@example.test', hash: 'oude-hash' });

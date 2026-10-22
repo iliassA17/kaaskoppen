@@ -3,6 +3,7 @@ var abonnementTimer = null;
 var abonnementListeners = [];
 var abonnementVersie = 0;
 var abonnementControle = null;
+var abonnementControleStripe = false;
 var abonnementInert = [];
 
 function abonnementPrijsVergelijking(plan, plans) {
@@ -28,6 +29,7 @@ function stopAbonnementen() {
   abonnementListeners.forEach(function(stop) { stop(); });
   abonnementListeners = [];
   abonnementControle = null;
+  abonnementControleStripe = false;
   abonnementStatus = null;
   document.getElementById('proefperiode-info').hidden = true;
   document.getElementById('abonnement-beheren-profiel').hidden = true;
@@ -37,6 +39,7 @@ function stopAbonnementen() {
 }
 
 function toonAbonnementKeuze(status, fout) {
+  verbergSessieLaden();
   abonnementBeheerOpen = false;
   verbergApp();
   document.getElementById('auth-overlay').style.display = 'none';
@@ -134,8 +137,9 @@ function beheerAbonnement() {
   return openStripePagina('/api/create-portal-session', null, 'billing.stripe.com');
 }
 
-async function haalAbonnementStatus() {
-  var response = await beveiligdeFetch('/api/subscription-status', {method: 'POST'});
+async function haalAbonnementStatus(verversBetaling) {
+  var response = await beveiligdeFetch('/api/subscription-status', {method: 'POST',
+    headers: {'Content-Type': 'application/json'}, body: JSON.stringify({refresh: verversBetaling === true})});
   var data = await response.json();
   if (!response.ok) throw new Error(data.error || 'Je toegang kan niet worden gecontroleerd.');
   if (typeof data.allowed !== 'boolean' || !Number.isFinite(data.serverNow)) throw new Error('Ongeldig antwoord bij toegangscontrole.');
@@ -152,16 +156,24 @@ function planAbonnementControle(status) {
   document.getElementById('abonnement-beheren').hidden = !authProfiel;
   if (!status.allowed || !Number.isFinite(status.expiresAt)) return;
   var delay = Math.max(100, Math.min(60000, status.expiresAt - status.serverNow + 100));
-  abonnementTimer = setTimeout(function() { controleerAbonnementen().catch(function() {}); }, delay);
+  abonnementTimer = setTimeout(function() { controleerAbonnementen(status.kind === 'active').catch(function() {}); }, delay);
 }
 
-async function controleerAbonnementen() {
-  if (abonnementControle) return abonnementControle;
+async function controleerAbonnementen(verversBetaling) {
   var versie = abonnementVersie, generatie = authGeneratie;
+  if (abonnementControle) {
+    if (verversBetaling === true && !abonnementControleStripe) {
+      await abonnementControle.catch(function() {});
+      if (versie !== abonnementVersie || generatie !== authGeneratie) return null;
+      return controleerAbonnementen(true);
+    }
+    return abonnementControle;
+  }
+  abonnementControleStripe = verversBetaling === true;
   abonnementControle = (async function() {
     try {
       var previous = abonnementStatus;
-      var status = await haalAbonnementStatus();
+      var status = await haalAbonnementStatus(verversBetaling);
       if (versie !== abonnementVersie || generatie !== authGeneratie) return null;
       abonnementStatus = status;
       planAbonnementControle(status);
@@ -183,7 +195,10 @@ async function controleerAbonnementen() {
       }
       throw error;
     } finally {
-      if (versie === abonnementVersie) abonnementControle = null;
+      if (versie === abonnementVersie) {
+        abonnementControle = null;
+        abonnementControleStripe = false;
+      }
     }
   })();
   return abonnementControle;
@@ -215,7 +230,7 @@ async function startAbonnementen(user, generatie) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-  document.getElementById('abonnement-opnieuw').addEventListener('click', function() { controleerAbonnementen().catch(function() {}); });
+  document.getElementById('abonnement-opnieuw').addEventListener('click', function() { controleerAbonnementen(true).catch(function() {}); });
   document.getElementById('abonnement-uitloggen').addEventListener('click', uitloggen);
   document.getElementById('abonnement-beheren').addEventListener('click', openAbonnementOverzicht);
   document.getElementById('abonnement-beheren-profiel').addEventListener('click', openAbonnementOverzicht);
@@ -231,6 +246,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
   document.addEventListener('visibilitychange', function() {
-    if (document.visibilityState === 'visible' && authProfiel && auth.currentUser) controleerAbonnementen().catch(function() {});
+    if (document.visibilityState === 'visible' && authProfiel && auth.currentUser) controleerAbonnementen(true).catch(function() {});
   });
 });

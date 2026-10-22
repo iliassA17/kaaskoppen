@@ -263,11 +263,19 @@ test('opnieuw controleren ververst ook eerder geldige toegang na een Stripe-klok
       await database.doc('billingAccess/' + uid).set({status: 'expired'});
     };
     const {handler} = require('../netlify/functions/subscription-status.js');
+    const fast = await handler({...event, body: JSON.stringify({refresh: false})});
+    assert.equal(fast.statusCode, 200, fast.body);
+    assert.equal(JSON.parse(fast.body).allowed, true);
+    assert.equal(checkedUid, undefined);
     const response = await handler(event);
     assert.equal(response.statusCode, 200, response.body);
     assert.equal(checkedUid, 'api-test');
     assert.equal(JSON.parse(response.body).allowed, false);
     assert.equal((await requireUser(event)).statusCode, 402);
+    checkedUid = undefined;
+    const expired = await handler({...event, body: JSON.stringify({refresh: false})});
+    assert.equal(JSON.parse(expired.body).allowed, false);
+    assert.equal(checkedUid, 'api-test');
   } finally {
     billing.refreshAccess = original;
     names.forEach((name, index) => {
@@ -275,6 +283,15 @@ test('opnieuw controleren ververst ook eerder geldige toegang na een Stripe-klok
       else process.env[name] = saved[index];
     });
   }
+});
+
+test('de statusfunctie accepteert geen vervalste rechten of ongeldige verversopties', async () => {
+  const event = await eventFor(); await subscriptionAccount();
+  const {handler} = require('../netlify/functions/subscription-status.js');
+  for (const body of ['{', 'null', '[]', '{"refresh":"false"}', '{"refresh":false,"allowed":true}', '{"uid":"bob"}']) {
+    assert.equal((await handler({...event, body})).statusCode, 400);
+  }
+  assert.equal((await database.doc('billingAccess/api-test').get()).exists, false);
 });
 
 test('serverfuncties weigeren ontbrekende en vervalste sessies', async () => {

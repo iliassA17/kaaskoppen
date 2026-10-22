@@ -4,11 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Boekingsschema</title>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:wght@300;400;600;700&display=swap" rel="stylesheet">
 <style>
   :root{--bg:#0f0e0c;--surface:#1a1916;--surface2:#242320;--border:#2e2d2a;--accent:#e8c97a;--accent2:#c4a84f;--text:#f0ede6;--muted:#7a7870;--error:#e07070;--success:#7ec896;--blue:#8ab4d4;--blue-bg:rgba(138,180,212,0.1);}
@@ -65,6 +60,12 @@
   .logout-btn{background:none;border:1px solid var(--border);border-radius:6px;color:var(--muted);cursor:pointer;font-family:'DM Mono',monospace;font-size:0.62rem;letter-spacing:0.1em;padding:6px 12px;text-transform:uppercase;transition:all 0.2s;}
   .logout-btn:hover{border-color:var(--error);color:var(--error);}
   .auth-overlay{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:999;padding:24px;}
+  .sessie-laden{position:fixed;inset:0;z-index:1001;display:flex;flex-direction:column;gap:20px;align-items:center;justify-content:center;background:var(--bg);color:var(--muted);text-align:center;padding:24px;font-size:0.8rem;line-height:1.7;}
+  .sessie-laden[hidden]{display:none;}
+  .sessie-laden-titel{font-family:'Fraunces',serif;font-size:2rem;font-weight:300;color:var(--accent);}
+  .sessie-spinner{width:28px;height:28px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:sessie-draaien 0.8s linear infinite;}
+  @keyframes sessie-draaien{to{transform:rotate(360deg);}}
+  @media(prefers-reduced-motion:reduce){.sessie-spinner{animation:none;}}
   .auth-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:40px 36px;width:100%;max-width:400px;}
   .auth-title{font-family:'Fraunces',serif;font-size:1.8rem;font-weight:300;color:var(--accent);margin-bottom:4px;}
   .auth-subtitle{font-size:0.65rem;color:var(--muted);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:28px;}
@@ -417,7 +418,13 @@
 </div>
 
 <!-- Auth scherm -->
-<div class="auth-overlay" id="auth-overlay">
+<div class="sessie-laden" id="sessie-laden" role="status" aria-live="polite">
+  <div class="sessie-laden-titel">Boekingsschema</div>
+  <div class="sessie-spinner" aria-hidden="true"></div>
+  <p id="sessie-laden-tekst">Je sessie wordt hersteld…</p>
+</div>
+
+<div class="auth-overlay" id="auth-overlay" style="display:none;">
   <div class="auth-card">
     <div class="auth-title" id="auth-title">Welkom</div>
     <div class="auth-subtitle" id="auth-subtitle">Log in met je e-mailadres</div>
@@ -1217,6 +1224,11 @@
   <div id="pathe-resultaten"></div>
 </div>
 
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script>
 // Firebase initialiseren
 var firebaseConfig = {
@@ -1865,11 +1877,9 @@ function toonApp(user) {
   document.getElementById('menu-beheer').style.display = isBeheerder() ? '' : 'none';
   // A ranking must not disclose other users' private booking/account records.
   document.getElementById('menu-ranglijst').style.display = isBeheerder() ? '' : 'none';
-  return laadBoekingen().then(function() {
-    if (generatie !== authGeneratie) return;
-    return laadInstellingen();
-  }).then(function() {
-    if (generatie !== authGeneratie) return;
+  return Promise.all([laadBoekingen(), laadInstellingen()]).then(function() {
+    if (generatie !== authGeneratie || !authProfiel || authProfiel.gebruiker !== user ||
+        huidigeGebruiker !== user || (abonnementStatus && !abonnementStatus.allowed)) return;
     undoStack = [];
     document.getElementById('auth-overlay').style.display = 'none';
     document.getElementById('datum').value = datumNaarStr(new Date());
@@ -1890,6 +1900,7 @@ function toonApp(user) {
     else if (herstelpagina === 'ranglijst' && isBeheerder()) { openRanglijst(); }
     else if (herstelpagina === 'nieuws') { openNieuwsPagina(); }
     else { toonPagina('schema'); renderOverzicht(); }
+    verbergSessieLaden();
   });
 }
 

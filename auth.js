@@ -158,7 +158,6 @@ async function verstuurWachtwoordReset() {
 function verbergApp() {
   if (typeof meldingInterval !== 'undefined' && meldingInterval) clearInterval(meldingInterval);
   document.querySelectorAll('body > .container, .auth-overlay').forEach(function(el) { el.style.display = 'none'; });
-  document.getElementById('auth-overlay').style.display = 'flex';
   document.querySelectorAll('#bewerk-overlay, #verwijder-gebruiker-overlay').forEach(function(el) { el.style.display = 'none'; });
   document.querySelectorAll('.open').forEach(function(el) { el.classList.remove('open'); });
   huidigeGebruiker = ''; boekingen = []; undoStack = []; logItems = []; meldingen = [];
@@ -168,6 +167,16 @@ function verbergApp() {
   document.getElementById('bewerk-opslaan-btn').disabled = false;
   document.getElementById('clear-btn').disabled = false;
   updateUndoBtn();
+}
+
+function toonSessieLaden(tekst) {
+  document.getElementById('auth-overlay').style.display = 'none';
+  document.getElementById('sessie-laden-tekst').textContent = tekst || 'Je sessie wordt hersteld…';
+  document.getElementById('sessie-laden').hidden = false;
+}
+
+function verbergSessieLaden() {
+  document.getElementById('sessie-laden').hidden = true;
 }
 
 async function uitloggen() {
@@ -188,20 +197,36 @@ function checkSessie() {
     stopAbonnementen();
     authProfiel = null; authRechten = {};
     verbergApp();
-    if (!user || !user.emailVerified) return;
+    if (!user || !user.emailVerified) {
+      document.getElementById('auth-overlay').style.display = 'flex';
+      verbergSessieLaden();
+      return;
+    }
+    toonSessieLaden();
     try {
-      var mapping = await db.collection('authUsers').doc(user.uid).get();
+      var profielEnToken = await Promise.all([db.collection('authUsers').doc(user.uid).get(), user.getIdTokenResult()]);
+      if (generatie !== authGeneratie || auth.currentUser !== user) return;
+      var mapping = profielEnToken[0];
       if (!mapping.exists) throw new Error('profile-missing');
       var gebruiker = mapping.data().gebruiker;
       var account = await db.collection('accounts').doc(gebruiker).get();
       if (!account.exists || account.data().uid !== user.uid) throw new Error('profile-missing');
-      var token = await user.getIdTokenResult();
+      var token = profielEnToken[1];
       if (generatie !== authGeneratie || auth.currentUser !== user) return;
       authProfiel = {uid: user.uid, gebruiker: gebruiker};
       authRechten = token.claims;
       var access = await startAbonnementen(user, generatie);
       if (!access || generatie !== authGeneratie) return;
-      if (access.allowed) await toonApp(gebruiker);
+      if (access.allowed) {
+        toonSessieLaden('Je gegevens worden geladen…');
+        await toonApp(gebruiker);
+        // Firestore already verified this session's access. A slower Stripe
+        // reconciliation must not keep a valid session on the login screen.
+        if (generatie === authGeneratie && access.provider === 'stripe' &&
+            (['active', 'lifetime'].includes(access.kind) || new URLSearchParams(window.location.search).has('betaling'))) {
+          controleerAbonnementen(true).catch(function() {});
+        }
+      }
       else toonAbonnementKeuze(access);
     } catch (error) {
       if (generatie !== authGeneratie) return;
