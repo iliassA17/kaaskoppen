@@ -26,6 +26,10 @@ async function billingOverview(identity, {after = null} = {}, deps = dependencie
   const state = model.accessState(config, access, Date.now(), identity.user.admin === true);
   const result = {access: state, subscription: null, invoices: [], nextCursor: null, hasCustomer: false,
     plans: model.planOptions(config), taxIncluded: config.taxIncluded === true};
+  const paidStart = model.milliseconds(access?.paidStartsAt);
+  if (Number.isFinite(paidStart) && ['active', 'lifetime'].includes(access?.status)) {
+    result.prepaid = {startsAt: paidStart, endsAt: access.status === 'lifetime' ? null : model.milliseconds(access.validUntil)};
+  }
   const record = (await deps.database.doc('billingCustomers/' + uid).get()).data();
   if (!record?.customerId) return result;
   const customer = await deps.stripe.customers.retrieve(record.customerId);
@@ -59,7 +63,7 @@ async function billingOverview(identity, {after = null} = {}, deps = dependencie
     return ended(left) - ended(right) || (right.created || 0) - (left.created || 0);
   });
   const subscription = candidates[0];
-  if (state.kind === 'lifetime') {
+  if (access?.status === 'lifetime') {
     result.subscription = {plan: 'levenslang', label: model.PLANS.levenslang.label,
       amountCents: config.plans?.levenslang?.amountCents ?? null, currency: 'EUR', status: 'lifetime',
       currentPeriodEnd: null, nextPaymentAt: null, cancelAt: null, cancelAtPeriodEnd: false};

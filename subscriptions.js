@@ -1,3 +1,42 @@
+function renderAbonnementOpties(container, plans, options) {
+  container.replaceChildren();
+  plans.forEach(function(plan) {
+    var card = document.createElement('div');
+    card.className = 'abonnement-optie';
+    var title = document.createElement('h3');
+    title.textContent = plan.label;
+    var price = document.createElement('div');
+    price.className = 'abonnement-prijs';
+    price.textContent = plan.amountCents == null ? 'Prijs nog niet ingesteld' :
+      new Intl.NumberFormat('nl-NL', {style: 'currency', currency: 'EUR'}).format(plan.amountCents / 100);
+    var interval = document.createElement('p');
+    interval.textContent = plan.months === null ? 'Eenmalig betalen' :
+      (plan.months === 1 ? 'Iedere maand, tot je opzegt' : 'Iedere ' + plan.months + ' maanden, tot je opzegt');
+    var button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'auth-btn';
+    button.textContent = (options.prepay ? 'Nu betalen · ' : 'Kies ') + plan.label.toLowerCase();
+    button.dataset.plan = plan.id;
+    button.disabled = !!options.disabled || plan.amountCents == null;
+    button.addEventListener('click', function() { options.choose(plan.id); });
+    card.append(title, price);
+    var comparison = abonnementPrijsVergelijking(plan, plans);
+    if (comparison) {
+      var monthlyPrice = document.createElement('p');
+      monthlyPrice.className = 'abonnement-maandprijs';
+      monthlyPrice.textContent = comparison.monthly;
+      card.appendChild(monthlyPrice);
+      if (comparison.saving) {
+        var saving = document.createElement('p');
+        saving.textContent = comparison.saving;
+        card.appendChild(saving);
+      }
+    }
+    card.append(interval, button);
+    container.appendChild(card);
+  });
+}
+
 var abonnementStatus = null;
 var abonnementTimer = null;
 var abonnementListeners = [];
@@ -54,44 +93,8 @@ function toonAbonnementKeuze(status, fout) {
   var error = document.getElementById('abonnement-error');
   error.textContent = fout || '';
   error.hidden = !fout;
-  var container = document.getElementById('abonnement-opties');
-  container.replaceChildren();
-  var plans = (status && status.plans) || SubscriptionAccess.planOptions(null);
-  plans.forEach(function(plan) {
-    var card = document.createElement('div');
-    card.className = 'abonnement-optie';
-    var title = document.createElement('h3');
-    title.textContent = plan.label;
-    var price = document.createElement('div');
-    price.className = 'abonnement-prijs';
-    price.textContent = plan.amountCents == null ? 'Prijs nog niet ingesteld' :
-      new Intl.NumberFormat('nl-NL', {style: 'currency', currency: 'EUR'}).format(plan.amountCents / 100);
-    var interval = document.createElement('p');
-    interval.textContent = plan.months === null ? 'Eenmalig betalen' :
-      (plan.months === 1 ? 'Iedere maand, tot je opzegt' : 'Iedere ' + plan.months + ' maanden, tot je opzegt');
-    var button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'auth-btn';
-    button.textContent = 'Kies ' + plan.label.toLowerCase();
-    button.dataset.plan = plan.id;
-    button.disabled = !!fout || plan.amountCents == null;
-    button.addEventListener('click', function() { startAbonnementBetaling(plan.id); });
-    card.append(title, price);
-    var comparison = abonnementPrijsVergelijking(plan, plans);
-    if (comparison) {
-      var monthlyPrice = document.createElement('p');
-      monthlyPrice.className = 'abonnement-maandprijs';
-      monthlyPrice.textContent = comparison.monthly;
-      card.appendChild(monthlyPrice);
-      if (comparison.saving) {
-        var saving = document.createElement('p');
-        saving.textContent = comparison.saving;
-        card.appendChild(saving);
-      }
-    }
-    card.append(interval, button);
-    container.appendChild(card);
-  });
+  renderAbonnementOpties(document.getElementById('abonnement-opties'),
+    (status && status.plans) || SubscriptionAccess.planOptions(null), {disabled: !!fout, choose: startAbonnementBetaling});
   document.getElementById('abonnement-btw').textContent = status && status.taxIncluded ? 'Alle prijzen zijn inclusief btw.' : '';
   if (!abonnementInert.length) {
     Array.from(document.body.children).forEach(function(element) {
@@ -107,7 +110,7 @@ function toonAbonnementKeuze(status, fout) {
 async function openStripePagina(endpoint, plan, host, feedback) {
   var generatie = authGeneratie, uid = auth && auth.currentUser && auth.currentUser.uid;
   var error = feedback || document.getElementById('abonnement-error');
-  var buttons = Array.from(document.querySelectorAll('#abonnement-dialoog button, #abonnement-beheren-profiel, #abonnement-portaal-openen'));
+  var buttons = Array.from(document.querySelectorAll('#abonnement-dialoog button, #abonnement-beheren-profiel, #abonnement-portaal-openen, #abonnement-proefweek-opties button'));
   var disabled = buttons.map(function(button) { return button.disabled; });
   buttons.forEach(function(button) { button.disabled = true; });
   error.hidden = true;
@@ -151,7 +154,9 @@ function planAbonnementControle(status) {
   var info = document.getElementById('proefperiode-info');
   info.hidden = status.kind !== 'trial' || !status.allowed;
   if (!info.hidden) info.textContent = 'Je gratis proefweek loopt tot ' +
-    new Date(status.expiresAt).toLocaleString('nl-NL', {day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'}) + '. Daarna kies je zelf of je verdergaat met een betaaloptie.';
+    new Date(status.expiresAt).toLocaleString('nl-NL', {day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'}) +
+    (status.prepaid ? '. Je hebt al vooruitbetaald. Je betaalde toegang begint na je proefweek.' :
+      '. Je kunt bij Abonnement beheren alvast de prijzen bekijken en een betaaloptie kiezen.');
   document.getElementById('abonnement-beheren-profiel').hidden = !status.enabled;
   document.getElementById('abonnement-beheren').hidden = !authProfiel;
   if (!status.allowed || !Number.isFinite(status.expiresAt)) return;

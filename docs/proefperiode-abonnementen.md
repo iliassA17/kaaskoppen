@@ -35,12 +35,39 @@ opnieuw uitvoeren van het script geen gratis blijvende toegang.
    account of een nieuwe proefweek. Alleen een beveiligde serverkoppeling of de
    hoofdbeheerder mag betaalde toegang vastleggen.
 
-Er wordt tijdens de proefweek niets afgeschreven. Na de proefweek kiest de
-gebruiker zelf een betaaloptie en rekent af via Stripe Checkout. De drie
+Tijdens de proefweek toont **Abonnement beheren** alle vier prijzen, de
+maandbedragen voor halfjaar/jaar en de besparingen. De gebruiker kan al kiezen
+en direct vooruitbetalen via Stripe Checkout. Zonder betaalkeuze wordt niets
+afgeschreven. De betaalde periode begint pas na de oorspronkelijke proefweek;
+de resterende proefdagen gaan niet verloren. De drie
 abonnementen verlengen periodiek; levenslang is één betaling. Bij bevestigde
 toegang kan de gebruiker via **Profiel → Abonnement en facturen beheren** naar
 het Stripe-klantenportaal. Daar zijn betaalgegevens, facturen en opzeggen
 beschikbaar zodra de eigenaar het portaal in Stripe heeft ingesteld.
+
+### Vooruitbetalen tijdens de proefweek
+
+De server bepaalt de begindatum uit de bestaande `trialStartedAt` plus zeven
+dagen. Voor een terugkerend abonnement wordt nu één eenmalige vooruitbetaling
+voor de gekozen periode geïnd. Stripe krijgt daarnaast de gewone terugkerende
+prijs, met `subscription_data.trial_end` op het einde van de vooruitbetaalde
+periode. Daardoor volgt bij het einde van de app-proefweek geen tweede
+afschrijving. Stripe kan dit uitstel intern als `trialing` tonen, ook nadat
+de app-proefweek voorbij is; de app toont de werkelijk betaalde periode.
+Maandeinden worden begrensd op de laatste geldige dag van de doelmaand.
+Levenslang blijft één betaling, zonder automatisch verlengend abonnement.
+
+Alleen de bevestigde eigen Checkout, eigen Stripe-klant en abonnement, een
+volledig betaalde factuur van het juiste bedrag en geslaagde betaalbewijzen
+geven vooruitbetaalde toegang. Een open of nog verwerkte betaling doet dat
+niet. Dubbel afrekenen wordt geblokkeerd. Bij opzeggen blijft de betaalde
+periode behouden. Een terugbetaling herstelt hoogstens het nog resterende
+deel van de oorspronkelijke proefweek; er begint geen nieuwe proefweek.
+
+Controleer deze combinatie in de Stripe Sandbox met iDEAL/SEPA vóór de
+productie-uitrol: direct eenmaal afrekenen, geen afschrijving bij proefeinde,
+eerste verlenging na de betaalde maand/zes maanden/jaar, opzeggen en refund.
+Deze echte Stripe-controle wordt niet vervangen door lokale API-testdubbels.
 
 ## Stripe en toegang
 

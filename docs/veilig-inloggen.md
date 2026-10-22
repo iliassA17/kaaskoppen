@@ -13,7 +13,7 @@ uit voordat je de nieuwe site beschikbaar maakt voor gebruikers.
 - Firebase Authentication verwerkt wachtwoorden, sessies, verificatiemails en
   resetmails. De app bewaart geen eigen wachtwoordhash of resetcode meer.
 - E-mailverificatie is verplicht. Nieuwe registraties gebruiken een eenmalige
-  uitnodiging en een wachtwoord van minimaal 12 tekens.
+  uitnodiging en een wachtwoord van minimaal 6 tekens.
 - Het gedeelde beheerderswachtwoord vervalt. Alleen persoonlijke accounts met
   een door de projecteigenaar toegekende `admin`- of `beheerder`-claim krijgen
   toegang. Een veld in het gebruikersprofiel geeft geen beheerrechten.
@@ -27,7 +27,7 @@ Open project **boekingsschema** in de Firebase-console:
 2. Authentication → Settings → Authorized domains: voeg
    **boekingschema.netlify.app** toe. Voeg ook een eigen productiedomein toe als
    je dat gebruikt. Autoriseer alleen domeinen die je daadwerkelijk gebruikt.
-3. Stel het wachtwoordbeleid in op minimaal **12 tekens** en kies afdwingen.
+3. Stel het wachtwoordbeleid in op minimaal **6 tekens** en kies afdwingen.
    Daarmee geldt de eis ook voor herstel en rechtstreekse API-verzoeken.
 4. Controleer de templates voor e-mailverificatie en wachtwoordherstel. Gebruik
    voor deze eerste versie de standaard Firebase-actiepagina's, die de

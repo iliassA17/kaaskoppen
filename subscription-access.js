@@ -28,6 +28,11 @@
     if (!config || config.enabled === false) return {allowed: true, kind: 'disabled', expiresAt: null};
     if (config.enabled !== true) return {allowed: false, kind: 'unavailable', expiresAt: null};
     if (!access) return {allowed: false, kind: 'missing', expiresAt: null};
+    var paidStart = milliseconds(access.paidStartsAt);
+    if (Number.isFinite(now) && paidStart > now &&
+        (access.status === 'lifetime' || (access.status === 'active' && milliseconds(access.validUntil) > paidStart))) {
+      return {allowed: true, kind: 'trial', expiresAt: paidStart};
+    }
     if (access.status === 'free' || access.status === 'lifetime') {
       return {allowed: true, kind: access.status, expiresAt: null};
     }

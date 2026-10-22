@@ -2,7 +2,7 @@ const {randomUUID} = require('node:crypto');
 const {initializeApp, getApps, cert} = require('firebase-admin/app');
 const {getFirestore, Timestamp, FieldValue} = require('firebase-admin/firestore');
 const Stripe = require('stripe');
-const {PLANS} = require('../../subscription-access.js');
+const {PLANS, TRIAL_MS, milliseconds} = require('../../subscription-access.js');
 
 class BillingError extends Error {
   constructor(message, statusCode = 503) { super(message); this.statusCode = statusCode; }
@@ -54,6 +54,25 @@ function validPrice(price, plan, projectId) {
       (price.type === 'recurring' && price.recurring?.interval === 'month' && price.recurring.interval_count === months));
 }
 
+// Preserve the day and UTC time, clamping month ends (31 January -> 28 February).
+function afterMonths(seconds, months) {
+  const date = new Date(seconds * 1000), day = date.getUTCDate();
+  date.setUTCDate(1);
+  date.setUTCMonth(date.getUTCMonth() + months);
+  const last = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0)).getUTCDate();
+  date.setUTCDate(Math.min(day, last));
+  return date.getTime() / 1000;
+}
+
+function prepaidWindow(metadata, plan) {
+  if (metadata?.prepayment !== 'trial-v1' || !Object.hasOwn(PLANS, plan || '')) return null;
+  const start = Number(metadata.prepaidStartsAt), end = Number(metadata.prepaidEndsAt);
+  if (!Number.isSafeInteger(start) || start <= 0) return null;
+  if (plan === 'levenslang') return {start, end: null};
+  if (!Number.isSafeInteger(end) || end !== afterMonths(start, PLANS[plan].months)) return null;
+  return {start, end};
+}
+
 async function customerFor(identity, deps) {
   const uid = identity.user.uid;
   const mapping = (await deps.database.doc('authUsers/' + uid).get()).data();
@@ -97,6 +116,7 @@ async function createCheckout(identity, plan, deps = dependencies()) {
     if (identity.user.admin === true || ['free', 'lifetime'].includes(access?.status)) {
       throw new BillingError('Je hebt al blijvende toegang. Je hoeft niet te betalen.', 409);
     }
+    if (access?.status === 'blocked') throw new BillingError('Neem contact op met de beheerder over je toegang.', 403);
     const customer = await customerFor(identity, deps);
     if (await entitlement(identity.user.uid, customer, deps)) {
       throw new BillingError('Je hebt al betaalde toegang. Klik op Opnieuw controleren of op Abonnement beheren.', 409);
@@ -138,15 +158,43 @@ async function createCheckout(identity, plan, deps = dependencies()) {
       throw new BillingError('Deze betaaloptie kan niet veilig worden gecontroleerd. Neem contact op met de beheerder.');
     }
     const metadata = {...metadataFor(identity.user.uid, deps.projectId), plan};
+    const trialEnd = milliseconds(access?.trialStartedAt) + TRIAL_MS;
+    const prepay = access?.status === 'trial' && Number.isFinite(trialEnd) && trialEnd > Date.now();
+    if (prepay) {
+      const start = Math.ceil(trialEnd / 1000);
+      Object.assign(metadata, {prepayment: 'trial-v1', prepaidStartsAt: String(start),
+        prepaidEndsAt: plan === 'levenslang' ? '' : String(afterMonths(start, PLANS[plan].months)),
+        prepaidPriceId: price.id});
+    }
     const mode = plan === 'levenslang' ? 'payment' : 'subscription';
     const params = {mode, customer, client_reference_id: identity.user.uid, metadata,
       line_items: [{price: price.id, quantity: 1}],
       success_url: deps.appUrl + '/?betaling=geslaagd', cancel_url: deps.appUrl + '/?betaling=geannuleerd'};
-    if (mode === 'subscription') params.subscription_data = {metadata};
+    if (mode === 'subscription') {
+      params.subscription_data = {metadata};
+      if (prepay) {
+        // Collect the first period once, now, as a one-time invoice line. Stripe
+        // delays recurring billing until that prepaid period ends. Setting only
+        // trial_end to the app's trial deadline would charge the customer twice.
+        params.subscription_data.trial_end = Number(metadata.prepaidEndsAt);
+        params.line_items.push({price_data: {currency: 'eur', unit_amount: price.unit_amount,
+          tax_behavior: 'inclusive', product_data: {
+            name: 'Vooruitbetaling Boekingsschema · ' + PLANS[plan].label,
+            description: 'Betaalde periode: ' + new Date(Number(metadata.prepaidStartsAt) * 1000).toISOString().slice(0, 10) +
+              ' tot ' + new Date(Number(metadata.prepaidEndsAt) * 1000).toISOString().slice(0, 10)
+          }}, quantity: 1});
+      }
+    }
     else {
       params.payment_intent_data = {metadata};
       params.invoice_creation = {enabled: true};
     }
+    if (prepay) params.custom_text = {submit: {message:
+      'Je betaalt nu. Je proefweek blijft behouden. Je betaalde toegang begint op ' +
+      new Date(Number(metadata.prepaidStartsAt) * 1000).toLocaleDateString('nl-NL', {timeZone: 'Europe/Amsterdam'}) +
+      (mode === 'subscription' ? '. De volgende afschrijving is pas op ' +
+        new Date(Number(metadata.prepaidEndsAt) * 1000).toLocaleDateString('nl-NL', {timeZone: 'Europe/Amsterdam'}) + '.' :
+        ' en geldt voor altijd. Er volgt geen nieuwe afschrijving.')}};
     const session = await deps.stripe.checkout.sessions.create(params, {idempotencyKey: 'checkout-' + lease.token});
     await ref.set({sessionId: session.id, plan, createdAt: FieldValue.serverTimestamp()});
     return {url: session.url};
@@ -176,17 +224,47 @@ async function paymentValid(paymentIntent, deps) {
   return true;
 }
 
+async function prepaidAccess(session, uid, customer, deps) {
+  const window = prepaidWindow(session.metadata, session.metadata?.plan);
+  if (!window || session.mode !== 'subscription' || session.payment_status !== 'paid' ||
+      session.currency !== 'eur' || session.client_reference_id !== uid || id(session.customer) !== customer ||
+      !matches(session.metadata, uid, deps.projectId) || !session.invoice || !session.subscription) return null;
+  const subscription = await deps.stripe.subscriptions.retrieve(id(session.subscription));
+  const plan = session.metadata.plan, item = subscription?.items?.data?.[0];
+  if (!subscription || id(subscription.customer) !== customer || !matches(subscription.metadata, uid, deps.projectId) ||
+      subscription.metadata.plan !== plan || subscription.items.data.length !== 1 || item.quantity !== 1 ||
+      !validPrice(item.price, plan, deps.projectId) || item.price.id !== session.metadata.prepaidPriceId ||
+      ['prepayment', 'prepaidStartsAt', 'prepaidEndsAt', 'prepaidPriceId'].some(key =>
+        subscription.metadata[key] !== session.metadata[key]) || session.amount_total !== item.price.unit_amount) return null;
+  const invoice = await deps.stripe.invoices.retrieve(id(session.invoice));
+  if (!invoice || id(invoice.customer) !== customer || invoice.status !== 'paid' || invoice.currency !== 'eur' ||
+      invoice.total !== session.amount_total || invoice.amount_paid !== session.amount_total) return null;
+  const payments = await deps.stripe.invoicePayments.list({invoice: invoice.id, status: 'paid', limit: 100});
+  if (payments.has_more) throw new BillingError('De factuur vereist controle door de beheerder.');
+  const intents = payments.data.filter(payment => payment.payment?.type === 'payment_intent');
+  if (!intents.length) return null;
+  for (const payment of intents) if (!await paymentValid(payment.payment.payment_intent, deps)) return null;
+  return {start: window.start * 1000, end: window.end * 1000};
+}
+
 async function entitlement(uid, customer, deps) {
-  let lifetime = false, validUntil = 0, count = 0;
+  let lifetime = false, lifetimeStart = null, validUntil = 0, paidStartsAt = null, count = 0;
   for await (const session of deps.stripe.checkout.sessions.list({customer, status: 'complete', limit: 100})) {
     if (++count > 1000) throw new BillingError('De betaalhistorie vereist controle door de beheerder.');
     if (session.mode === 'payment' && session.payment_status === 'paid' && session.currency === 'eur' &&
         session.metadata?.plan === 'levenslang' && matches(session.metadata, uid, deps.projectId) &&
         session.client_reference_id === uid && session.payment_intent && await paymentValid(session.payment_intent, deps)) {
       lifetime = true;
+      const window = prepaidWindow(session.metadata, 'levenslang');
+      lifetimeStart = window ? Timestamp.fromMillis(window.start * 1000) : null;
+    }
+    const prepaid = await prepaidAccess(session, uid, customer, deps);
+    if (prepaid && prepaid.end > validUntil) {
+      validUntil = prepaid.end;
+      paidStartsAt = Timestamp.fromMillis(prepaid.start);
     }
   }
-  if (lifetime) return {status: 'lifetime'};
+  if (lifetime) return {status: 'lifetime', ...(lifetimeStart ? {paidStartsAt: lifetimeStart} : {})};
   let now = Date.now();
   // Test clocks advance Stripe only, not the application server. Use the
   // provider's clock for paid coverage in the sandbox; live billing always
@@ -227,11 +305,15 @@ async function entitlement(uid, customer, deps) {
     for await (const line of deps.stripe.invoices.listLineItems(invoice.id, {limit: 100})) {
       if (line.parent?.subscription_item_details?.subscription_item === item.id &&
           !line.parent.subscription_item_details.proration && line.period?.end > 0) {
-        validUntil = Math.max(validUntil, line.period.end * 1000);
+        if (line.period.end * 1000 > validUntil) {
+          validUntil = line.period.end * 1000;
+          paidStartsAt = null;
+        }
       }
     }
   }
-  return validUntil > now ? {status: 'active', validUntil: Timestamp.fromMillis(validUntil)} : null;
+  return validUntil > now ? {status: 'active', validUntil: Timestamp.fromMillis(validUntil),
+    ...(paidStartsAt ? {paidStartsAt} : {})} : null;
 }
 
 const WEBHOOK_EVENTS = new Set(['checkout.session.completed', 'checkout.session.async_payment_succeeded',
@@ -265,7 +347,10 @@ async function processEvent(event, deps = dependencies()) {
       // Preserve the owner's permanent exemptions and an unfinished trial.
       const existing = current.data();
       if (!['free', 'blocked'].includes(existing?.status) && (access || ['active', 'lifetime'].includes(existing?.status))) {
-        tx.set(ref, {...(access || {status: 'expired'}), source: 'stripe', stripeCustomerId: customerId,
+        const trial = existing?.trialStartedAt;
+        const remainingTrial = trial && milliseconds(trial) + TRIAL_MS > Date.now();
+        tx.set(ref, {...(access || {status: remainingTrial ? 'trial' : 'expired'}),
+          ...(trial ? {trialStartedAt: trial} : {}), source: 'stripe', stripeCustomerId: customerId,
           checkedAt: FieldValue.serverTimestamp()});
       }
       tx.set(eventRef, {type: event.type, customerId, processedAt: FieldValue.serverTimestamp()});
@@ -285,4 +370,4 @@ async function refreshAccess(uid, deps = dependencies()) {
 }
 
 module.exports = {BillingError, dependencies, configuration, validPrice, createCheckout, createPortal,
-  entitlement, processEvent, refreshAccess, WEBHOOK_EVENTS, metadataFor, matches};
+  entitlement, processEvent, refreshAccess, WEBHOOK_EVENTS, metadataFor, matches, afterMonths};

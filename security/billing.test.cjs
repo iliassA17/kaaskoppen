@@ -3,10 +3,11 @@ const assert = require('node:assert/strict');
 const {initializeApp} = require('firebase-admin/app');
 const {getFirestore, Timestamp} = require('firebase-admin/firestore');
 const Stripe = require('stripe');
-const {createCheckout, createPortal, processEvent, metadataFor} = require('../netlify/lib/billing.cjs');
+const {createCheckout, createPortal, processEvent, metadataFor, afterMonths} = require('../netlify/lib/billing.cjs');
 const {billingOverview} = require('../netlify/lib/billing-overview.cjs');
 const {setupSubscriptions, AMOUNTS} = require('../scripts/setup-subscriptions.cjs');
 const {PLANS} = require('../subscription-access.js');
+const {accessState, TRIAL_MS} = require('../subscription-access.js');
 const projectId = 'demo-kaaskoppen', uid = 'alice-uid';
 const identity = {user: {uid, email: 'alice@example.test'}};
 const meta = plan => ({...metadataFor(uid, projectId), plan});
@@ -129,6 +130,111 @@ test('proefgebruikers en vrijgestelde accounts zien hun status zonder een Stripe
   await database.doc('billingAccess/' + uid).set({status: 'free'});
   assert.equal((await billingOverview(identity, {}, deps)).access.kind, 'free');
   assert.equal((await database.doc('billingCustomers/' + uid).get()).exists, false);
+});
+
+async function trialCheckout(plan = 'maand') {
+  const started = Timestamp.fromMillis(Date.now() - 2 * 86400000);
+  await database.doc('billingAccess/' + uid).set({status: 'trial', trialStartedAt: started});
+  await createCheckout(identity, plan, deps);
+  return {started, session: state.sessions.at(-1)};
+}
+
+function settlePrepayment(session) {
+  session.status = 'complete'; session.payment_status = 'paid'; session.currency = 'eur';
+  session.amount_total = state.prices[session.metadata.plan].unit_amount;
+  session.subscription = 'sub_prepaid'; session.invoice = 'in_prepaid';
+  state.subscriptions.push({id: session.subscription, customer: 'cus_alice', status: 'trialing',
+    metadata: {...session.metadata}, items: {data: [{id: 'si_prepaid', quantity: 1,
+      price: state.prices[session.metadata.plan], current_period_end: Number(session.metadata.prepaidEndsAt)}]}});
+  state.invoices.push({id: session.invoice, customer: 'cus_alice', status: 'paid', currency: 'eur',
+    total: session.amount_total, amount_paid: session.amount_total});
+  state.invoicePayments.push({payment: {type: 'payment_intent', payment_intent: 'pi_prepaid'}});
+}
+
+test('vooruitbetalen rekent eenmaal de vaste prijs af en start verlengingen pas na de volledige betaalde periode', async () => {
+  for (const plan of ['maand', 'halfjaar', 'jaar', 'levenslang']) {
+    await database.doc('billingCheckout/' + uid).delete();
+    state.sessions = [];
+    const {started, session} = await trialCheckout(plan);
+    assert.equal(Number(session.metadata.prepaidStartsAt), Math.ceil((started.toMillis() + TRIAL_MS) / 1000));
+    assert.equal(session.line_items[0].price, 'price_' + plan);
+    if (plan === 'levenslang') {
+      assert.equal(session.line_items.length, 1);
+      assert.equal(session.metadata.prepaidEndsAt, '');
+    } else {
+      assert.equal(session.line_items.length, 2);
+      assert.equal(session.line_items[1].price_data.unit_amount, AMOUNTS[plan]);
+      assert.equal(session.line_items[1].price_data.recurring, undefined);
+      assert.equal(session.subscription_data.trial_end, Number(session.metadata.prepaidEndsAt));
+      assert.ok(session.subscription_data.trial_end > Number(session.metadata.prepaidStartsAt) + 27 * 86400);
+      assert.equal(session.subscription_data.metadata.prepaidStartsAt, session.metadata.prepaidStartsAt);
+    }
+    assert.equal((await database.doc('billingAccess/' + uid).get()).data().status, 'trial');
+  }
+});
+
+test('vooruitbetalen respecteert korte maanden en schrikkeldagen zonder de proefweek te verschuiven', () => {
+  assert.equal(afterMonths(Date.UTC(2028, 0, 31, 12) / 1000, 1) * 1000, Date.UTC(2028, 1, 29, 12));
+  assert.equal(afterMonths(Date.UTC(2028, 1, 29, 12) / 1000, 12) * 1000, Date.UTC(2029, 1, 28, 12));
+});
+
+test('betaalde vooruitbetaling behoudt proefdagen, blokkeert dubbel afrekenen en blijft geldig na opzeggen', async () => {
+  const {started, session} = await trialCheckout('halfjaar');
+  settlePrepayment(session);
+  await processEvent(event('evt_prepaid'), deps);
+  const access = (await database.doc('billingAccess/' + uid).get()).data();
+  const config = (await database.doc('billing/config').get()).data();
+  const start = Number(session.metadata.prepaidStartsAt) * 1000, end = Number(session.metadata.prepaidEndsAt) * 1000;
+  assert.equal(access.trialStartedAt.toMillis(), started.toMillis());
+  assert.deepEqual(accessState(config, access, start - 1, false), {allowed: true, kind: 'trial', expiresAt: start});
+  assert.deepEqual(accessState(config, access, start, false), {allowed: true, kind: 'active', expiresAt: end});
+  assert.equal(accessState(config, access, end, false).allowed, false);
+  await assert.rejects(createCheckout(identity, 'jaar', deps), error => error.statusCode === 409);
+  assert.deepEqual(await processEvent(event('evt_prepaid'), deps), {duplicate: true});
+  state.subscriptions[0].status = 'canceled';
+  await processEvent(event('evt_prepaid_cancel', 'customer.subscription.deleted'), deps);
+  assert.equal((await database.doc('billingAccess/' + uid).get()).data().validUntil.toMillis(), end);
+  const overview = await billingOverview(identity, {}, deps);
+  assert.deepEqual(overview.prepaid, {startsAt: start, endsAt: end});
+  assert.equal(overview.subscription.nextPaymentAt, null);
+});
+
+test('een onbetaalde, vreemde, onvolledige of teruggedraaide vooruitbetaling geeft geen betaalde periode', async () => {
+  const {started, session} = await trialCheckout();
+  settlePrepayment(session);
+  const original = {status: 'trial', trialStartedAt: started};
+  for (const [index, mutate] of [
+    () => { session.payment_status = 'unpaid'; },
+    () => { session.payment_status = 'paid'; state.paymentValid = false; },
+    () => { state.paymentValid = true; state.refunded = true; },
+    () => { state.refunded = false; state.subscriptions[0].metadata.uid = 'bob-uid'; },
+    () => { state.subscriptions[0].metadata.uid = uid; session.amount_total = 1; },
+    () => { session.amount_total = AMOUNTS.maand; state.invoicePayments = []; }
+  ].entries()) {
+    mutate();
+    await processEvent(event('evt_bad_prepaid_' + index), deps);
+    assert.deepEqual((await database.doc('billingAccess/' + uid).get()).data(), original);
+  }
+  state.invoicePayments.push({payment: {type: 'payment_intent', payment_intent: 'pi_prepaid'}});
+  await processEvent(event('evt_good_prepaid'), deps);
+  state.refunded = true;
+  await processEvent(event('evt_refund_prepaid', 'charge.refunded'), deps);
+  const restored = (await database.doc('billingAccess/' + uid).get()).data();
+  assert.equal(restored.status, 'trial');
+  assert.equal(restored.trialStartedAt.toMillis(), started.toMillis());
+});
+
+test('levenslang vooruitbetalen bewaart de proefweek en heeft geen automatische verlenging', async () => {
+  const {session} = await trialCheckout('levenslang');
+  Object.assign(session, {status: 'complete', payment_status: 'paid', currency: 'eur', payment_intent: 'pi_lifetime'});
+  await processEvent(event('evt_prepaid_lifetime'), deps);
+  const overview = await billingOverview(identity, {}, deps);
+  assert.equal(overview.access.kind, 'trial');
+  assert.equal(overview.subscription.plan, 'levenslang');
+  assert.equal(overview.subscription.nextPaymentAt, null);
+  assert.equal(overview.prepaid.endsAt, null);
+  const access = (await database.doc('billingAccess/' + uid).get()).data();
+  assert.equal(accessState({enabled: true}, access, Number(session.metadata.prepaidStartsAt) * 1000, false).kind, 'lifetime');
 });
 
 test('abonnementsoverzicht toont gekozen plan, volgende betaling en uitsluitend eigen betaalde en open facturen', async () => {
