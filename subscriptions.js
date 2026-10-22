@@ -57,11 +57,13 @@ function abonnementPrijsVergelijking(plan, plans) {
 }
 
 function herstelAbonnementAchtergrond() {
+  verbergPlanningVoorbeeld();
   abonnementInert.forEach(function(entry) { entry.element.inert = entry.inert; });
   abonnementInert = [];
 }
 
 function stopAbonnementen() {
+  resetPlanningVoorbeeld();
   resetAbonnementOverzicht();
   abonnementVersie++;
   clearTimeout(abonnementTimer);
@@ -104,6 +106,7 @@ function toonAbonnementKeuze(status, fout) {
     });
   }
   overlay.hidden = false;
+  toonPlanningVoorbeeld();
   document.getElementById('abonnement-dialoog').focus();
 }
 

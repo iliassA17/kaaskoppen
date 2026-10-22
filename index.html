@@ -4,6 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Boekingsschema</title>
+<meta name="theme-color" content="#0f0e0c">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Boekingsschema">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+<link rel="manifest" href="/manifest.webmanifest">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:wght@300;400;600;700&display=swap" rel="stylesheet">
 <style>
   :root{--bg:#0f0e0c;--surface:#1a1916;--surface2:#242320;--border:#2e2d2a;--accent:#e8c97a;--accent2:#c4a84f;--text:#f0ede6;--muted:#7a7870;--error:#e07070;--success:#7ec896;--blue:#8ab4d4;--blue-bg:rgba(138,180,212,0.1);}
@@ -348,11 +355,11 @@
 </style>
 <style>
   .abonnement-overlay[hidden]{display:none;}
-  .abonnement-overlay{position:fixed;inset:0;z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(10,12,18,0.9);overflow:auto;}
-  .abonnement-dialoog{width:min(760px,100%);max-height:calc(100dvh - 40px);overflow:auto;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px;color:var(--text);box-shadow:0 18px 70px #0007;}
+  .abonnement-overlay{position:fixed;inset:0;z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(0,0,0,0.42);backdrop-filter:blur(1.5px);overflow:auto;}
+  .abonnement-dialoog{outline:none;width:min(1180px,100%);max-height:calc(100dvh - 40px);overflow:auto;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px;color:var(--text);box-shadow:0 18px 70px #0007;}
   .abonnement-dialoog h2{font-size:1.3rem;line-height:1.5;margin:0 0 12px;}
   .abonnement-dialoog>p{font-size:0.83rem;line-height:1.7;color:var(--muted);}
-  .abonnement-opties{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:22px 0;}
+  .abonnement-opties{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:22px 0;}
   .abonnement-optie{display:flex;flex-direction:column;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:18px;}
   .abonnement-optie .auth-btn{margin-top:auto;}
   .abonnement-optie h3{font-size:0.9rem;margin:0 0 12px;}
@@ -395,15 +402,50 @@
   .abonnement-pagina-fout{color:var(--error);font-size:0.8rem;line-height:1.8;margin:16px 0;}
   .abonnement-laden{color:var(--muted);font-size:0.8rem;margin:20px 0;}
   @media(max-width:620px){.abonnement-samenvatting{grid-template-columns:1fr;}.abonnement-kaart,.factuur-kaart{padding:20px;}.factuur-details{grid-template-columns:1fr 1fr;}.abonnement-pagina-acties .factuur-knop{flex:1;}.facturen-kop{align-items:flex-start;}}
-  @media(max-width:520px){.abonnement-opties{grid-template-columns:1fr;}.abonnement-dialoog{padding:20px;}}
+  @media(max-width:850px){.abonnement-opties{grid-template-columns:1fr;}.abonnement-dialoog{padding:20px;}}
+
+  .abonnement-vergrendeld{overflow:hidden;}
+  .abonnement-achtergrond[hidden]{display:none;}
+  .abonnement-achtergrond{position:fixed;inset:0;z-index:1900;pointer-events:none;overflow:hidden;background:var(--bg);}
+  .abonnement-achtergrond img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center top;}
+  .abonnement-achtergrond img:not([src]){display:none;}
+  .planning-omtrek{max-width:1150px;min-width:850px;padding:45px 20px;margin:0 auto;color:var(--muted);}
+  .planning-omtrek>p{font-size:0.7rem;margin-top:12px;letter-spacing:0.15em;}
+  .planning-formulier{margin:45px 0;padding:28px;background:var(--surface);border:1px solid var(--border);border-radius:14px;color:var(--accent);}
+  .planning-formulier>div{height:44px;margin-top:20px;background:var(--surface2);border-radius:8px;}
+  .planning-dagen{display:grid;grid-template-columns:repeat(7,1fr);gap:12px;}
+  .planning-dagen span{height:380px;padding:16px 10px;border:1px solid var(--border);border-radius:12px;background:var(--surface);font-size:0.65rem;}
+  .abonnement-dialoog>.abonnement-bewaar-label{color:var(--accent);text-transform:uppercase;letter-spacing:0.12em;font-size:0.65rem;margin-bottom:10px;}
+  .ranglijst-balk{display:flex;align-items:center;justify-content:space-between;gap:20px;margin:0 0 24px;flex-wrap:wrap;}
+  .ranglijst-uitleg{font-size:0.75rem;color:var(--muted);line-height:1.8;max-width:580px;}
+  .ranglijst-lijst{display:grid;gap:12px;}
+  .ranglijst-kaart{display:flex;align-items:center;gap:14px;padding:20px;background:var(--surface);border:1px solid var(--border);border-radius:12px;}
+  .ranglijst-positie{font-size:1.1rem;min-width:30px;color:var(--accent);}
+  .ranglijst-avatar{display:flex;align-items:center;justify-content:center;width:40px;height:40px;flex-shrink:0;border-radius:50%;background:var(--accent);color:var(--bg);font-weight:700;overflow:hidden;}
+  .ranglijst-avatar img{width:100%;height:100%;object-fit:cover;}
+  .ranglijst-profiel{flex:1;min-width:0;overflow-wrap:anywhere;font-size:0.82rem;}
+  .ranglijst-profiel p{font-size:0.68rem;line-height:1.7;margin-top:6px;color:var(--muted);}
+  .ranglijst-cijfers{display:grid;gap:7px;justify-items:end;font-size:0.72rem;white-space:nowrap;}
+  .ranglijst-eigen-inactief{color:var(--muted);border-style:dashed;}
+  .ranglijst-eigen-inactief .ranglijst-avatar{background:var(--border);color:var(--muted);}
+  @media(max-width:520px){.ranglijst-kaart{padding:16px 12px;gap:9px;}.ranglijst-avatar{width:30px;height:30px;}.ranglijst-positie{min-width:22px;font-size:0.9rem;}.ranglijst-cijfers{font-size:0.62rem;}}
 </style>
 </head>
 <body>
 
 <div style="position:fixed;top:0;left:0;right:0;z-index:3000;text-align:center;padding:6px;background:#e8c775;color:#171717;font:700 12px sans-serif;">TESTOMGEVING — BS test</div>
 
+<div id="abonnement-achtergrond" class="abonnement-achtergrond" aria-hidden="true" inert hidden>
+  <div class="planning-omtrek">
+    <h1>Boekingsschema</h1><p>RESERVERINGSBEHEER</p>
+    <div class="planning-formulier"><strong>Nieuwe boeking</strong><div></div></div>
+    <div class="planning-dagen"><span>Maandag</span><span>Dinsdag</span><span>Woensdag</span><span>Donderdag</span><span>Vrijdag</span><span>Zaterdag</span><span>Zondag</span></div>
+  </div>
+  <img id="abonnement-achtergrond-afbeelding" alt="" decoding="async">
+</div>
 <div class="abonnement-overlay" id="abonnement-overlay" hidden>
   <section class="abonnement-dialoog" id="abonnement-dialoog" role="dialog" aria-modal="true" aria-labelledby="abonnement-titel" aria-describedby="abonnement-uitleg" tabindex="-1">
+    <p class="abonnement-bewaar-label">Je planning blijft bewaard</p>
     <h2 id="abonnement-titel">Je proefperiode is afgelopen</h2>
     <p id="abonnement-uitleg">Kies een abonnement om verder te gaan. Je bestaande boekingen blijven bewaard.</p>
     <p id="abonnement-error" role="alert" hidden></p>
@@ -1879,10 +1921,11 @@ function toonApp(user) {
     return Promise.reject(new Error('Niet ingelogd.'));
   }
   var generatie = authGeneratie;
+  resetPlanningVoorbeeld();
   huidigeGebruiker = user;
   document.getElementById('menu-beheer').style.display = isBeheerder() ? '' : 'none';
-  // A ranking must not disclose other users' private booking/account records.
-  document.getElementById('menu-ranglijst').style.display = isBeheerder() ? '' : 'none';
+  // The member ranking uses a filtered server response, never private records.
+  document.getElementById('menu-ranglijst').style.display = '';
   return Promise.all([laadBoekingen(), laadInstellingen()]).then(function() {
     if (generatie !== authGeneratie || !authProfiel || authProfiel.gebruiker !== user ||
         huidigeGebruiker !== user || (abonnementStatus && !abonnementStatus.allowed)) return;
@@ -1903,7 +1946,7 @@ function toonApp(user) {
     else if (herstelpagina === 'statistieken') { toonPagina('statistieken'); renderStatistieken(); }
     else if (herstelpagina === 'pathe') { openPathe(); }
     else if (herstelpagina === 'beheer' && isBeheerder()) { openBeheerPagina(); }
-    else if (herstelpagina === 'ranglijst' && isBeheerder()) { openRanglijst(); }
+    else if (herstelpagina === 'ranglijst') { openRanglijst(); }
     else if (herstelpagina === 'nieuws') { openNieuwsPagina(); }
     else { toonPagina('schema'); renderOverzicht(); }
     verbergSessieLaden();
@@ -3333,12 +3376,13 @@ function renderTopSeller(context) {
 }
 
 function openRanglijst() {
-  if (!isBeheerder()) { voegLogToe('De ranglijst is alleen beschikbaar voor beheerders.', 'error'); return; }
+  if (!authProfiel || !abonnementStatus || !abonnementStatus.allowed) return;
   toonPagina('ranglijst');
   renderTopSeller('gebruiker');
 }
 
 function _laadEnToonTopSeller() {
+  if (tsContext === 'gebruiker') return laadPubliekeRanglijst();
   Promise.all([
     db.collection('accounts').get(),
     db.collection('boekingen').get()
@@ -4139,6 +4183,8 @@ document.addEventListener('DOMContentLoaded', function() {
 <script src="/subscription-access.js"></script>
 <script src="/subscriptions.js"></script>
 <script src="/billing-overview.js"></script>
+<script src="/ranking.js"></script>
+<script src="/paywall-preview.js"></script>
 <script src="/auth.js"></script>
 </body>
 </html>

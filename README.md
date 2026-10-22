@@ -22,6 +22,9 @@ functie staat standaard uit en moet met het eigen Stripe-account en de
 beveiligde serverinstellingen worden geactiveerd. Zie
 [Proefperiode en abonnementen](docs/proefperiode-abonnementen.md).
 
+De ranglijst voor leden, het app-icoon en de vergrendelde kalenderachtergrond
+staan beschreven in [Ranglijst en appweergave](docs/ranglijst-en-appweergave.md).
+
 ## Ontwikkelen en testen
 
 Vereist: Node.js 22 of nieuwer, npm, Python 3 en Chromium. De Firebase-tests

@@ -41,7 +41,7 @@ test.beforeEach(async ({ page }) => {
   });
   await page.route('**/*', async route => {
     const url = new URL(route.request().url());
-    const endpoint = /^\/api\/(subscription-status|create-checkout-session|create-portal-session|billing-overview)$/.exec(url.pathname);
+    const endpoint = /^\/api\/(subscription-status|create-checkout-session|create-portal-session|billing-overview|ranking|schedule-preview)$/.exec(url.pathname);
     if (url.hostname === '127.0.0.1' && endpoint) {
       const request = route.request();
       const result = await require('../../netlify/functions/' + endpoint[1] + '.js').handler({
@@ -299,6 +299,14 @@ test('na afloop verschijnt het centrale keuzescherm met vier opties en blijft de
   await expect(page.locator('#abonnement-titel')).toContainText('afgelopen');
   await expect(page.locator('.abonnement-optie h3')).toHaveText(['Per maand', 'Per halfjaar', 'Per jaar', 'Voor altijd']);
   await expect(page.locator('.abonnement-prijs').first()).toContainText('7,99');
+  await expect(page.locator('#abonnement-achtergrond')).toBeVisible();
+  await expect(page.locator('#abonnement-achtergrond')).toHaveAttribute('inert', '');
+  await expect(page.locator('#abonnement-achtergrond-afbeelding')).toHaveAttribute('src', /^blob:/);
+  const desktopCards = await page.locator('#abonnement-opties .abonnement-optie').evaluateAll(cards => cards.map(card => {
+    const box = card.getBoundingClientRect(); return {x: box.x, y: box.y};
+  }));
+  expect(new Set(desktopCards.map(card => Math.round(card.y))).size).toBe(1);
+  expect(desktopCards[3].x).toBeGreaterThan(desktopCards[0].x);
   await page.keyboard.press('Escape');
   await expect(page.locator('#abonnement-overlay')).toBeVisible();
   const box = await page.locator('#abonnement-dialoog').boundingBox();
@@ -314,9 +322,68 @@ test('na afloop verschijnt het centrale keuzescherm met vier opties en blijft de
   await page.setViewportSize({width: 390, height: 844});
   const mobileBox = await page.locator('#abonnement-dialoog').boundingBox();
   expect(mobileBox.width).toBeLessThanOrEqual(390);
+  const mobileCards = await page.locator('#abonnement-opties .abonnement-optie').evaluateAll(cards => cards.map(card => {
+    const box = card.getBoundingClientRect(); return {x: box.x, y: box.y};
+  }));
+  expect(new Set(mobileCards.map(card => Math.round(card.x))).size).toBe(1);
+  expect(mobileCards[3].y).toBeGreaterThan(mobileCards[0].y);
+  await page.screenshot({path: test.info().outputPath('abonnement-keuze-mobiel.png')});
   await page.locator('#abonnement-uitloggen').click();
   await expect(page.locator('#auth-overlay')).toBeVisible();
   await expect(page.locator('#abonnement-overlay')).toBeHidden();
+  await expect(page.locator('#abonnement-achtergrond')).toBeHidden();
+  await expect(page.locator('#abonnement-achtergrond-afbeelding')).not.toHaveAttribute('src');
+});
+
+test('nieuwe gebruikers openen de ranglijst zonder privéaccounts of inactieve anderen te kunnen ophalen', async ({page}) => {
+  await seedUser(); await seedUser('bob'); await seedUser('carol'); await seedUser('dave'); await enableTrial();
+  const today = require('../../netlify/lib/private-view.cjs').dayString(Date.now());
+  await database.doc('boekingen/bob').update({datumStr: today});
+  await database.doc('boekingen/carol').update({datumStr: today});
+  await database.doc('accounts/carol').update({ranglijstPrive: true});
+  await database.doc('boekingen/alice').update({datumStr: '2020-01-01'});
+  await database.doc('boekingen/dave').update({datumStr: '2020-01-01'});
+  await page.goto('/'); await login(page);
+  await expect(page.locator('#app')).toBeVisible();
+  await page.locator('#hamburger-btn').click();
+  await expect(page.locator('#menu-ranglijst')).toBeVisible();
+  const response = page.waitForResponse(response => new URL(response.url()).pathname === '/api/ranking');
+  await page.locator('#menu-ranglijst').click();
+  const data = await (await response).json();
+  expect(JSON.stringify(data)).not.toMatch(/carol|dave|example.test|alice-uid/);
+  await expect(page.locator('.ranglijst-kaart')).toHaveCount(2);
+  await expect(page.locator('.ranglijst-eigen-inactief')).toContainText('@alice · Jij');
+  await expect(page.locator('.ranglijst-eigen-inactief')).toContainText('alleen jij');
+  await expect(page.locator('[data-username="bob"]')).toBeVisible();
+  expect(await page.evaluate(() => db.collection('accounts').get().then(() => 'toegestaan', e => e.code))).toBe('permission-denied');
+  await database.doc('accounts/bob').update({ranglijstPrive: true});
+  await page.locator('#ranglijst-inhoud').getByRole('button', {name: /^dag$/i}).click();
+  await expect(page.locator('.ranglijst-kaart')).toHaveCount(1);
+  await expect(page.locator('[data-username="bob"]')).toHaveCount(0);
+  await page.screenshot({path: test.info().outputPath('ranglijst-eigen-inactief.png')});
+  await page.evaluate(() => auth.signOut());
+  await expect(page.locator('#auth-overlay')).toBeVisible();
+  await expect(page.locator('.ranglijst-kaart')).toHaveCount(0);
+});
+
+test('een late kalenderafbeelding verschijnt niet na uitloggen of bij een ander account', async ({page}) => {
+  await seedUser(); await seedUser('bob'); await enableTrial(Date.now() - 8 * 86400000);
+  await database.doc('billingAccess/bob-uid').set({status: 'free'});
+  let release;
+  const gate = new Promise(resolve => { release = resolve; });
+  await page.route('**/api/schedule-preview', async route => {
+    await gate;
+    await route.fulfill({status: 200, contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg"><text>ALICE-PLANNING</text></svg>'}).catch(() => {});
+  });
+  await page.goto('/'); await login(page);
+  await expect(page.locator('#abonnement-overlay')).toBeVisible();
+  await page.locator('#abonnement-uitloggen').click();
+  await expect(page.locator('#auth-overlay')).toBeVisible();
+  await login(page, 'bob@example.test');
+  await expect(page.locator('#app')).toBeVisible();
+  release();
+  await expect(page.locator('#abonnement-achtergrond')).toBeHidden();
+  await expect(page.locator('#abonnement-achtergrond-afbeelding')).not.toHaveAttribute('src');
 });
 
 test('de proefperiode verloopt ook terwijl de app open blijft; toegang herstelt na een vertrouwde toekenning', async ({ page }) => {
@@ -342,6 +409,8 @@ test('de proefperiode verloopt ook terwijl de app open blijft; toegang herstelt 
   await expect(page.locator('#app')).toBeVisible();
   await expect(page.locator('#abonnement-overlay')).toBeHidden();
   expect(await page.evaluate(() => boekingen[0].naam)).toBe('Eigen boeking');
+  await expect(page.locator('#abonnement-achtergrond')).toBeHidden();
+  await expect(page.locator('#abonnement-achtergrond-afbeelding')).not.toHaveAttribute('src');
 });
 
 test('een tijdelijke storing in de toegangscontrole houdt de app dicht en kan zonder nieuwe login hersteld worden', async ({ page }) => {
