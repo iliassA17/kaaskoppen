@@ -337,8 +337,11 @@ test('na afloop verschijnt het centrale keuzescherm met vier opties en blijft de
 
 test('nieuwe gebruikers openen de ranglijst zonder privéaccounts of inactieve anderen te kunnen ophalen', async ({page}) => {
   await seedUser(); await seedUser('bob'); await seedUser('carol'); await seedUser('dave'); await enableTrial();
+  await seedUser('erin'); await seedUser('frank');
   const today = require('../../netlify/lib/private-view.cjs').dayString(Date.now());
-  await database.doc('boekingen/bob').update({datumStr: today});
+  await database.doc('boekingen/bob').update({datumStr: today, prijs: 30});
+  await database.doc('boekingen/erin').update({datumStr: today, prijs: 20});
+  await database.doc('boekingen/frank').update({datumStr: today, prijs: 10});
   await database.doc('boekingen/carol').update({datumStr: today});
   await database.doc('accounts/carol').update({ranglijstPrive: true});
   await database.doc('boekingen/alice').update({datumStr: '2020-01-01'});
@@ -351,14 +354,21 @@ test('nieuwe gebruikers openen de ranglijst zonder privéaccounts of inactieve a
   await page.locator('#menu-ranglijst').click();
   const data = await (await response).json();
   expect(JSON.stringify(data)).not.toMatch(/carol|dave|example.test|alice-uid/);
-  await expect(page.locator('.ranglijst-kaart')).toHaveCount(2);
+  await expect(page.locator('.ranglijst-kaart')).toHaveCount(4);
+  await expect(page.locator('.ranglijst-kaart:not(.ranglijst-eigen-inactief) .ranglijst-positie')).toHaveText(['🥇', '🥈', '🥉']);
+  await expect(page.locator('[data-username="bob"]')).toHaveCSS('border-top-color', 'rgb(232, 201, 122)');
+  await expect(page.locator('[data-username="bob"] .ranglijst-cijfers')).toContainText('🏆');
   await expect(page.locator('.ranglijst-eigen-inactief')).toContainText('@alice · Jij');
   await expect(page.locator('.ranglijst-eigen-inactief')).toContainText('alleen jij');
   await expect(page.locator('[data-username="bob"]')).toBeVisible();
+  await page.screenshot({path: test.info().outputPath('ranglijst-oude-vormgeving.png'), fullPage: true});
+  await page.setViewportSize({width: 390, height: 844});
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.screenshot({path: test.info().outputPath('ranglijst-oude-vormgeving-mobiel.png'), fullPage: true});
   expect(await page.evaluate(() => db.collection('accounts').get().then(() => 'toegestaan', e => e.code))).toBe('permission-denied');
   await database.doc('accounts/bob').update({ranglijstPrive: true});
   await page.locator('#ranglijst-inhoud').getByRole('button', {name: /^dag$/i}).click();
-  await expect(page.locator('.ranglijst-kaart')).toHaveCount(1);
+  await expect(page.locator('.ranglijst-kaart')).toHaveCount(3);
   await expect(page.locator('[data-username="bob"]')).toHaveCount(0);
   await page.screenshot({path: test.info().outputPath('ranglijst-eigen-inactief.png')});
   await page.evaluate(() => auth.signOut());
