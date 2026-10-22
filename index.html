@@ -830,7 +830,7 @@
   <header class="app-header">
     <div class="app-brand">
       <img class="brand-icon" src="/icon-192.png" width="54" height="54" alt="">
-      <div><h1>Boekingsschema</h1><p class="subtitle" id="schema-subtitle">Reserveringsbeheer · 09:00 – 00:00</p></div>
+      <div><h1>Boekingsschema</h1><p class="subtitle" id="schema-subtitle">Rust in je planning. Ruimte voor je dag.</p></div>
     </div>
     <div class="header-actions">
       <button class="bel-btn" id="bel-btn" title="Meldingen">
@@ -872,11 +872,11 @@
       </div>
       <div class="form-group">
         <label for="datum">Datum</label>
-        <input type="date" id="datum" />
+        <div class="datum-tijd-veld"><input type="date" id="datum" /></div>
       </div>
       <div class="form-group">
         <label for="starttijd">Starttijd</label>
-        <input type="time" id="starttijd" value="09:00" />
+        <div class="datum-tijd-veld"><input type="time" id="starttijd" value="09:00" /></div>
       </div>
       <div class="form-group" id="tijdvak-form-groep" style="display:none;">
         <label>Tijdvak</label>
@@ -1105,11 +1105,12 @@
     <div style="font-size:0.72rem;color:var(--muted);margin-bottom:16px;">Aantal gelijktijdige boekingen op hetzelfde tijdstip</div>
     <div class="instelling-rij">
       <div>
-        <div class="instelling-label">Max. tijdvakken</div>
+        <label class="instelling-label" for="inst-max-tijdvakken">Max. tijdvakken</label>
         <div class="instelling-info">Maximaal aantal parallelle boekingen per tijdstip</div>
       </div>
-      <input type="number" id="inst-max-tijdvakken" min="1" max="4" style="width:60px;" oninput="updateTijdvakNamenInputs()" />
+      <input type="number" id="inst-max-tijdvakken" min="1" max="4" step="1" inputmode="numeric" aria-describedby="inst-tijdvakken-error" style="width:68px;flex-shrink:0;" oninput="updateTijdvakNamenInputs()" />
     </div>
+    <p id="inst-tijdvakken-error" class="tijdvak-invoer-fout" role="alert" hidden></p>
     <div id="inst-tijdvak-namen" style="margin-top:12px;"></div>
     <button class="add-btn" onclick="slaAlleenTijdvakkenOp()" style="margin-top:14px;width:100%;">Opslaan tijdvakken</button>
   </div>

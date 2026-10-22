@@ -120,9 +120,12 @@ test('de bestaande stijl met gekozen verbeteringen past op mobiel en blijft met 
     setView('week');
   });
   await page.evaluate(() => document.fonts.ready);
+  await expect(page.locator('#schema-subtitle')).toHaveText('Rust in je planning. Ruimte voor je dag.');
+  await page.evaluate(() => updateRulesCard());
+  await expect(page.locator('#schema-subtitle')).toHaveText('Rust in je planning. Ruimte voor je dag.');
   expect(await page.evaluate(() => document.fonts.check('400 16px "DM Mono"'))).toBe(true);
   await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(15, 14, 12)');
-  await expect(page.locator('body')).toHaveCSS('font-family', '"DM Mono", monospace');
+  await expect(page.locator('body')).toHaveCSS('font-family', /^"?DM Mono"?, monospace$/);
   await page.screenshot({path: test.info().outputPath('planning-desktop.png'), fullPage: true, animations: 'disabled'});
   await page.locator('#hamburger-btn').click();
   await expect(page.locator('#menu-schema')).toBeFocused();
@@ -140,7 +143,7 @@ test('de bestaande stijl met gekozen verbeteringen past op mobiel en blijft met 
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     const name = await page.locator('#naam').boundingBox(), date = await page.locator('#datum').boundingBox();
     const time = await page.locator('#starttijd').boundingBox();
-    expect(date.y).toBeGreaterThan(name.y); expect(Math.abs(date.y - time.y)).toBeLessThan(2);
+    expect(date.y).toBeGreaterThan(name.y); expect(time.y).toBeGreaterThanOrEqual(date.y + date.height);
     await page.locator('#tab-maand').click();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     const cells = await page.locator('.month-cell').evaluateAll(cells => cells.map(c => ({left:c.getBoundingClientRect().left,right:c.getBoundingClientRect().right})));
@@ -148,7 +151,8 @@ test('de bestaande stijl met gekozen verbeteringen past op mobiel en blijft met 
     if (width === 390) await page.screenshot({path:test.info().outputPath('maand-mobiel.png'),fullPage:true,animations:'disabled'});
     for (const selector of ['#naam','#datum','#starttijd']) {
       const input = await page.locator(selector).boundingBox(), card = await page.locator('#app>.form-card').boundingBox();
-      expect(input.x + input.width).toBeLessThanOrEqual(card.x + card.width);
+      expect(input.x).toBeGreaterThanOrEqual(card.x + 12);
+      expect(input.x + input.width).toBeLessThanOrEqual(card.x + card.width - 12);
       expect(await page.locator(selector).evaluate(el => parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(16);
     }
     await page.locator('#tab-week').click();
@@ -381,6 +385,37 @@ test('tijdvaknamen blijven bewaard tijdens aanpassen van het aantal', async ({ p
   // Unsaved settings cannot expose a new slot in the live booking form.
   await expect(page.locator('#tijdvak-select option')).toHaveCount(1);
   expect(await page.evaluate(() => MAX_TIJDVAKKEN)).toBe(1);
+});
+
+test('een tijdvakaantal kan met het toetsenbord worden vervangen en ongeldig invoeren wordt niet opgeslagen', async ({page}) => {
+  await openApp(page); await page.evaluate(() => openInstellingen());
+  const aantal = page.locator('#inst-max-tijdvakken');
+  await page.locator('#inst-tijdvak-naam-0').fill('Mijn tijdvak');
+  for (const n of [2,3,4,1]) {
+    await aantal.focus(); await aantal.press('ControlOrMeta+A'); await aantal.press('Backspace');
+    await expect(aantal).toHaveValue('');
+    await aantal.press(String(n));
+    await expect(aantal).toHaveValue(String(n));
+    await expect(page.locator('#inst-tijdvak-namen input')).toHaveCount(n);
+    await expect(page.locator('#inst-tijdvak-naam-0')).toHaveValue('Mijn tijdvak');
+  }
+  for (const value of ['5','12','0','2.5','']) {
+    await aantal.fill(value);
+    await page.getByRole('button',{name:'Opslaan tijdvakken'}).click();
+    await expect(page.locator('#inst-tijdvakken-error')).toBeVisible();
+    await expect(aantal).toHaveAttribute('aria-invalid','true');
+    if (Number(value)>4) await expect(page.locator('#inst-tijdvakken-error')).toContainText('maximaal 4');
+    expect(await page.evaluate(() => testStore.instellingen.tester.maxTijdvakken)).toBeUndefined();
+    expect(await page.evaluate(() => MAX_TIJDVAKKEN)).toBe(1);
+  }
+  await aantal.fill('2');
+  await expect(page.locator('#inst-tijdvakken-error')).toBeHidden();
+  await page.getByRole('button',{name:'Opslaan tijdvakken'}).click();
+  await expect.poll(() => page.evaluate(() => testStore.instellingen.tester.maxTijdvakken)).toBe(2);
+  await page.reload(); await page.evaluate(async () => { huidigeGebruiker='tester'; await laadInstellingen(); openInstellingen(); });
+  await expect(aantal).toHaveValue('2');
+  await expect(page.locator('#inst-tijdvak-namen input')).toHaveCount(2);
+  await expect(page.locator('#inst-tijdvak-naam-0')).toHaveValue('Mijn tijdvak');
 });
 
 test('een eerste gedeeltelijke instellingenopslag houdt standaardtijden geldig', async ({ page }) => {

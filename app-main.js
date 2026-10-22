@@ -330,7 +330,6 @@ function updateRulesCard() {
   document.getElementById('rules-gap').textContent = (h>0?h+'u ':'')+m+'m';
   document.getElementById('rules-open').textContent = minNaarTijd(OPEN);
   document.getElementById('rules-sluit').textContent = minNaarTijd(SLUIT);
-  document.getElementById('schema-subtitle').textContent = 'Reserveringsbeheer · ' + minNaarTijd(OPEN) + ' – ' + minNaarTijd(SLUIT);
 }
 
 // Paginanavigatie
@@ -424,11 +423,29 @@ function verwerkFoto(input) {
   reader.readAsDataURL(file);
 }
 
+function leesTijdvakAantal() {
+  var invoer = document.getElementById('inst-max-tijdvakken');
+  var n = invoer.valueAsNumber;
+  var fout = document.getElementById('inst-tijdvakken-error');
+  var melding = n > 4 ? 'Je kunt maximaal 4 tijdvakken instellen.' :
+    (!Number.isInteger(n) || n < 1 ? 'Vul een heel getal van 1 tot en met 4 in.' : '');
+  fout.textContent = melding;
+  fout.hidden = !melding;
+  invoer.setAttribute('aria-invalid', String(!!melding));
+  return melding ? null : n;
+}
+
 function updateTijdvakNamenInputs() {
-  var n = parseInt(document.getElementById('inst-max-tijdvakken').value) || 1;
-  if (n < 1) n = 1;
-  if (n > 4) n = 4;
-  document.getElementById('inst-max-tijdvakken').value = n;
+  var invoer = document.getElementById('inst-max-tijdvakken');
+  // Replacing a number involves a temporary empty field. Do not insert 1
+  // while the user is still typing, which turned the next digit into 12/4.
+  if (invoer.value === '') {
+    document.getElementById('inst-tijdvakken-error').hidden = true;
+    invoer.removeAttribute('aria-invalid');
+    return;
+  }
+  var n = leesTijdvakAantal();
+  if (n === null) return;
   var container = document.getElementById('inst-tijdvak-namen');
   var html = '<div style="font-size:0.65rem;color:var(--muted);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:8px;">Namen voor tijdvakken</div>';
   for (var i = 0; i < n; i++) {
@@ -456,7 +473,8 @@ function controleerTijdvakAantal(n) {
 
 function verwijderTijdvakRij(idx) {
   if (!controleerTijdvakAantal(idx)) return;
-  var n = parseInt(document.getElementById('inst-max-tijdvakken').value) || 1;
+  var n = leesTijdvakAantal();
+  if (n === null) return;
   var namen = [];
   for (var i = 0; i < n; i++) {
     var el = document.getElementById('inst-tijdvak-naam-' + i);
@@ -473,9 +491,8 @@ function verwijderTijdvakRij(idx) {
 }
 
 function slaAlleenTijdvakkenOp() {
-  var n = parseInt(document.getElementById('inst-max-tijdvakken').value) || 1;
-  if (n < 1) n = 1;
-  if (n > 4) n = 4;
+  var n = leesTijdvakAantal();
+  if (n === null) { document.getElementById('inst-max-tijdvakken').focus(); return; }
   if (!controleerTijdvakAantal(n)) return;
   var namen = [];
   for (var i = 0; i < n; i++) {
