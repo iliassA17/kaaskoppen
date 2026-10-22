@@ -162,6 +162,47 @@ async function subscriptionAccount(status) {
   if (status) await database.doc('billingAccess/api-test').set(status);
 }
 
+test('ranglijst en kalenderachtergrond weigeren ontbrekende en onbevestigde sessies', async () => {
+  const unverified = await eventFor({verified: false});
+  for (const name of ['ranking', 'schedule-preview']) {
+    const {handler} = require('../netlify/functions/' + name + '.js');
+    assert.equal((await handler({httpMethod: 'POST', headers: {}})).statusCode, 401);
+    assert.equal((await handler(unverified)).statusCode, 403);
+    assert.equal((await handler({httpMethod: 'GET', headers: {}})).statusCode, 405);
+  }
+});
+
+test('verlopen toegang krijgt alleen een eigen kalenderafbeelding, geen ranglijst of herstelde producttoegang', async () => {
+  const event = await eventFor(); await subscriptionAccount({status: 'free'});
+  await database.doc('boekingen/eigen').set({gebruiker: 'alice', datumStr: '2026-10-22', start: 540,
+    naam: 'PRIVE-KLANT', prijs: 123.45, notitie: 'GEHEIM'});
+  const rank = require('../netlify/functions/ranking.js').handler;
+  const preview = require('../netlify/functions/schedule-preview.js').handler;
+  assert.equal((await rank(event)).statusCode, 200);
+  for (const handler of [rank, preview]) {
+    assert.equal((await handler({...event, body: '{"uid":"bob"}'})).statusCode, 400);
+    assert.equal((await handler({...event, body: '[]'})).statusCode, 400);
+  }
+  await database.doc('billingAccess/api-test').set({status: 'trial', trialStartedAt: Timestamp.fromMillis(Date.now() - 8 * 86400000)});
+  assert.equal((await rank(event)).statusCode, 402);
+  const illustration = await preview(event);
+  assert.equal(illustration.statusCode, 200);
+  assert.match(illustration.headers['Content-Type'], /image\/svg\+xml/);
+  assert.match(illustration.headers['Cache-Control'], /no-store/);
+  assert.match(illustration.body, /09:00/);
+  assert.doesNotMatch(illustration.body, /PRIVE-KLANT|GEHEIM|123\.45/);
+  assert.equal((await requireUser(event)).statusCode, 402);
+  assert.equal((await database.doc('billingAccess/api-test').get()).data().status, 'trial');
+});
+
+test('een storing van een privéweergave stuurt geen interne gegevens of stacktrace terug', async () => {
+  const event = await eventFor(); await subscriptionAccount({status: 'free'});
+  const {createHandler} = require('../netlify/functions/ranking.js');
+  const response = await createHandler(async () => { throw new Error('PRIVE-PAD-MET-GEHEIM'); })(event);
+  assert.equal(response.statusCode, 503);
+  assert.doesNotMatch(response.body, /PRIVE-PAD|Error:|stack/);
+});
+
 test('de statusfunctie weigert ontbrekende sessies en onbevestigde adressen', async () => {
   const {handler} = require('../netlify/functions/subscription-status.js');
   assert.equal((await handler({httpMethod: 'GET', headers: {}})).statusCode, 405);

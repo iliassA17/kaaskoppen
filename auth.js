@@ -157,6 +157,7 @@ async function verstuurWachtwoordReset() {
 }
 
 function verbergApp() {
+  resetRanglijst();
   if (typeof meldingInterval !== 'undefined' && meldingInterval) clearInterval(meldingInterval);
   document.querySelectorAll('body > .container, .auth-overlay').forEach(function(el) { el.style.display = 'none'; });
   document.querySelectorAll('#bewerk-overlay, #verwijder-gebruiker-overlay').forEach(function(el) { el.style.display = 'none'; });
