@@ -32,7 +32,8 @@ body:has(.omgeving-banner) { padding-top: 52px; }
 .app-header { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:24px; padding-bottom:22px; border-bottom:1px solid var(--border); }
 .app-brand { display:flex; gap:14px; align-items:center; min-width:0; }
 .brand-icon { width:48px; height:48px; border-radius:12px; border:1px solid var(--border); flex-shrink:0; }
-.app-brand .subtitle { margin:7px 0 0; }
+.app-brand h1 { margin-bottom:0; line-height:1.15; }
+.app-brand .subtitle { margin:2px 0 0; }
 .header-actions { display:flex; gap:8px; align-items:center; padding-top:5px; flex-shrink:0; }
 .pagina-header { padding-bottom:22px; border-bottom:1px solid var(--border); gap:12px; }
 .pagina-header > div { min-width:0; }
@@ -40,10 +41,11 @@ body:has(.omgeving-banner) { padding-top: 52px; }
 .booking-form-header { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:16px; }
 .booking-form-header .form-title { margin:0; }
 .app-brand .subtitle { text-transform:none; letter-spacing:.02em; line-height:1.6; }
-.datum-tijd-veld { display:grid; grid-template-columns:minmax(0,1fr); width:100%; min-width:0; max-width:100%; }
-.datum-tijd-veld input { display:block; appearance:none; -webkit-appearance:none; box-sizing:border-box; width:100%; min-width:0; max-width:100%; min-inline-size:0; inline-size:100%; max-inline-size:100%; }
-.datum-tijd-veld input::-webkit-datetime-edit { min-width:0; padding:0; }
-.datum-tijd-veld input::-webkit-date-and-time-value { width:100%; min-width:0; max-width:100%; text-align:left; }
+.datum-tijd-veld { position:relative; display:grid; grid-template-columns:minmax(0,1fr); width:100%; min-width:0; max-width:100%; }
+.datum-tijd-veld input { position:relative; display:block; appearance:none; -webkit-appearance:none; box-sizing:border-box; width:100%; min-width:0; max-width:100%; min-inline-size:0; inline-size:100%; max-inline-size:100%; text-align:center; }
+.datum-tijd-veld input::-webkit-datetime-edit { display:inline-flex; justify-content:center; width:100%; min-width:0; padding:0; text-align:center; }
+.datum-tijd-veld input::-webkit-date-and-time-value { width:100%; min-width:0; max-width:100%; text-align:center; }
+.datum-tijd-veld input::-webkit-calendar-picker-indicator { position:absolute; right:12px; top:50%; transform:translateY(-50%); }
 .tijdvak-invoer-fout { color:var(--error); background:rgba(224,112,112,.08); border:1px solid rgba(224,112,112,.3); border-radius:8px; padding:10px 12px; font-size:.72rem; line-height:1.6; margin:12px 0; }
 .meer-info-toggle { background:none; border:0; border-top:1px solid var(--border); width:100%; font-family:inherit; }
 .planning-heading { display:none; }
