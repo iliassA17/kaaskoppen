@@ -16,7 +16,7 @@ function authFoutmelding(error) {
   var code = error && error.code;
   if (code === 'auth/too-many-requests') return 'Te veel pogingen. Wacht even en probeer opnieuw.';
   if (code === 'auth/network-request-failed') return 'Geen verbinding. Probeer opnieuw.';
-  if (code === 'auth/weak-password') return 'Kies een wachtwoord van minimaal 12 tekens.';
+  if (code === 'auth/weak-password') return 'Kies een wachtwoord van minimaal 6 tekens.';
   if (code === 'auth/email-already-in-use') return 'Registreren is niet gelukt. Probeer inloggen of wachtwoord vergeten.';
   if (code === 'auth/operation-not-allowed') return 'Inloggen is nog niet beschikbaar. Neem contact op met de beheerder.';
   return 'Inloggen of registreren is niet gelukt. Controleer je gegevens en probeer opnieuw.';
@@ -34,6 +34,7 @@ function toggleAuthModus() {
   invoer.autocomplete = registratie ? 'nickname' : 'username';
   invoer.value = '';
   document.getElementById('auth-pass').autocomplete = registratie ? 'new-password' : 'current-password';
+  document.getElementById('auth-pass').placeholder = registratie ? 'Minimaal 6 tekens' : 'Wachtwoord';
   document.getElementById('auth-btn').textContent = registratie ? 'Account aanmaken' : 'Inloggen';
   ['auth-pass2-group', 'auth-email-group', 'auth-code-group'].forEach(function(id) {
     document.getElementById(id).style.display = registratie ? '' : 'none';
@@ -75,7 +76,7 @@ async function authActie() {
   var code = document.getElementById('auth-code').value.trim().toUpperCase();
   if (registratie) {
     if (!/^[a-z0-9][a-z0-9_-]{2,31}$/.test(invoer) || ['constructor', 'prototype'].includes(invoer)) { toonAuthFout('Gebruik 3–32 letters, cijfers, streepjes of underscores voor je gebruikersnaam.'); return; }
-    if (pass.length < 12) { toonAuthFout('Kies een wachtwoord van minimaal 12 tekens.'); return; }
+    if (pass.length < 6) { toonAuthFout('Kies een wachtwoord van minimaal 6 tekens.'); return; }
     if (pass !== document.getElementById('auth-pass2').value) { toonAuthFout('Wachtwoorden komen niet overeen.'); return; }
     if (!/^[A-Z0-9-]{5,64}$/.test(code)) { toonAuthFout('Vul een geldige uitnodigingscode in.'); return; }
   }

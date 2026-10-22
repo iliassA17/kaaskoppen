@@ -62,6 +62,8 @@ async function subscriptionStatus(identity, { startTrial = false } = {}) {
   }
   const now = Date.now();
   return {...model.accessState(config, access, now, identity.user.admin === true),
+    ...(access && ['active', 'lifetime'].includes(access.status) && Number.isFinite(model.milliseconds(access.paidStartsAt)) ?
+      {prepaid: true} : {}),
     enabled: config?.enabled === true, serverNow: now,
     provider: config?.provider || null, currency: 'EUR', taxIncluded: config?.taxIncluded === true,
     plans: model.planOptions(config)};

@@ -447,7 +447,7 @@
     </div>
     <div class="auth-group" id="auth-code-group" style="display:none;">
       <label>Uitnodigingscode</label>
-      <input type="text" id="auth-code" placeholder="bijv. XK7-P2M-9QR" style="text-transform:uppercase;letter-spacing:0.1em;" />
+      <input type="text" id="auth-code" placeholder="Plak je uitnodigingscode" style="text-transform:uppercase;letter-spacing:0.1em;" />
     </div>
     <label class="auth-onthoud" id="auth-onthoud-wrap">
       <input type="checkbox" id="auth-onthoud" /> Blijf ingelogd
@@ -919,6 +919,12 @@
       <button class="factuur-knop" id="abonnement-portaal-openen" type="button" hidden>Betaalgegevens en opzeggen</button>
       <button class="factuur-knop primair" id="abonnement-betaalopties-openen" type="button" hidden>Betaalopties bekijken</button>
     </div>
+    <section id="abonnement-proefweek-keuzes" aria-labelledby="abonnement-proefweek-titel" hidden>
+      <div class="facturen-kop"><h2 id="abonnement-proefweek-titel">Na je proefweek</h2></div>
+      <p class="facturen-leeg" id="abonnement-proefweek-uitleg"></p>
+      <div class="abonnement-opties" id="abonnement-proefweek-opties"></div>
+      <p class="facturen-leeg">Alle prijzen zijn inclusief btw. Een abonnement verlengt automatisch tot je opzegt. Zonder jouw betaalkeuze wordt niets afgeschreven.</p>
+    </section>
     <div class="facturen-kop"><h2>Facturen</h2></div>
     <div class="facturen-lijst" id="abonnement-facturen-lijst"></div>
     <p class="facturen-leeg" id="abonnement-facturen-leeg" hidden></p>

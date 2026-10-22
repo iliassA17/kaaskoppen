@@ -7,6 +7,8 @@ function resetAbonnementOverzicht() {
   abonnementOverzichtVersie++;
   abonnementOverzichtData = null;
   document.getElementById('abonnement-facturen-lijst').replaceChildren();
+  document.getElementById('abonnement-proefweek-opties').replaceChildren();
+  document.getElementById('abonnement-proefweek-keuzes').hidden = true;
   document.getElementById('abonnement-overzicht-inhoud').hidden = true;
   document.getElementById('abonnement-overzicht-fout').hidden = true;
   document.getElementById('abonnement-overzicht-laden').hidden = true;
@@ -71,6 +73,7 @@ function factuurLink(value) {
 
 function renderAbonnementSamenvatting(data) {
   var access = data.access, subscription = data.subscription;
+  var prepaid = data.prepaid;
   var kinds = {trial: 'Gratis proefweek', free: 'Gratis blijvende toegang', admin: 'Beheerderstoegang',
     lifetime: 'Voor altijd', disabled: 'Toegang zonder abonnement', expired: 'Toegang verlopen', missing: 'Nog geen abonnement'};
   var name = subscription ? subscription.label : (kinds[access.kind] || 'Je abonnement');
@@ -78,10 +81,11 @@ function renderAbonnementSamenvatting(data) {
   var status = document.getElementById('abonnement-huidig-status');
   var statuses = {active: 'Actief', past_due: 'Betaling achterstallig', canceled: 'Opgezegd', unpaid: 'Onbetaald',
     incomplete: 'Betaling nog niet afgerond', incomplete_expired: 'Betaling verlopen', trialing: 'Proefperiode', lifetime: 'Levenslang'};
-  status.textContent = access.kind === 'trial' ? 'Proefweek actief' :
+  status.textContent = access.kind === 'trial' ? (prepaid ? 'Vooruitbetaald · proefweek actief' : 'Proefweek actief') :
     (subscription && subscription.status === 'canceled' ? (access.kind === 'active' && access.allowed ? 'Betaalde toegang · opgezegd' : 'Opgezegd') :
       subscription && subscription.cancelAtPeriodEnd ? (access.allowed ? 'Opgezegd · loopt nog' : 'Opgezegd') :
-      !access.allowed ? 'Toegang verlopen' : subscription ? statuses[subscription.status] || 'In behandeling' : 'Actief');
+      !access.allowed ? 'Toegang verlopen' : subscription && prepaid && subscription.status === 'trialing' ? 'Actief' :
+      subscription ? statuses[subscription.status] || 'In behandeling' : 'Actief');
   status.className = 'factuur-status ' + (access.allowed ? 'betaald' : 'openstaand');
   var price = '', period = '';
   if (subscription) {
@@ -96,7 +100,10 @@ function renderAbonnementSamenvatting(data) {
     } else if (subscription.cancelAtPeriodEnd) period = 'Opgezegd. Je abonnement stopt op ' +
       factuurDatum(subscription.cancelAt || subscription.currentPeriodEnd) + '.';
     else if (access.expiresAt) period = 'Je betaalde toegang loopt tot ' + factuurDatum(access.expiresAt) + '.';
-    if (access.kind === 'trial') period = 'Je gratis proefweek loopt tot ' + factuurDatum(access.expiresAt) + '.';
+    if (access.kind === 'trial') period = prepaid ?
+      'Je proefweek loopt tot ' + factuurDatum(prepaid.startsAt) + '. Je hebt al betaald. Je betaalde toegang begint daarna' +
+        (prepaid.endsAt ? ' en loopt tot ' + factuurDatum(prepaid.endsAt) : ' en geldt voor altijd') + '.' :
+      'Je gratis proefweek loopt tot ' + factuurDatum(access.expiresAt) + '.';
   } else if (access.kind === 'trial') {
     price = '€ 0,00 tijdens je proefweek';
     period = 'Je proefweek loopt tot ' + factuurDatum(access.expiresAt) + '. Daarna kies je zelf of je verdergaat.';
@@ -123,12 +130,29 @@ function renderAbonnementSamenvatting(data) {
   document.getElementById('abonnement-volgend-uitleg').textContent = showOutstanding ?
     'Factuur ' + outstanding.number + ' is nog niet volledig betaald. Je kunt de factuur hieronder bekijken en betalen.' : next ?
     'Verwachte verlenging van je abonnement. Openstaande facturen vind je hieronder.' :
-    access.kind === 'trial' ? 'Na de proefweek kies je zelf een betaaloptie. Er wordt nu niets automatisch afgeschreven.' :
+    access.kind === 'trial' ? (prepaid ? 'Je eerste periode is al betaald. Aan het einde van je proefweek wordt niet opnieuw afgeschreven.' :
+      'Je kunt hieronder alvast een betaaloptie kiezen. Je betaalt direct; de betaalde looptijd begint na je proefweek.') :
     subscription && (subscription.cancelAtPeriodEnd || subscription.status === 'canceled') ? 'Je abonnement wordt niet opnieuw verlengd.' :
     ['free', 'admin', 'lifetime'].includes(access.kind) ? 'Je hoeft je toegang niet periodiek te verlengen.' :
     'Een eventuele openstaande betaling vind je bij je facturen.';
   document.getElementById('abonnement-portaal-openen').hidden = !data.hasCustomer;
   document.getElementById('abonnement-betaalopties-openen').hidden = access.allowed;
+}
+
+function renderAbonnementProefweek(data) {
+  var section = document.getElementById('abonnement-proefweek-keuzes');
+  var container = document.getElementById('abonnement-proefweek-opties');
+  container.replaceChildren();
+  section.hidden = data.access.kind !== 'trial' || !!data.subscription || !!data.prepaid;
+  if (section.hidden) return;
+  document.getElementById('abonnement-proefweek-uitleg').textContent =
+    'Je proefweek loopt tot ' + factuurDatum(data.access.expiresAt) +
+    '. Je kunt nu al kiezen en betalen. Je betaalde looptijd begint na de proefweek; je verliest geen proefdagen. De volgende afschrijving is pas na je eerste betaalde periode. Voor altijd betaal je eenmalig.';
+  renderAbonnementOpties(container, data.plans || [], {prepay: true,
+    choose: function(plan) {
+      return openStripePagina('/api/create-checkout-session', plan, 'checkout.stripe.com',
+        document.getElementById('abonnement-overzicht-fout'));
+    }});
 }
 
 function renderEigenFacturen(data) {
@@ -175,7 +199,7 @@ function renderEigenFacturen(data) {
   var empty = document.getElementById('abonnement-facturen-leeg');
   empty.hidden = data.invoices.length !== 0;
   empty.textContent = data.access.kind === 'trial' ?
-    'Nog geen facturen. Tijdens je gratis proefweek betaal je geen abonnementskosten. Je facturen verschijnen hier zodra je een betaling hebt gedaan of er een factuur openstaat.' :
+    'Nog geen facturen. Tijdens je gratis proefweek hoef je niets te betalen. Als je alvast een betaaloptie kiest en afrekent, verschijnt die factuur hier.' :
     ['free', 'admin'].includes(data.access.kind) ? 'Nog geen facturen. Voor je gratis blijvende toegang worden geen abonnementskosten berekend.' :
     'Er zijn nog geen facturen beschikbaar. Een nieuwe factuur kan na een betaling even op zich laten wachten.';
   document.getElementById('abonnement-facturen-meer').hidden = !data.nextCursor;
@@ -204,7 +228,7 @@ async function laadAbonnementOverzicht(append) {
       data.invoices = abonnementOverzichtData.invoices.concat(data.invoices.filter(function(invoice) { return !ids.has(invoice.id); }));
     }
     abonnementOverzichtData = data;
-    renderAbonnementSamenvatting(data); renderEigenFacturen(data);
+    renderAbonnementSamenvatting(data); renderAbonnementProefweek(data); renderEigenFacturen(data);
     document.getElementById('abonnement-overzicht-inhoud').hidden = false;
   } catch (failure) {
     if (version === abonnementOverzichtVersie && generation === authGeneratie && abonnementBeheerOpen) {

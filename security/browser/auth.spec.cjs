@@ -169,6 +169,71 @@ test('proefgebruikers zien een helder leeg factuuroverzicht en kunnen bij een st
   await expect(page.locator('#abonnement-portaal-openen')).toBeHidden();
 });
 
+test('in de proefweek staan alle prijzen, besparingen en vooruitbetalen op de abonnementspagina', async ({page}) => {
+  await seedUser(); await enableTrial();
+  const expiresAt = Date.now() + 3 * 86400000;
+  const plans = require('../../subscription-access.js').planOptions({plans: {
+    maand: {amountCents: 799}, halfjaar: {amountCents: 3999}, jaar: {amountCents: 5999}, levenslang: {amountCents: 9999}
+  }});
+  await page.route('**/api/billing-overview', route => route.fulfill({status: 200, contentType: 'application/json',
+    body: JSON.stringify({access: {allowed: true, kind: 'trial', expiresAt}, plans, taxIncluded: true,
+      subscription: null, invoices: [], nextCursor: null, hasCustomer: false})}));
+  let chosen;
+  await page.route('**/api/create-checkout-session', route => {
+    chosen = route.request().postDataJSON();
+    return route.fulfill({status: 503, contentType: 'application/json', body: JSON.stringify({error: 'Probeer opnieuw.'})});
+  });
+  await page.goto('/'); await login(page);
+  await expect(page.locator('#app')).toBeVisible();
+  await page.locator('#hamburger-btn').click();
+  await page.locator('#menu-abonnement').click();
+  const cards = page.locator('#abonnement-proefweek-opties .abonnement-optie');
+  await expect(cards).toHaveCount(4);
+  await expect(cards.nth(0)).toContainText('7,99');
+  await expect(cards.nth(1)).toContainText('39,99');
+  await expect(cards.nth(1)).toContainText('6,67');
+  await expect(cards.nth(2)).toContainText('59,99');
+  await expect(cards.nth(3)).toContainText('99,99');
+  await expect(page.locator('#abonnement-proefweek-uitleg')).toContainText('geen proefdagen');
+  await page.screenshot({path: test.info().outputPath('proefweek-betaalopties.png'), fullPage: true});
+  await page.setViewportSize({width: 390, height: 844});
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.screenshot({path: test.info().outputPath('proefweek-betaalopties-mobiel.png'), fullPage: true});
+  await cards.nth(1).getByRole('button').click();
+  await expect(page.locator('#abonnement-overzicht-fout')).toHaveText('Probeer opnieuw.');
+  expect(chosen).toEqual({plan: 'halfjaar'});
+  await expect(cards.nth(1).getByRole('button')).toBeEnabled();
+  await page.locator('#abonnement-pagina-terug').click();
+  await expect(page.locator('#app')).toBeVisible();
+});
+
+test('een vooruitbetaalde proefweek toont de gekozen periode en geen tweede koopknoppen', async ({page}) => {
+  await seedUser(); await enableTrial();
+  const start = Date.UTC(2027, 0, 31, 12), end = Date.UTC(2027, 6, 31, 12);
+  const fixture = billingFixture();
+  fixture.access = {allowed: true, kind: 'trial', expiresAt: start};
+  fixture.prepaid = {startsAt: start, endsAt: end};
+  fixture.plans = require('../../subscription-access.js').planOptions({plans: {maand: {amountCents: 799}}});
+  fixture.subscription = {plan: 'halfjaar', label: 'Per halfjaar', amountCents: 3999, currency: 'EUR',
+    status: 'trialing', currentPeriodEnd: end, nextPaymentAt: end, cancelAtPeriodEnd: false};
+  fixture.invoices = [];
+  await page.route('**/api/billing-overview', route => route.fulfill({status: 200,
+    contentType: 'application/json', body: JSON.stringify(fixture)}));
+  await page.goto('/'); await login(page);
+  await expect(page.locator('#app')).toBeVisible();
+  await page.evaluate(() => openAbonnementOverzicht());
+  await expect(page.locator('#abonnement-huidig-status')).toHaveText('Vooruitbetaald · proefweek actief');
+  await expect(page.locator('#abonnement-huidig-periode')).toContainText('31 januari 2027');
+  await expect(page.locator('#abonnement-huidig-periode')).toContainText('31 juli 2027');
+  await expect(page.locator('#abonnement-volgend-datum')).toContainText('31 juli 2027');
+  await expect(page.locator('#abonnement-proefweek-keuzes')).toBeHidden();
+  await expect(page.locator('#abonnement-betaalopties-openen')).toBeHidden();
+  fixture.access = {allowed: true, kind: 'active', expiresAt: end};
+  await page.locator('#abonnement-overzicht-verversen').click();
+  await expect(page.locator('#abonnement-huidig-status')).toHaveText('Actief');
+  await expect(page.locator('#abonnement-huidig-periode')).toContainText('31 juli 2027');
+});
+
 test('verlopen gebruikers kunnen facturen openen zonder de boekingsblokkade te omzeilen', async ({page}) => {
   await seedUser(); await enableTrial(Date.now() - 8 * 86400000);
   const data = billingFixture(); data.access = {allowed: false, kind: 'expired', expiresAt: Date.now() - 1000};
@@ -579,15 +644,20 @@ test('verkeerd wachtwoord en onbevestigde e-mail houden de app gesloten', async 
   await expect.poll(() => page.evaluate(() => auth.currentUser)).toBeNull();
 });
 
-test('registratie vereist uitnodiging en e-mailverificatie voordat gegevens toegankelijk zijn', async ({ page }) => {
+test('registratie accepteert zes tekens, weigert vijf en vereist uitnodiging en e-mailverificatie', async ({ page }) => {
   await database.doc('codes/UITNODIGING-123').set({ code: 'UITNODIGING-123', gebruikt: false, gebruiker: null });
   await page.goto('/');
   await page.locator('#auth-wissel').click();
   await page.locator('#auth-user').fill('nieuw');
   await page.locator('#auth-email').fill('nieuw@example.test');
-  await page.locator('#auth-pass').fill(password);
-  await page.locator('#auth-pass2').fill(password);
+  await page.locator('#auth-pass').fill('Kort5');
+  await page.locator('#auth-pass2').fill('Kort5');
   await page.locator('#auth-code').fill('UITNODIGING-123');
+  await page.locator('#auth-btn').click();
+  await expect(page.locator('#auth-error')).toContainText('minimaal 6 tekens');
+  expect((await authentication.listUsers()).users).toHaveLength(0);
+  await page.locator('#auth-pass').fill('Kort6!');
+  await page.locator('#auth-pass2').fill('Kort6!');
   await page.locator('#auth-btn').click();
   await expect(page.locator('#auth-success')).toContainText('Account aangemaakt');
   await expect(page.locator('#app')).toBeHidden();
@@ -599,7 +669,7 @@ test('registratie vereist uitnodiging en e-mailverificatie voordat gegevens toeg
   expect(verification).toBeTruthy();
   await page.evaluate(code => auth.applyActionCode(code), verification.oobCode);
   await page.locator('#auth-wissel').click();
-  await login(page, user.email);
+  await login(page, user.email, 'Kort6!');
   await expect(page.locator('#app')).toBeVisible();
   expect(await page.evaluate(() => huidigeGebruiker)).toBe('nieuw');
 });
