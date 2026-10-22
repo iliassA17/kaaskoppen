@@ -53,7 +53,7 @@ via Stripe-testbetalingen.
 
 De automatische tests gebruiken lokale Firebase-emulators en een nagebootste
 Stripe API. Ze vervangen een controle in jouw eigen Stripe Sandbox niet.
-Voor een volledige Sandbox-test moet de Firebase-configuratie in **index.html**
+Voor een volledige Sandbox-test moet de Firebase-configuratie in **app-main.js**
 naar het testproject wijzen. De servervariabelen en het serviceaccount moeten
 datzelfde testproject gebruiken. Het inrichtingsscript verwacht bij de eerste
 inrichting vijf gekoppelde accounts; gebruik daar vijf fictieve accounts.

@@ -1,0 +1,143 @@
+/* Selected improvements on top of the existing dark/gold design. */
+@font-face {
+  font-family: 'DM Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(/fonts/dm-mono-400.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'DM Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(/fonts/dm-mono-500.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Fraunces';
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+  src: url(/fonts/fraunces-300-700.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+
+/* Page titles, icon and divider. Original typography, colours and card sizes remain. */
+:root { color-scheme: dark; }
+body.licht-thema { color-scheme: light; }
+body:has(.omgeving-banner) { padding-top: 52px; }
+.app-header { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:24px; padding-bottom:22px; border-bottom:1px solid var(--border); }
+.app-brand { display:flex; gap:14px; align-items:center; min-width:0; }
+.brand-icon { width:48px; height:48px; border-radius:12px; border:1px solid var(--border); flex-shrink:0; }
+.app-brand h1 { margin-bottom:0; line-height:1.15; }
+.app-brand .subtitle { margin:2px 0 0; }
+.header-actions { display:flex; gap:8px; align-items:center; padding-top:5px; flex-shrink:0; }
+.pagina-header { padding-bottom:22px; border-bottom:1px solid var(--border); gap:12px; }
+.pagina-header > div { min-width:0; }
+.pagina-header .subtitle { margin-top:6px; }
+.booking-form-header { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:16px; }
+.booking-form-header .form-title { margin:0; }
+.app-brand .subtitle { text-transform:none; letter-spacing:.02em; line-height:1.6; }
+.datum-tijd-veld { position:relative; display:grid; grid-template-columns:minmax(0,1fr); width:100%; min-width:0; max-width:100%; }
+.datum-tijd-veld input { position:relative; display:block; appearance:none; -webkit-appearance:none; box-sizing:border-box; width:100%; min-width:0; max-width:100%; min-inline-size:0; inline-size:100%; max-inline-size:100%; text-align:center; }
+.datum-tijd-veld input::-webkit-datetime-edit { display:inline-flex; justify-content:center; width:100%; min-width:0; padding:0; text-align:center; }
+.datum-tijd-veld input::-webkit-date-and-time-value { width:100%; min-width:0; max-width:100%; text-align:center; }
+.datum-tijd-veld input::-webkit-calendar-picker-indicator { position:absolute; right:12px; top:50%; transform:translateY(-50%); }
+.tijdvak-invoer-fout { color:var(--error); background:rgba(224,112,112,.08); border:1px solid rgba(224,112,112,.3); border-radius:8px; padding:10px 12px; font-size:.72rem; line-height:1.6; margin:12px 0; }
+.meer-info-toggle { background:none; border:0; border-top:1px solid var(--border); width:100%; font-family:inherit; }
+.planning-heading { display:none; }
+.profiel-rij { gap:14px; }
+.profiel-waarde { min-width:0; overflow-wrap:anywhere; text-align:right; }
+#profiel-abonnement-acties { margin-top:4px; }
+
+/* The two panels expand without covering the whole page. */
+.menu-bar,.melding-bar { top:20px; left:auto; right:max(20px,calc((100vw - 1000px) / 2)); width:310px; max-width:calc(100vw - 24px); max-height:calc(100dvh - 40px); overflow-y:auto; overscroll-behavior:contain; border:1px solid var(--border); border-radius:16px; padding:8px; box-shadow:0 18px 60px #0005; opacity:0; pointer-events:none; transform:translateY(-8px); transition:transform .2s ease,opacity .2s,visibility .2s; }
+.menu-bar.open,.melding-bar.open { opacity:1; visibility:visible; pointer-events:auto; transform:none; transition:transform .2s ease,opacity .2s; }
+body:has(.omgeving-banner) .menu-bar,body:has(.omgeving-banner) .melding-bar { top:38px; max-height:calc(100dvh - 50px); }
+.menu-item { display:block; background:none; border:0; width:100%; text-align:left; padding:13px 12px; border-radius:9px; line-height:1.6; font-size:.78rem; letter-spacing:0; }
+.menu-item-danger { border-top:1px solid var(--border); margin-top:6px; border-radius:0 0 9px 9px; }
+.menu-item small { color:var(--muted); font-size:.66rem; }
+.melding-bar { width:380px; }
+.melding-notif { border-radius:9px; padding:14px 10px; }
+.melding-notif-links { min-width:0; }
+.melding-notif-tekst { overflow-wrap:anywhere; }
+#menu-sluit,#melding-sluit { min-height:32px; min-width:32px; }
+.hamburger-btn span { transition:transform .2s ease,opacity .2s; }
+.hamburger-btn.open span:first-child { transform:translateY(6px) rotate(45deg); }
+.hamburger-btn.open span:nth-child(2) { opacity:0; }
+.hamburger-btn.open span:last-child { transform:translateY(-6px) rotate(-45deg); }
+:where(button,a,input,select,textarea,summary):focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
+
+/* A seven-column month always fits within the available screen width. */
+.month-grid { grid-template-columns:repeat(7,minmax(0,1fr)); gap:8px; }
+.month-cell { min-width:0; min-height:104px; border-radius:11px; padding:9px; overflow:hidden; }
+.month-num { font-size:.8rem; }
+.month-pill { font-size:.65rem; padding:3px 5px; }
+
+/* Administration is a full page, with its navigation kept in reach. */
+.admin-inhoud { min-width:0; }
+.beheer-navigatie { position:sticky; top:0; z-index:20; padding:12px 0; background:var(--bg); margin-bottom:20px; }
+body:has(.omgeving-banner) .beheer-navigatie { top:26px; }
+.beheer-tabs { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); }
+.beheer-tabs .view-tab { padding:12px 6px; min-width:0; overflow-wrap:anywhere; letter-spacing:.02em; }
+#admin-overlay .pagina-header,#pagina-beheer .pagina-header { position:sticky; top:0; background:var(--bg); z-index:21; padding-top:10px; padding-bottom:16px; margin-bottom:0; }
+body:has(.omgeving-banner) #admin-overlay .pagina-header,body:has(.omgeving-banner) #pagina-beheer .pagina-header { top:26px; }
+.beheer-code { min-width:0; padding:14px; border:1px solid var(--border); border-radius:10px; background:var(--surface2); margin-bottom:10px; }
+.code-hoofd { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+.code-details { min-width:0; flex:1; }
+.code-details summary { cursor:pointer; font-size:.8rem; color:var(--accent); padding:3px 0; overflow-wrap:anywhere; }
+.code-volledig { display:block; margin-top:10px; padding:10px; border:1px solid var(--border); border-radius:6px; font-size:.8rem; white-space:normal; overflow-wrap:anywhere; word-break:break-word; }
+.code-eigenaar { font-size:.7rem; color:var(--muted); margin-top:10px; overflow-wrap:anywhere; }
+.code-acties { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:12px; }
+.code-acties button { font:inherit; font-size:.68rem; color:var(--text); background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:8px 10px; cursor:pointer; }
+#admin-panel,#pagina-beheer { overflow-wrap:anywhere; }
+.gebruiker-info { min-width:0; overflow-wrap:anywhere; }
+.gebruiker-datum { flex-shrink:0; }
+
+@media(max-width:768px) {
+  body:has(.omgeving-banner) { padding-top:46px; }
+  .app-header { padding-bottom:18px; margin-bottom:20px; }
+  .brand-icon { width:40px; height:40px; border-radius:10px; }
+  .app-brand { gap:10px; }
+  .app-brand h1 { font-size:clamp(1.15rem,4.4vw,1.5rem); }
+  .app-brand .subtitle { font-size:.55rem; line-height:1.6; letter-spacing:.045em; }
+  .header-actions { padding-top:0; gap:6px; }
+  .pagina-header h1 { font-size:clamp(1.15rem,4.6vw,1.5rem); }
+  .pagina-header .subtitle { font-size:.55rem; line-height:1.6; }
+  .form-row { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+  #app .form-row { grid-template-columns:minmax(0,1fr); }
+  .form-row>.form-group:first-child,#tijdvak-form-groep,#add-btn { grid-column:1/-1; }
+  .form-group { min-width:0; max-width:100%; }
+  input,select,textarea { min-width:0; max-width:100%; box-sizing:border-box; }
+  .form-group input[type='date'],.form-group input[type='time'] { width:100%; min-inline-size:0; }
+  .datum-tijd-veld input { min-height:46px; height:46px; }
+  input::-webkit-date-and-time-value { text-align:left; min-width:0; }
+  input:not([type='checkbox']):not([type='radio']):not([type='file']),select,textarea { font-size:16px!important; }
+  .meer-info-sectie.open { max-height:450px; }
+  .month-grid { gap:4px; }
+  .month-cell { min-height:66px; padding:4px; border-radius:7px; }
+  .month-pill { font-size:.57rem; padding:3px; }
+  .month-day-name { font-size:.55rem; }
+  .profiel-rij { flex-wrap:wrap; }
+  .profiel-waarde { flex:1; }
+  .beheer-tabs { grid-template-columns:repeat(2,minmax(0,1fr)); border-radius:10px; }
+  .beheer-tabs .view-tab { font-size:.65rem; padding:11px 7px; min-height:40px; }
+  .beheer-tabs .view-tab:first-child { grid-column:1/-1; }
+  .beheer-navigatie { padding:10px 0; }
+  .gebruiker-rij { flex-wrap:wrap; gap:8px; }
+  .gebruiker-info { margin-left:0; flex:1; }
+  .gebruiker-datum { width:100%; text-align:left; padding-left:40px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  *,*::before,*::after { transition-duration:.01ms!important; animation-duration:.01ms!important; animation-iteration-count:1!important; scroll-behavior:auto!important; }
+}
+.beheer-navigatie { top:var(--beheer-kop-hoogte,90px); }
+body:has(.omgeving-banner) .beheer-navigatie { top:calc(26px + var(--beheer-kop-hoogte,90px)); }
+button,a,summary { touch-action:manipulation; }
+@media(hover:none) and (pointer:coarse) {
+  input:not([type='checkbox']):not([type='radio']):not([type='file']),select,textarea { font-size:16px!important; }
+}
+input[type='date']::-webkit-calendar-picker-indicator { filter:none; opacity:.75; }

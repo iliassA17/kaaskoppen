@@ -121,7 +121,7 @@ reset bestaande wachtwoorden niet wanneer je het opnieuw uitvoert.
 
 ### Als Netlify de publieke Firebase-websleutel meldt
 
-De Firebase-websleutel in index.html hoort bij de publieke browserconfiguratie.
+De Firebase-websleutel in app-main.js hoort bij de publieke browserconfiguratie.
 Netlify kan deze als `likely secret` herkennen. netlify.toml bevat daarom
 `SECRETS_SCAN_SMART_DETECTION_OMIT_VALUES` met uitsluitend die exacte publieke
 BS-testwaarde. Andere sleutels blijven gecontroleerd; schakel secrets scanning

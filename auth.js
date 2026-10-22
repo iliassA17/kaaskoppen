@@ -1,6 +1,7 @@
 /* Firebase owns passwords and sessions. Firestore rules enforce data access. */
 var auth = null;
 var authProfiel = null;
+var authAccount = null;
 var authRechten = {};
 var authGeneratie = 0;
 
@@ -162,6 +163,8 @@ function verbergApp() {
   document.querySelectorAll('body > .container, .auth-overlay').forEach(function(el) { el.style.display = 'none'; });
   document.querySelectorAll('#bewerk-overlay, #verwijder-gebruiker-overlay').forEach(function(el) { el.style.display = 'none'; });
   document.querySelectorAll('.open').forEach(function(el) { el.classList.remove('open'); });
+  zetMenuOpen(false);
+  document.getElementById('meer-info-toggle').setAttribute('aria-expanded', 'false');
   huidigeGebruiker = ''; boekingen = []; undoStack = []; logItems = []; meldingen = [];
   pendingBoeking = null; detailBoekingen = []; detailUsername = '';
   boekingOpslaanBezig = false;
@@ -197,7 +200,7 @@ function checkSessie() {
   auth.onAuthStateChanged(async function(user) {
     var generatie = ++authGeneratie;
     stopAbonnementen();
-    authProfiel = null; authRechten = {};
+    authProfiel = null; authAccount = null; authRechten = {};
     verbergApp();
     if (!user || !user.emailVerified) {
       document.getElementById('auth-overlay').style.display = 'flex';
@@ -216,6 +219,7 @@ function checkSessie() {
       var token = profielEnToken[1];
       if (generatie !== authGeneratie || auth.currentUser !== user) return;
       authProfiel = {uid: user.uid, gebruiker: gebruiker};
+      authAccount = account.data();
       authRechten = token.claims;
       var access = await startAbonnementen(user, generatie);
       if (!access || generatie !== authGeneratie) return;
@@ -245,8 +249,9 @@ function checkSessie() {
 
 function openAdminPaneel() {
   if (!authProfiel || authRechten.admin !== true) { toonAuthFout('Log in met je persoonlijke beheerdersaccount.'); return; }
-  document.getElementById('admin-overlay').style.display = 'flex';
+  toonPagina('admin');
   document.getElementById('admin-panel').style.display = 'block';
+  adminTabWissel('codes');
   renderAdminCodes();
 }
 

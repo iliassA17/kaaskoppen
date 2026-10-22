@@ -35,7 +35,7 @@ Open project **boekingsschema** in de Firebase-console:
 
 De frontend bevat de bestaande publieke Firebase-projectconfiguratie. Deze is
 geen beheerderscredential. Gebruik je een ander project, pas dan de configuratie
-in `index.html` én `FIREBASE_PROJECT_ID` in Netlify aan.
+in `app-main.js` én `FIREBASE_PROJECT_ID` in Netlify aan.
 
 ## 2. Bestaande accounts veilig overzetten
 

@@ -782,6 +782,76 @@ test('een persoonlijk admin-token opent beheer zonder gedeeld beheerderswachtwoo
   await expect(page.locator('#admin-pass')).toHaveCount(0);
 });
 
+test('mobiel beheer houdt menu en tabbladen bereikbaar, codes ingeklapt en lange updates scrollbaar', async ({page}) => {
+  await seedUser('root', {admin:true});
+  const code = 'ABCDEF0123456789ABCDEF01';
+  await database.doc('codes/' + code).set({code, gebruikt:true, gebruiker:'een-gebruiker-met-een-lange-naam'});
+  await Promise.all(Array.from({length:20}, (_,i) => database.doc('updates/u'+i).set({
+    titel:'Update '+i, inhoud:'Dit is een lange update. '.repeat(30), aangemaakt:Timestamp.fromMillis(Date.now() - i*1000)
+  })));
+  await page.setViewportSize({width:390,height:844}); await page.goto('/'); await login(page,'root@example.test');
+  await expect(page.locator('#app')).toBeVisible();
+  await page.locator('#hamburger-btn').click(); await page.locator('#menu-beheer').click();
+  await expect(page.locator('#admin-panel')).toBeVisible();
+  await expect(page.locator('#app')).toBeHidden();
+  await expect(page.locator('#hamburger-btn-admin')).toBeVisible();
+  const detail = page.locator('#admin-codes-lijst details');
+  await expect(detail).toHaveCount(1);
+  await expect(detail.locator('code')).toBeHidden();
+  await page.evaluate(() => Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async value => {window.copiedCode=value;}}}));
+  await page.locator('#admin-codes-lijst').getByRole('button',{name:'Kopieer code'}).click();
+  expect(await page.evaluate(() => window.copiedCode)).toBe(code);
+  await detail.locator('summary').click(); await expect(detail.locator('code')).toHaveText(code);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({path:test.info().outputPath('beheer-codes-mobiel.png'),fullPage:true,animations:'disabled'});
+  await page.locator('#admin-tab-updates').click();
+  await expect(page.locator('#admin-updates-lijst')).toContainText('Update 19');
+  await page.evaluate(() => {
+    window.scrollTo(0,0);
+    const target=document.querySelector('#admin-updates-lijst>div');
+    const start=new Touch({identifier:1,target,clientX:30,clientY:60});
+    const end=new Touch({identifier:1,target,clientX:30,clientY:210});
+    target.dispatchEvent(new TouchEvent('touchstart',{bubbles:true,touches:[start]}));
+    target.dispatchEvent(new TouchEvent('touchmove',{bubbles:true,touches:[end]}));
+    target.dispatchEvent(new TouchEvent('touchend',{bubbles:true,changedTouches:[end]}));
+  });
+  await expect(page.locator('#ptr-indicator')).toBeHidden();
+  await page.mouse.wheel(0,1300);
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(500);
+  await expect(page.locator('#admin-tab-codes')).toBeInViewport();
+  await expect(page.locator('#admin-tab-meldingen')).toBeInViewport();
+  await expect(page.locator('#hamburger-btn-admin')).toBeInViewport();
+  await page.screenshot({path:test.info().outputPath('beheer-updates-mobiel.png'),animations:'disabled'});
+  await page.locator('#admin-tab-gebruikers').click();
+  await expect(page.locator('#admin-gebruikers-lijst')).toContainText('root@example.test');
+  await page.locator('#hamburger-btn-admin').click();
+  await page.locator('#menu-schema').click(); await expect(page.locator('#app')).toBeVisible();
+  await expect(page.locator('#admin-panel')).toBeHidden();
+  await page.locator('#hamburger-btn').click();
+  await expect(page.locator('#menu-pathe')).toContainText('(in ontwikkeling)');
+  await page.setViewportSize({width:320,height:800});
+  await page.locator('#menu-beheer').click();
+  await expect(page.locator('#admin-panel')).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+test('profiel toont lidmaatschapsdatum zonder tijd en plaatst facturen onder de profielkaart', async ({page}) => {
+  await seedUser(); await enableTrial();
+  await database.doc('accounts/alice').update({aangemaakt:'2026-10-22T22:30:00.000Z'});
+  await page.setViewportSize({width:390,height:844}); await page.goto('/'); await login(page);
+  await expect(page.locator('#app')).toBeVisible();
+  await page.evaluate(() => { window.getAccount = () => new Promise(() => {}); });
+  await page.locator('#hamburger-btn').click(); await page.locator('#menu-profiel').click();
+  await expect(page.locator('#profiel-email')).toHaveText('alice@example.test');
+  await expect(page.locator('#profiel-datum')).toHaveText('23 oktober 2026');
+  const card=await page.locator('#pagina-profiel>.form-card').boundingBox();
+  const button=await page.locator('#abonnement-beheren-profiel').boundingBox();
+  expect(button.y).toBeGreaterThan(card.y+card.height);
+  await page.screenshot({path:test.info().outputPath('profiel-mobiel.png'),fullPage:true,animations:'disabled'});
+  await page.locator('#abonnement-beheren-profiel').click();
+  await expect(page.locator('#pagina-abonnement')).toBeVisible();
+});
+
 test('na wisselen van account worden alleen de boekingen van de nieuwe gebruiker geladen', async ({ page }) => {
   await seedUser('alice');
   await seedUser('bob');

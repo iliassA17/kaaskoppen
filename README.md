@@ -10,6 +10,8 @@ Zie [Stripe activeren op Windows](docs/stripe-activeren-windows.md).
 
 De aangeleverde boekingsapp met prijs- en betrouwbaarheidsverbeteringen en een
 nieuwe login via Firebase Authentication. De hoofdpagina is `index.html`.
+De clientlogica en publieke Firebase-configuratie staan in `app-main.js`;
+de aanvullende vormgeving staat in `app.css`.
 `boekingen.html` verwijst door naar dezelfde beveiligde app.
 
 **Activeer deze versie samen met de Firebase-instellingen en databaseregels.**

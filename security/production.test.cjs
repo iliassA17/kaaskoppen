@@ -10,6 +10,21 @@ const production = {projectId: 'boekingsschema', key: 'sk_live_local_fixture',
   liveEnabled: 'true', context: 'production', appOrigin: 'https://boekingschema.netlify.app',
   siteUrl: 'https://boekingschema.netlify.app', serviceProjectId: 'boekingsschema'};
 
+test('de overgezette webapp houdt het productieproject en dezelfde toegestane openbare sleutel', () => {
+  const root = path.resolve(__dirname, '..');
+  const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+  const script = fs.readFileSync(path.join(root, 'app-main.js'), 'utf8');
+  const config = script.match(/var firebaseConfig = \{[\s\S]*?\n\};/)[0];
+  assert.match(config, /projectId: "boekingsschema"/);
+  assert.match(config, /authDomain: "boekingsschema\.firebaseapp\.com"/);
+  assert.match(config, /storageBucket: "boekingsschema\.firebasestorage\.app"/);
+  assert.doesNotMatch(config, /bs-test-b94c7/);
+  const publicKey = config.match(/apiKey: "([^"]+)"/)[1];
+  assert.ok(fs.readFileSync(path.join(root, 'netlify.toml'), 'utf8').includes('"' + publicKey + '"'));
+  assert.match(html, /<script defer src="\/app-main\.js"><\/script>/);
+  assert.doesNotMatch(html, /TESTOMGEVING|bs-test-b94c7/);
+});
+
 test('productie accepteert alleen de echte combinatie van project, livesleutel, serviceaccount en site', () => {
   assert.equal(assertBillingEnvironment(production), true);
   assert.equal(assertBillingEnvironment({...production, key: 'rk_live_local_fixture'}), true);

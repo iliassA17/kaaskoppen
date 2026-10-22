@@ -106,6 +106,95 @@ async function openApp(page, path = '/') {
   });
 }
 
+test('de bestaande stijl met gekozen verbeteringen past op mobiel en blijft met toetsenbord bruikbaar', async ({ page }) => {
+  await openApp(page);
+  await page.setViewportSize({width: 1440, height: 1080});
+  await page.evaluate(() => {
+    const today = new Date();
+    anker = today;
+    boekingen = [0, 1, 2, 3].map((offset) => {
+      const date = new Date(today); date.setDate(date.getDate() + offset);
+      return {datumStr: datumNaarStr(date), start: 600 + offset * 60, eind: 695 + offset * 60,
+        naam: ['Sophie', 'Thomas', 'Emma', 'Milan'][offset], prijs: 10, tijdvak: 0, betaling: offset === 2 ? 'achteraf' : 'betaald'};
+    });
+    setView('week');
+  });
+  await page.evaluate(() => document.fonts.ready);
+  await expect(page.locator('#schema-subtitle')).toHaveText('Rust in je planning. Ruimte voor je dag.');
+  await page.evaluate(() => updateRulesCard());
+  await expect(page.locator('#schema-subtitle')).toHaveText('Rust in je planning. Ruimte voor je dag.');
+  expect(await page.evaluate(() => document.fonts.check('400 16px "DM Mono"'))).toBe(true);
+  await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(15, 14, 12)');
+  await expect(page.locator('body')).toHaveCSS('font-family', /^"?DM Mono"?, monospace$/);
+  await page.screenshot({path: test.info().outputPath('planning-desktop.png'), fullPage: true, animations: 'disabled'});
+  await page.locator('#hamburger-btn').click();
+  await expect(page.locator('#menu-schema')).toBeFocused();
+  await expect(page.locator('#hamburger-btn')).toHaveAttribute('aria-expanded', 'true');
+  await page.screenshot({path: test.info().outputPath('planning-menu.png'), fullPage: true, animations: 'disabled'});
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#menu-bar')).toBeHidden();
+  await expect(page.locator('#hamburger-btn')).toBeFocused();
+  await page.locator('#meer-info-toggle').focus(); await page.keyboard.press('Enter');
+  await expect(page.locator('#meer-info-toggle')).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.locator('#prijs-input')).toBeVisible();
+  await page.locator('#meer-info-toggle').click();
+  for (const width of [768, 390, 320]) {
+    await page.setViewportSize({width, height: 900});
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    const name = await page.locator('#naam').boundingBox(), date = await page.locator('#datum').boundingBox();
+    const time = await page.locator('#starttijd').boundingBox();
+    expect(date.y).toBeGreaterThan(name.y); expect(time.y).toBeGreaterThanOrEqual(date.y + date.height);
+    await page.locator('#tab-maand').click();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    const cells = await page.locator('.month-cell').evaluateAll(cells => cells.map(c => ({left:c.getBoundingClientRect().left,right:c.getBoundingClientRect().right})));
+    expect(cells.every(cell => cell.left >= 0 && cell.right <= width)).toBe(true);
+    if (width === 390) await page.screenshot({path:test.info().outputPath('maand-mobiel.png'),fullPage:true,animations:'disabled'});
+    for (const selector of ['#naam','#datum','#starttijd']) {
+      const input = await page.locator(selector).boundingBox(), card = await page.locator('#app>.form-card').boundingBox();
+      expect(input.x).toBeGreaterThanOrEqual(card.x + 12);
+      expect(input.x + input.width).toBeLessThanOrEqual(card.x + card.width - 12);
+      expect(await page.locator(selector).evaluate(el => parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(16);
+    }
+    await page.locator('#tab-week').click();
+    if (width === 390) await page.screenshot({path: test.info().outputPath('planning-mobiel.png'), fullPage: true, animations: 'disabled'});
+  }
+  await page.setViewportSize({width: 1440, height: 1080});
+  await page.evaluate(() => document.body.classList.add('licht-thema'));
+  await page.screenshot({path: test.info().outputPath('planning-licht.png'), fullPage: true, animations: 'disabled'});
+  await page.emulateMedia({reducedMotion: 'reduce'});
+  expect(await page.locator('#app').evaluate(el => parseFloat(getComputedStyle(el).animationDuration))).toBeLessThan(.01);
+  await page.evaluate(() => {
+    document.body.classList.remove('licht-thema');
+    document.getElementById('app').style.display = 'none';
+    document.getElementById('auth-overlay').style.display = 'flex';
+  });
+  await page.screenshot({path: test.info().outputPath('inloggen-desktop.png'), fullPage: true, animations: 'disabled'});
+  await page.setViewportSize({width: 390, height: 844});
+  await expect(page.locator('#auth-btn')).toBeInViewport();
+  await page.screenshot({path: test.info().outputPath('inloggen-mobiel.png'), fullPage: true, animations: 'disabled'});
+});
+
+test('screenshotherkenning wordt pas na upload geladen en daarna hergebruikt', async ({page}) => {
+  const extras=[];
+  page.on('request', request => { if (/tesseract|emailjs/.test(request.url())) extras.push(request.url()); });
+  await openApp(page);
+  expect(extras).toEqual([]);
+  let requests=0;
+  await page.route('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js', route => {
+    requests++;
+    return route.fulfill({contentType:'application/javascript',body:'window.Tesseract={recognize:async()=>({data:{text:"23/10/2026 10:00"}})};'});
+  });
+  await page.locator('#scan-btn').click();
+  const file={name:'boeking.png',mimeType:'image/png',buffer:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aUuoAAAAASUVORK5CYII=','base64')};
+  await page.locator('#scan-input').setInputFiles(file);
+  await expect(page.locator('#scan-resultaat')).toBeVisible();
+  expect(requests).toBe(1);
+  await page.evaluate(() => resetScan());
+  await page.locator('#scan-input').setInputFiles({...file,name:'nog-een.png'});
+  await expect(page.locator('#scan-resultaat')).toBeVisible();
+  expect(requests).toBe(1);
+});
+
 for (const path of ['/', '/boekingen.html']) {
   test.describe(path, () => {
     test.beforeEach(async ({ page }) => openApp(page, path));
@@ -296,6 +385,37 @@ test('tijdvaknamen blijven bewaard tijdens aanpassen van het aantal', async ({ p
   // Unsaved settings cannot expose a new slot in the live booking form.
   await expect(page.locator('#tijdvak-select option')).toHaveCount(1);
   expect(await page.evaluate(() => MAX_TIJDVAKKEN)).toBe(1);
+});
+
+test('een tijdvakaantal kan met het toetsenbord worden vervangen en ongeldig invoeren wordt niet opgeslagen', async ({page}) => {
+  await openApp(page); await page.evaluate(() => openInstellingen());
+  const aantal = page.locator('#inst-max-tijdvakken');
+  await page.locator('#inst-tijdvak-naam-0').fill('Mijn tijdvak');
+  for (const n of [2,3,4,1]) {
+    await aantal.focus(); await aantal.press('ControlOrMeta+A'); await aantal.press('Backspace');
+    await expect(aantal).toHaveValue('');
+    await aantal.press(String(n));
+    await expect(aantal).toHaveValue(String(n));
+    await expect(page.locator('#inst-tijdvak-namen input')).toHaveCount(n);
+    await expect(page.locator('#inst-tijdvak-naam-0')).toHaveValue('Mijn tijdvak');
+  }
+  for (const value of ['5','12','0','2.5','']) {
+    await aantal.fill(value);
+    await page.getByRole('button',{name:'Opslaan tijdvakken'}).click();
+    await expect(page.locator('#inst-tijdvakken-error')).toBeVisible();
+    await expect(aantal).toHaveAttribute('aria-invalid','true');
+    if (Number(value)>4) await expect(page.locator('#inst-tijdvakken-error')).toContainText('maximaal 4');
+    expect(await page.evaluate(() => testStore.instellingen.tester.maxTijdvakken)).toBeUndefined();
+    expect(await page.evaluate(() => MAX_TIJDVAKKEN)).toBe(1);
+  }
+  await aantal.fill('2');
+  await expect(page.locator('#inst-tijdvakken-error')).toBeHidden();
+  await page.getByRole('button',{name:'Opslaan tijdvakken'}).click();
+  await expect.poll(() => page.evaluate(() => testStore.instellingen.tester.maxTijdvakken)).toBe(2);
+  await page.reload(); await page.evaluate(async () => { huidigeGebruiker='tester'; await laadInstellingen(); openInstellingen(); });
+  await expect(aantal).toHaveValue('2');
+  await expect(page.locator('#inst-tijdvak-namen input')).toHaveCount(2);
+  await expect(page.locator('#inst-tijdvak-naam-0')).toHaveValue('Mijn tijdvak');
 });
 
 test('een eerste gedeeltelijke instellingenopslag houdt standaardtijden geldig', async ({ page }) => {
