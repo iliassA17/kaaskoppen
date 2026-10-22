@@ -161,7 +161,7 @@ function planAbonnementControle(status) {
   document.getElementById('abonnement-beheren').hidden = !authProfiel;
   if (!status.allowed || !Number.isFinite(status.expiresAt)) return;
   var delay = Math.max(100, Math.min(60000, status.expiresAt - status.serverNow + 100));
-  abonnementTimer = setTimeout(function() { controleerAbonnementen(status.kind === 'active').catch(function() {}); }, delay);
+  abonnementTimer = setTimeout(function() { controleerAbonnementen(status.prepaid === true || status.kind === 'active').catch(function() {}); }, delay);
 }
 
 async function controleerAbonnementen(verversBetaling) {

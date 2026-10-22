@@ -583,9 +583,11 @@ test('herladen herstelt de sessie zonder het inlogformulier te laten zien', asyn
   } finally { release(); }
 });
 
-test('een geldige sessie opent tijdens een trage betaalcontrole en sluit zodra die toegang intrekt', async ({page}) => {
+for (const prepaid of [false, true]) {
+test((prepaid ? 'een vooruitbetaalde proefweek' : 'een geldige sessie') + ' opent tijdens een trage betaalcontrole en sluit zodra die toegang intrekt', async ({page}) => {
   await seedUser(); await enableTrial();
-  await database.doc('billingAccess/alice-uid').set({status: 'active', validUntil: Timestamp.fromMillis(Date.now() + 86400000)});
+  await database.doc('billingAccess/alice-uid').set({status: 'active', validUntil: Timestamp.fromMillis(Date.now() + 86400000),
+    ...(prepaid ? {paidStartsAt: Timestamp.fromMillis(Date.now() + 12 * 3600000)} : {})});
   let release, started = false;
   const gate = new Promise(resolve => { release = resolve; });
   await page.route('**/api/subscription-status', async route => {
@@ -610,6 +612,7 @@ test('een geldige sessie opent tijdens een trage betaalcontrole en sluit zodra d
     expect(await page.evaluate(() => auth.currentUser.uid)).toBe('alice-uid');
   } finally { release(); }
 });
+}
 
 test('een oude naam met hoofdletters, spaties en accent werkt na migratie en behoudt boekingen', async ({ page }) => {
   const name = 'Jos\u00e9 de Vries';

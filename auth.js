@@ -224,7 +224,7 @@ function checkSessie() {
         // Firestore already verified this session's access. A slower Stripe
         // reconciliation must not keep a valid session on the login screen.
         if (generatie === authGeneratie && access.provider === 'stripe' &&
-            (['active', 'lifetime'].includes(access.kind) || new URLSearchParams(window.location.search).has('betaling'))) {
+            (access.prepaid || ['active', 'lifetime'].includes(access.kind) || new URLSearchParams(window.location.search).has('betaling'))) {
           controleerAbonnementen(true).catch(function() {});
         }
       }
