@@ -11,7 +11,7 @@
 <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
 <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 <link rel="manifest" href="/manifest.webmanifest">
-<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:wght@300;400;600;700&display=swap" rel="stylesheet">
+<link rel="preload" href="/fonts/dm-sans-400-700.woff2" as="font" type="font/woff2" crossorigin>
 <style>
   :root{--bg:#0f0e0c;--surface:#1a1916;--surface2:#242320;--border:#2e2d2a;--accent:#e8c97a;--accent2:#c4a84f;--text:#f0ede6;--muted:#7a7870;--error:#e07070;--success:#7ec896;--blue:#8ab4d4;--blue-bg:rgba(138,180,212,0.1);}
   body.licht-thema{--bg:#f5f4f0;--surface:#ffffff;--surface2:#f0ede6;--border:#d8d4cc;--accent:#b8860b;--accent2:#a07800;--text:#1a1916;--muted:#7a7870;--error:#c0392b;--success:#27ae60;--blue:#2980b9;--blue-bg:rgba(41,128,185,0.08);}
@@ -444,10 +444,11 @@
   @media(max-width:520px){.ranglijst-kaart{padding:14px 12px;gap:9px;}.ranglijst-avatar{width:34px;height:34px;}.ranglijst-positie{min-width:24px;}.ranglijst-cijfers{font-size:0.68rem;}}
 
 </style>
+<link rel="stylesheet" href="/app.css">
 </head>
 <body>
 
-<div style="position:fixed;top:0;left:0;right:0;z-index:3000;text-align:center;padding:6px;background:#e8c775;color:#171717;font:700 12px sans-serif;">TESTOMGEVING — BS test</div>
+<div class="omgeving-banner" style="position:fixed;top:0;left:0;right:0;z-index:3000;text-align:center;padding:6px;background:#e8c775;color:#171717;font:700 12px sans-serif;">TESTOMGEVING — BS test</div>
 
 <div id="abonnement-achtergrond" class="abonnement-achtergrond" aria-hidden="true" inert hidden>
   <div class="planning-omtrek">
@@ -792,22 +793,22 @@
 </div>
 
 <!-- Menu bar — fixed, altijd zichtbaar -->
-<div class="menu-bar" id="menu-bar">
+<nav class="menu-bar" id="menu-bar" aria-label="Hoofdnavigatie">
   <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 16px 4px;">
     <span style="font-size:0.62rem;color:var(--muted);letter-spacing:0.1em;text-transform:uppercase;">Menu</span>
     <button id="menu-sluit" style="background:none;border:1px solid var(--border);border-radius:6px;color:var(--muted);cursor:pointer;font-size:0.9rem;padding:3px 8px;line-height:1;transition:all 0.2s;" title="Sluiten">&#10005;</button>
   </div>
-  <div class="menu-item" id="menu-schema">&#128197; Boekingsschema</div>
-  <div class="menu-item" id="menu-statistieken">&#128200; Statistieken</div>
-  <div class="menu-item" id="menu-pathe">&#127916; Pathé Films</div>
-  <div class="menu-item" id="menu-ranglijst">&#127942; Ranglijst</div>
-  <div class="menu-item" id="menu-nieuws">&#128240; Nieuws</div>
-  <div class="menu-item" id="menu-profiel">&#128100; Profiel</div>
+  <button type="button" class="menu-item" id="menu-schema">&#128197; Boekingsschema</button>
+  <button type="button" class="menu-item" id="menu-statistieken">&#128200; Statistieken</button>
+  <button type="button" class="menu-item" id="menu-pathe">&#127916; Pathé Films</button>
+  <button type="button" class="menu-item" id="menu-ranglijst">&#127942; Ranglijst</button>
+  <button type="button" class="menu-item" id="menu-nieuws">&#128240; Nieuws</button>
+  <button type="button" class="menu-item" id="menu-profiel">&#128100; Profiel</button>
   <button class="menu-item abonnement-menu-item" id="menu-abonnement" type="button">&#128179; Abonnement beheren</button>
-  <div class="menu-item" id="menu-instellingen">&#9881; Instellingen</div>
-  <div class="menu-item" id="menu-beheer" style="display:none;">&#128737; Beheerderspagina</div>
-  <div class="menu-item menu-item-danger" id="menu-logout">&#8618; Uitloggen</div>
-</div>
+  <button type="button" class="menu-item" id="menu-instellingen">&#9881; Instellingen</button>
+  <button type="button" class="menu-item" id="menu-beheer" style="display:none;">&#128737; Beheerderspagina</button>
+  <button type="button" class="menu-item menu-item-danger" id="menu-logout">&#8618; Uitloggen</button>
+</nav>
 
 <!-- Melding bar — fixed, altijd zichtbaar -->
 <div class="melding-bar" id="melding-bar">
@@ -821,9 +822,12 @@
 <!-- App -->
 <div class="container" id="app" style="display:none;">
 
-  <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:2px;">
-    <h1>Boekingsschema</h1>
-    <div style="display:flex;gap:8px;align-items:center;margin-top:8px;">
+  <header class="app-header">
+    <div class="app-brand">
+      <img class="brand-icon" src="/icon-192.png" width="54" height="54" alt="">
+      <div><h1>Boekingsschema</h1><p class="subtitle">Rust in je planning. Ruimte voor je dag.</p></div>
+    </div>
+    <div class="header-actions">
       <button class="bel-btn" id="bel-btn" title="Meldingen">
         <span class="bel-icoon">&#128276;</span>
         <span class="bel-stip" id="bel-stip" style="display:none;"></span>
@@ -832,12 +836,11 @@
         <span></span><span></span><span></span>
       </button>
     </div>
-  </div>
-  <p class="subtitle">Reserveringsbeheer &middot; 09:00 &ndash; 00:00</p>
+  </header>
   <p id="proefperiode-info" hidden style="font-size:0.8rem;line-height:1.6;margin:0 0 20px;color:var(--accent);"></p>
   <div class="form-card">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
-      <div class="form-title" style="margin-bottom:0;">Nieuwe boeking</div>
+    <div class="booking-form-header">
+      <div><h2 class="form-title">Nieuwe boeking</h2><p class="form-caption">Een nieuwe afspraak, zo ingepland.</p></div>
       <button class="scan-btn" id="scan-btn" title="Importeer via screenshot">&#128247; Scan screenshot</button>
     </div>
 
@@ -859,15 +862,15 @@
 
     <div class="form-row">
       <div class="form-group">
-        <label>Naam (optioneel)</label>
+        <label for="naam">Naam (optioneel)</label>
         <input type="text" id="naam" placeholder="Naam klant" />
       </div>
       <div class="form-group">
-        <label>Datum</label>
+        <label for="datum">Datum</label>
         <input type="date" id="datum" />
       </div>
       <div class="form-group">
-        <label>Starttijd</label>
+        <label for="starttijd">Starttijd</label>
         <input type="time" id="starttijd" value="09:00" />
       </div>
       <div class="form-group" id="tijdvak-form-groep" style="display:none;">
@@ -880,9 +883,9 @@
     </div>
 
     <!-- Meer informatie uitklapper -->
-    <div class="meer-info-toggle" id="meer-info-toggle">
+    <button type="button" class="meer-info-toggle" id="meer-info-toggle" aria-expanded="false" aria-controls="meer-info-sectie">
       <span id="meer-info-label">&#43; Meer informatie</span>
-    </div>
+    </button>
     <div class="meer-info-sectie" id="meer-info-sectie">
       <div class="meer-info-rij">
         <div class="form-group">
@@ -910,6 +913,7 @@
       </div>
     </div>
   </div>
+  <div class="planning-heading"><h2>Je planning</h2><span class="planning-hint">Veeg om alle dagen te zien →</span></div>
   <div class="view-bar">
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
       <div class="view-tabs">
@@ -920,9 +924,9 @@
       <button class="today-btn" id="today-btn">Vandaag</button>
     </div>
     <div class="nav-btns">
-      <button class="nav-btn" id="nav-prev">&#8592;</button>
+      <button class="nav-btn" id="nav-prev" aria-label="Vorige periode">&#8592;</button>
       <div class="nav-label" id="nav-label"></div>
-      <button class="nav-btn" id="nav-next">&#8594;</button>
+      <button class="nav-btn" id="nav-next" aria-label="Volgende periode">&#8594;</button>
     </div>
     <div style="display:flex;gap:6px;align-items:center;">
       <button class="clear-btn" id="clear-btn">Dag wissen</button>
@@ -1626,6 +1630,15 @@ function updateRulesCard() {
 }
 
 // Paginanavigatie
+var menuOpener = null;
+function zetMenuOpen(open, herstelFocus) {
+  document.getElementById('menu-bar').classList.toggle('open', open);
+  document.querySelectorAll('.hamburger-btn').forEach(function(knop) {
+    knop.classList.toggle('open', open);
+    knop.setAttribute('aria-expanded', String(open));
+  });
+  if (!open && herstelFocus && menuOpener && menuOpener.offsetParent !== null) menuOpener.focus();
+}
 function toonPagina(pagina) {
   sessionStorage.setItem('huidigePagina', pagina);
   document.getElementById('app').style.display = pagina==='schema' ? 'block' : 'none';
@@ -1638,9 +1651,8 @@ function toonPagina(pagina) {
   document.getElementById('pagina-nieuws').style.display = pagina==='nieuws' ? 'block' : 'none';
   document.getElementById('pagina-abonnement').style.display = pagina==='abonnement' ? 'block' : 'none';
   abonnementBeheerOpen = pagina === 'abonnement';
-  document.getElementById('menu-bar').classList.remove('open');
-  ['hamburger-btn','hamburger-btn-profiel','hamburger-btn-inst','hamburger-btn-stat','hamburger-btn-pathe','hamburger-btn-beheer','hamburger-btn-ranglijst','hamburger-btn-nieuws','hamburger-btn-abonnement'].forEach(function(id){ var el=document.getElementById(id); if(el) el.classList.remove('open'); });
-  window.scrollTo({top:0, behavior:'smooth'});
+  zetMenuOpen(false);
+  window.scrollTo({top:0, behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth'});
 }
 
 function renderProfielAvatar(foto, initiaal) {
@@ -4033,29 +4045,36 @@ document.addEventListener('DOMContentLoaded', function() {
   // Bel & menu
   function toggleMeldingBar(e) {
     e.stopPropagation();
-    document.getElementById('menu-bar').classList.remove('open');
-    ['hamburger-btn','hamburger-btn-profiel','hamburger-btn-inst'].forEach(function(id){ var el=document.getElementById(id); if(el) el.classList.remove('open'); });
+    zetMenuOpen(false);
     document.getElementById('melding-bar').classList.toggle('open');
   }
   function toggleMenuBar(e) {
     e.stopPropagation();
     document.getElementById('melding-bar').classList.remove('open');
-    var open = document.getElementById('menu-bar').classList.toggle('open');
-    ['hamburger-btn','hamburger-btn-profiel','hamburger-btn-inst','hamburger-btn-nieuws','hamburger-btn-abonnement'].forEach(function(id){ var el=document.getElementById(id); if(el) el.classList.toggle('open', open); });
+    var open = !document.getElementById('menu-bar').classList.contains('open');
+    menuOpener = e.currentTarget;
+    zetMenuOpen(open);
+    if (open) document.getElementById('menu-schema').focus();
   }
   ['bel-btn','bel-btn-profiel','bel-btn-inst','bel-btn-stat','bel-btn-pathe','bel-btn-nieuws'].forEach(function(id){ var el=document.getElementById(id); if(el) el.addEventListener('click', toggleMeldingBar); });
-  ['hamburger-btn','hamburger-btn-profiel','hamburger-btn-inst','hamburger-btn-stat','hamburger-btn-pathe','hamburger-btn-beheer','hamburger-btn-ranglijst','hamburger-btn-nieuws','hamburger-btn-abonnement'].forEach(function(id){ var el=document.getElementById(id); if(el) el.addEventListener('click', toggleMenuBar); });
+  document.querySelectorAll('.hamburger-btn').forEach(function(el) {
+    el.setAttribute('aria-label', 'Menu'); el.setAttribute('aria-controls', 'menu-bar'); el.setAttribute('aria-expanded', 'false');
+    el.addEventListener('click', toggleMenuBar);
+  });
   document.getElementById('melding-sluit').addEventListener('click', function(){ document.getElementById('melding-bar').classList.remove('open'); });
   document.getElementById('melding-bar').addEventListener('click', function(e){ e.stopPropagation(); });
   document.getElementById('menu-bar').addEventListener('click', function(e){ e.stopPropagation(); });
   document.getElementById('menu-sluit').addEventListener('click', function(){
-    document.getElementById('menu-bar').classList.remove('open');
-    ['hamburger-btn','hamburger-btn-profiel','hamburger-btn-inst','hamburger-btn-nieuws','hamburger-btn-abonnement'].forEach(function(id){ var el=document.getElementById(id); if(el) el.classList.remove('open'); });
+    zetMenuOpen(false, true);
+  });
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && document.getElementById('menu-bar').classList.contains('open')) {
+      zetMenuOpen(false, true);
+    }
   });
   document.addEventListener('click', function(){
-    document.getElementById('menu-bar').classList.remove('open');
+    zetMenuOpen(false);
     document.getElementById('melding-bar').classList.remove('open');
-    ['hamburger-btn','hamburger-btn-profiel','hamburger-btn-inst','hamburger-btn-nieuws','hamburger-btn-abonnement'].forEach(function(id){ var el=document.getElementById(id); if(el) el.classList.remove('open'); });
   });
 
   // Menu items
@@ -4138,6 +4157,7 @@ document.addEventListener('DOMContentLoaded', function() {
     var sectie=document.getElementById('meer-info-sectie');
     var label=document.getElementById('meer-info-label');
     var open=sectie.classList.toggle('open');
+    this.setAttribute('aria-expanded', String(open));
     label.textContent=open?'- Minder informatie':'+ Meer informatie';
   });
 

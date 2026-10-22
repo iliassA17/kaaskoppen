@@ -1,0 +1,304 @@
+/* Shared visual design. Authentication, booking and payment logic stay in their modules. */
+@font-face {
+  font-family: 'DM Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(/fonts/dm-mono-400.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'DM Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(/fonts/dm-mono-500.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'DM Sans';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url(/fonts/dm-sans-400-700.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Fraunces';
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+  src: url(/fonts/fraunces-300-700.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+
+:root {
+  color-scheme: dark;
+  --bg: #111210;
+  --surface: #1b1d19;
+  --surface2: #242720;
+  --border: #34382e;
+  --text: #f2f1e9;
+  --muted: #a3a698;
+  --shadow: 0 12px 36px #0000001a;
+  --ui-font: 'DM Sans', system-ui, sans-serif;
+  --ease: cubic-bezier(.2,.75,.25,1);
+}
+body.licht-thema {
+  color-scheme: light;
+  --bg: #f4f3ed;
+  --surface: #fffefa;
+  --surface2: #efeee6;
+  --border: #dedfd3;
+  --text: #252b22;
+  --muted: #697160;
+  --shadow: 0 10px 32px #303a2010;
+}
+body {
+  padding: 40px 28px 48px;
+  font-family: var(--ui-font);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  background: radial-gradient(ellipse at 50% 0, #c4a84f08, transparent 65%), var(--bg);
+}
+body:has(.omgeving-banner) { padding-top: 64px; }
+button, input, select, textarea { font-family: var(--ui-font); }
+button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
+button { touch-action: manipulation; }
+button:not(:disabled), a { transition: background-color .18s, border-color .18s, color .18s, box-shadow .18s, transform .18s var(--ease); }
+button:disabled { cursor: not-allowed; }
+:where(button,a,input,select,textarea):focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+.container { max-width: 1160px; animation: page-enter .25s var(--ease); }
+@keyframes page-enter { from { opacity: .2; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+h1 { font-size: clamp(1.75rem, 3vw, 2.3rem); line-height: 1.2; letter-spacing: -.04em; }
+.subtitle { font-family: var(--ui-font); font-size: .76rem; letter-spacing: .035em; text-transform: none; }
+.app-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 0 0 26px; margin-bottom: 26px; border-bottom: 1px solid var(--border); }
+.app-brand { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.brand-icon { width: 54px; height: 54px; border: 1px solid var(--border); border-radius: 15px; flex-shrink: 0; }
+.app-brand h1 { color: var(--text); }
+.app-brand .subtitle { margin: 6px 0 0; }
+.header-actions { display: flex; align-items: center; gap: 8px; }
+.bel-btn, .hamburger-btn { height: 44px; width: 44px; border-radius: 12px; background: var(--surface); align-items: center; }
+.bel-btn:hover, .hamburger-btn:hover { background: var(--surface2); }
+.hamburger-btn span { width: 18px; transition: transform .2s var(--ease), opacity .2s; }
+.hamburger-btn.open span:first-child { transform: translateY(6px) rotate(45deg); }
+.hamburger-btn.open span:nth-child(2) { opacity: 0; }
+.hamburger-btn.open span:last-child { transform: translateY(-6px) rotate(-45deg); }
+#proefperiode-info { padding: 13px 18px; border: 1px solid #c4a84f45; border-radius: 12px; background: #c4a84f0a; font-family: var(--ui-font); }
+
+/* Forms use the same spacing and focus treatment on every page. */
+.form-card, .stat-kaart, .abonnement-kaart, .factuur-kaart, .pathe-film-kaart {
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+}
+.form-card { padding: 28px; margin-bottom: 30px; }
+.form-title, .stat-sectie-titel { font-family: var(--ui-font); font-size: 1rem; font-weight: 600; color: var(--text); letter-spacing: -.015em; }
+.booking-form-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 22px; }
+.booking-form-header .form-title { margin-bottom: 3px; }
+.form-caption { font-size: .8rem; color: var(--muted); }
+.form-row { gap: 14px; }
+.form-group { gap: 8px; min-width: 140px; }
+label, .auth-group label, .form-group label { font-size: .73rem; font-weight: 500; letter-spacing: .015em; text-transform: none; }
+input[type='text'], input[type='time'], input[type='date'], input[type='email'], input[type='password'],
+input[type='number'], .platform-select, #tijdvak-select {
+  min-height: 46px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 11px 13px;
+  color: var(--text);
+  font-family: var(--ui-font);
+  font-size: .9rem;
+  width: 100%;
+  transition: border-color .18s, box-shadow .18s;
+}
+input::placeholder, textarea::placeholder { color: var(--muted); opacity: .8; }
+input:focus, .platform-select:focus, #tijdvak-select:focus, textarea:focus { border-color: var(--accent2); box-shadow: 0 0 0 3px #c4a84f15; }
+input[type='date']::-webkit-calendar-picker-indicator { filter: none; opacity: .7; }
+.add-btn, .auth-btn { min-height: 46px; padding: 12px 20px; border-radius: 10px; font-family: var(--ui-font); font-size: .84rem; font-weight: 600; text-transform: none; letter-spacing: .01em; color: #242013; }
+.add-btn:hover:not(:disabled), .auth-btn:hover:not(:disabled) { background: #f1d894; box-shadow: 0 4px 14px #c4a84f20; transform: translateY(-1px); }
+.add-btn:active:not(:disabled), .auth-btn:active:not(:disabled) { transform: translateY(0); box-shadow: none; }
+.scan-btn, .today-btn, .clear-btn, .logout-btn, .factuur-knop, .toggle-opt, .thema-opt { font-family: var(--ui-font); text-transform: none; letter-spacing: .015em; }
+.scan-btn { min-height: 36px; font-size: .75rem; border-radius: 9px; color: var(--text); }
+.meer-info-toggle { background: none; border: 0; border-top: 1px solid var(--border); width: 100%; margin-top: 22px; padding: 16px 0 0; min-height: 44px; font-size: .78rem; text-transform: none; letter-spacing: 0; }
+.meer-info-sectie.open { max-height: 420px; }
+.toggle-opt { padding: 9px 14px; border-radius: 8px; font-size: .78rem; }
+.meer-info-rij { gap: 16px; }
+
+/* Planning */
+.planning-heading { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin: 4px 0 16px; }
+.planning-heading h2 { font-family: 'Fraunces', serif; font-size: 1.45rem; font-weight: 400; letter-spacing: -.03em; }
+.planning-hint { display: none; color: var(--muted); font-size: .7rem; }
+.view-bar { gap: 14px; margin-bottom: 18px; }
+.view-tabs { padding: 4px; gap: 3px; border-radius: 12px; }
+.view-tab { min-height: 36px; border-radius: 8px; padding: 8px 16px; font-family: var(--ui-font); font-size: .79rem; font-weight: 500; letter-spacing: 0; text-transform: none; }
+.view-tab.active { color: #242013; box-shadow: 0 2px 5px #00000015; }
+.view-tab:not(.active):hover { box-shadow: none; background: var(--surface2); color: var(--text); }
+.nav-btn { min-height: 36px; min-width: 36px; padding: 6px 10px; border-radius: 9px; font-family: var(--ui-font); }
+.nav-label { min-width: 145px; font-family: var(--ui-font); font-size: .84rem; font-weight: 500; }
+.today-btn, .clear-btn, .undo-btn { min-height: 36px; border-radius: 9px; font-size: .75rem; }
+.week-grid-wrapper { padding: 2px 1px 10px; overscroll-behavior-x: contain; }
+.week-grid { min-width: 770px; gap: 10px; }
+.week-col { min-height: 190px; border-radius: 14px; transition: border-color .18s, box-shadow .18s; }
+.week-col.today-col { border: 1px solid var(--accent2); box-shadow: inset 0 3px 0 var(--accent); }
+.week-col.past-col { opacity: .65; }
+.week-col:not(.today-col):hover { outline: none; border-color: var(--accent2); }
+.week-col.today-col:hover { border: 1px solid var(--accent); }
+.week-col-header { padding: 14px 12px 12px; font-family: var(--ui-font); font-size: .7rem; font-weight: 500; letter-spacing: .06em; }
+.week-col-date { font-size: 1.65rem; font-weight: 400; line-height: 1.25; margin-top: 5px; }
+.week-bookings { padding: 9px; }
+.booking-item, .week-booking-pill { background: #203025; border-color: #40573f; border-left-color: var(--success); }
+.booking-item.onbetaald, .week-booking-pill.onbetaald { background: #35242b; border-color: #60404b; border-left-color: #f4a0b8; }
+.booking-item { border-radius: 12px; padding: 16px; }
+.booking-name { font-family: var(--ui-font); font-size: .94rem; font-weight: 500; }
+.booking-time, .week-pill-time, .stat-waarde { font-variant-numeric: tabular-nums; }
+.booking-time { font-size: .8rem; }
+.booking-left { min-width: 0; }
+.booking-name { overflow-wrap: anywhere; }
+.week-booking-pill { border-radius: 7px; padding: 8px; }
+.week-pill-name { font-family: var(--ui-font); font-size: .77rem; font-weight: 500; }
+.week-pill-time { font-family: 'DM Mono', monospace; font-size: .61rem; margin-top: 4px; }
+.week-empty { padding: 20px 6px; font-size: .74rem; opacity: .8; }
+.month-grid { gap: 8px; }
+.month-cell { min-width: 0; min-height: 104px; border-radius: 11px; padding: 9px; }
+.month-num { font-size: .8rem; }
+.month-pill { font-family: var(--ui-font); font-size: .7rem; padding: 3px 5px; }
+.rules-card { font-size: .75rem; background: transparent; border: 0; border-top: 1px solid var(--border); border-radius: 0; margin-top: 16px; padding: 18px 0; }
+.log-section { margin-top: 24px; padding-top: 22px; border-top: 1px solid var(--border); }
+.section-title { font-family: var(--ui-font); font-weight: 600; }
+.log-empty, .empty-day { border-style: solid; background: var(--surface); border-radius: 12px; font-size: .8rem; padding: 24px; }
+.log-item { padding: 12px 15px; font-size: .8rem; }
+.log-time { opacity: .85; }
+
+/* Floating navigation keeps the current page in view. */
+.menu-bar, .melding-bar { top: 24px; left: auto; right: max(24px, calc((100vw - 1160px) / 2)); width: 308px; max-width: calc(100vw - 32px); max-height: calc(100dvh - 48px); overflow-y: auto; border: 1px solid var(--border); border-radius: 18px; padding: 8px; box-shadow: 0 18px 60px #0005; transform: translateY(-8px); opacity: 0; pointer-events: none; transition: transform .2s var(--ease), opacity .2s, visibility .2s; }
+.menu-bar.open, .melding-bar.open { transform: none; opacity: 1; pointer-events: auto; visibility: visible; transition: transform .2s var(--ease), opacity .2s; }
+body:has(.omgeving-banner) .menu-bar, body:has(.omgeving-banner) .melding-bar { top: 42px; max-height: calc(100dvh - 58px); }
+.menu-item { display: block; width: 100%; border: 0; background: none; text-align: left; padding: 12px 14px; min-height: 46px; border-radius: 10px; font-family: var(--ui-font); font-size: .86rem; letter-spacing: 0; }
+.menu-item:hover { color: var(--accent); }
+.menu-item-danger { margin-top: 6px; border-top: 1px solid var(--border); border-radius: 0 0 10px 10px; }
+.menu-item-danger:hover { color: var(--error); }
+#menu-sluit, #melding-sluit { min-height: 32px; min-width: 32px; }
+.melding-bar { width: 380px; }
+.melding-notif { padding: 14px 10px; border-radius: 10px; }
+
+/* Login and secondary pages */
+.auth-overlay { padding: 24px; overflow-y: auto; background: var(--bg); }
+.auth-card { max-width: 420px; margin: auto; border-radius: 22px; padding: 36px; box-shadow: 0 20px 65px #0003; }
+#auth-overlay .auth-card::before { content: ''; display: block; width: 52px; height: 52px; margin-bottom: 24px; background: url('/icon-192.png') center / cover; border-radius: 14px; border: 1px solid var(--border); }
+.auth-title { font-size: 2rem; color: var(--text); letter-spacing: -.035em; }
+.auth-subtitle { font-family: var(--ui-font); font-size: .8rem; text-transform: none; letter-spacing: .015em; margin: 7px 0 26px; }
+.auth-group { gap: 8px; margin-bottom: 18px; }
+.auth-onthoud, .auth-switch { font-size: .8rem; }
+.auth-onthoud input[type='checkbox'] { width: 17px; height: 17px; }
+.auth-switch a { text-underline-offset: 4px; }
+.pagina-header { gap: 14px; padding-bottom: 24px; border-bottom: 1px solid var(--border); margin-bottom: 28px; }
+.pagina-header h1 { color: var(--text); }
+.pagina-header .subtitle { margin-top: 6px; }
+.stat-kaart { padding: 24px; }
+.stat-label, .abonnement-label { font-size: .72rem; letter-spacing: .05em; }
+.stat-waarde { font-family: var(--ui-font); font-size: 2.2rem; font-weight: 500; letter-spacing: -.04em; }
+.stat-sub, .instelling-info { font-size: .76rem; line-height: 1.65; }
+.instelling-label { font-size: .92rem; font-weight: 500; }
+.profiel-label { font-size: .73rem; letter-spacing: .025em; text-transform: none; }
+.profiel-rij { gap: 18px; }
+.profiel-waarde { text-align: right; overflow-wrap: anywhere; min-width: 0; }
+.abonnement-beheer { padding-top: 0; }
+.abonnement-intro { font-size: .9rem; }
+.abonnement-kaart h2 { font-family: 'Fraunces', serif; font-size: 1.8rem; font-weight: 400; }
+.abonnement-kaart p { font-size: .84rem; }
+.abonnement-optie { border-radius: 14px; padding: 20px; }
+.abonnement-optie h3 { font-size: 1rem; }
+.abonnement-prijs { font-family: 'Fraunces', serif; font-size: 1.85rem; font-weight: 400; }
+.abonnement-optie p { font-size: .81rem; line-height: 1.65; }
+.abonnement-dialoog { border-radius: 22px; }
+.abonnement-dialoog h2 { font-family: 'Fraunces', serif; font-weight: 400; font-size: 1.8rem; }
+.factuur-knop { border-radius: 10px; font-size: .8rem; min-height: 42px; }
+.factuur-kop h3 { font-size: .94rem; font-weight: 600; }
+.factuur-details dt { font-size: .76rem; }
+.factuur-details dd { font-size: .88rem; }
+.factuur-status { font-size: .72rem; }
+.facturen-leeg { font-size: .86rem; }
+.ranglijst-profiel, .ranglijst-cijfers { font-family: var(--ui-font); }
+.ranglijst-profiel { font-size: .9rem; }
+.ranglijst-cijfers { font-size: .78rem; }
+.ranglijst-kaart { transition: border-color .18s; }
+.ranglijst-uitleg { font-size: .78rem; }
+.openstaand-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px; background: var(--surface2); border: 1px solid var(--border); border-left: 3px solid #f4a0b8; border-radius: 10px; margin-bottom: 8px; cursor: pointer; }
+
+@media (max-width: 850px) {
+  body { padding: 24px 18px 36px; }
+  .app-header { padding-bottom: 22px; margin-bottom: 22px; }
+  .form-card { padding: 22px; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 12px; }
+  .form-row > .form-group:first-child, #tijdvak-form-groep, #add-btn { grid-column: 1 / -1; }
+  .form-group { min-width: 0; }
+  #add-btn { width: 100%; margin: 0; }
+  .view-bar { display: grid; grid-template-columns: 1fr auto; }
+  .view-bar > .nav-btns { grid-column: 1 / -1; grid-row: 2; justify-content: center; padding: 6px 0; }
+  .week-grid { min-width: 770px; }
+  #app:has(.week-grid) .planning-hint { display: block; }
+  .month-cell { min-height: 78px; padding: 6px; }
+  .abonnement-opties { grid-template-columns: 1fr; }
+  .pagina-header h1 { font-size: clamp(1.4rem, 4vw, 1.9rem); }
+  .menu-bar, .melding-bar { top: 16px; right: 16px; max-height: calc(100dvh - 32px); }
+}
+@media (max-width: 480px) {
+  body { padding: 22px 14px 30px; }
+  body:has(.omgeving-banner) { padding-top: 50px; }
+  h1 { font-size: 1.65rem; }
+  .brand-icon { width: 43px; height: 43px; border-radius: 12px; }
+  .app-brand { gap: 10px; }
+  .app-brand h1 { font-size: clamp(1.25rem, 5.5vw, 1.6rem); }
+  .app-brand .subtitle { font-size: .67rem; }
+  .app-header { gap: 8px; }
+  .header-actions { gap: 6px; }
+  .bel-btn, .hamburger-btn { width: 38px; height: 40px; border-radius: 10px; padding: 8px; flex-shrink: 0; }
+  .form-card { padding: 18px; border-radius: 16px; }
+  .booking-form-header { align-items: flex-start; margin-bottom: 20px; }
+  .form-caption { max-width: 180px; font-size: .75rem; }
+  .scan-btn { font-size: 0; min-width: 36px; width: 36px; padding: 0; }
+  .scan-btn::before { content: '📷'; font-size: 1rem; }
+  .form-group input { font-size: 16px; }
+  .view-tabs { padding: 3px; gap: 2px; }
+  .view-tab { padding: 8px 11px; font-size: .76rem; }
+  .today-btn { padding: 6px 9px; font-size: .72rem; }
+  .view-bar { gap: 10px; }
+  .view-bar > div:first-child { grid-column: 1 / -1; }
+  .view-bar > .nav-btns { grid-column: 1; justify-content: flex-start; }
+  .view-bar > div:last-child { grid-column: 2; grid-row: 2; justify-self: end; }
+  .view-bar .nav-label { min-width: 105px; font-size: .76rem; }
+  .clear-btn { font-size: .68rem; padding: 6px 8px; }
+  .view-bar > div:first-child { gap: 6px !important; }
+  .planning-heading h2 { font-size: 1.3rem; }
+  .month-grid { gap: 4px; }
+  .month-cell { min-height: 66px; padding: 4px; border-radius: 7px; }
+  .month-pill { font-size: .57rem; padding: 3px; }
+  .month-day-name { font-size: .62rem; }
+  .booking-item { gap: 6px; }
+  .booking-left { gap: 6px; }
+  .booking-name { font-size: .86rem; }
+  .auth-overlay { padding: 18px; }
+  .auth-card { padding: 28px 24px; }
+  .auth-group input { font-size: 16px; }
+  .pagina-header { gap: 10px; }
+  .pagina-header > div { min-width: 0; }
+  .stat-kaart { padding: 18px; }
+  .stat-waarde { font-size: 1.8rem; }
+  .stat-grid { gap: 10px; }
+  #stat-extra-grid { grid-template-columns: 1fr !important; }
+  .instelling-rij { gap: 12px; }
+  .instelling-label { font-size: .85rem; }
+  .ranglijst-cijfers { font-size: .7rem; }
+}
+@media (max-width: 350px) {
+  .app-brand .subtitle { display: none; }
+  .brand-icon { width: 36px; height: 36px; }
+  .app-brand h1 { font-size: 1.15rem; }
+  .view-bar > div:last-child { grid-column: 1 / -1; grid-row: 3; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+}

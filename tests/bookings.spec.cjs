@@ -106,6 +106,60 @@ async function openApp(page, path = '/') {
   });
 }
 
+test('de nieuwe vormgeving past op mobiel, behoudt toetsenbordnavigatie en respecteert minder beweging', async ({ page }) => {
+  await openApp(page);
+  await page.setViewportSize({width: 1440, height: 1080});
+  await page.evaluate(() => {
+    const today = new Date();
+    anker = today;
+    boekingen = [0, 1, 2, 3].map((offset) => {
+      const date = new Date(today); date.setDate(date.getDate() + offset);
+      return {datumStr: datumNaarStr(date), start: 600 + offset * 60, eind: 695 + offset * 60,
+        naam: ['Sophie', 'Thomas', 'Emma', 'Milan'][offset], prijs: 10, tijdvak: 0, betaling: offset === 2 ? 'achteraf' : 'betaald'};
+    });
+    setView('week');
+  });
+  await page.evaluate(() => document.fonts.ready);
+  expect(await page.evaluate(() => document.fonts.check('400 16px "DM Sans"'))).toBe(true);
+  await page.screenshot({path: test.info().outputPath('planning-desktop.png'), fullPage: true, animations: 'disabled'});
+  await page.locator('#hamburger-btn').click();
+  await expect(page.locator('#menu-schema')).toBeFocused();
+  await expect(page.locator('#hamburger-btn')).toHaveAttribute('aria-expanded', 'true');
+  await page.screenshot({path: test.info().outputPath('planning-menu.png'), fullPage: true, animations: 'disabled'});
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#menu-bar')).toBeHidden();
+  await expect(page.locator('#hamburger-btn')).toBeFocused();
+  await page.locator('#meer-info-toggle').focus(); await page.keyboard.press('Enter');
+  await expect(page.locator('#meer-info-toggle')).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.locator('#prijs-input')).toBeVisible();
+  await page.locator('#meer-info-toggle').click();
+  for (const width of [768, 390, 320]) {
+    await page.setViewportSize({width, height: 900});
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    const name = await page.locator('#naam').boundingBox(), date = await page.locator('#datum').boundingBox();
+    const time = await page.locator('#starttijd').boundingBox();
+    expect(date.y).toBeGreaterThan(name.y); expect(Math.abs(date.y - time.y)).toBeLessThan(2);
+    await page.locator('#tab-maand').click();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.locator('#tab-week').click();
+    if (width === 390) await page.screenshot({path: test.info().outputPath('planning-mobiel.png'), fullPage: true, animations: 'disabled'});
+  }
+  await page.setViewportSize({width: 1440, height: 1080});
+  await page.evaluate(() => document.body.classList.add('licht-thema'));
+  await page.screenshot({path: test.info().outputPath('planning-licht.png'), fullPage: true, animations: 'disabled'});
+  await page.emulateMedia({reducedMotion: 'reduce'});
+  expect(await page.locator('#app').evaluate(el => parseFloat(getComputedStyle(el).animationDuration))).toBeLessThan(.01);
+  await page.evaluate(() => {
+    document.body.classList.remove('licht-thema');
+    document.getElementById('app').style.display = 'none';
+    document.getElementById('auth-overlay').style.display = 'flex';
+  });
+  await page.screenshot({path: test.info().outputPath('inloggen-desktop.png'), fullPage: true, animations: 'disabled'});
+  await page.setViewportSize({width: 390, height: 844});
+  await expect(page.locator('#auth-btn')).toBeInViewport();
+  await page.screenshot({path: test.info().outputPath('inloggen-mobiel.png'), fullPage: true, animations: 'disabled'});
+});
+
 for (const path of ['/', '/boekingen.html']) {
   test.describe(path, () => {
     test.beforeEach(async ({ page }) => openApp(page, path));

@@ -162,6 +162,8 @@ function verbergApp() {
   document.querySelectorAll('body > .container, .auth-overlay').forEach(function(el) { el.style.display = 'none'; });
   document.querySelectorAll('#bewerk-overlay, #verwijder-gebruiker-overlay').forEach(function(el) { el.style.display = 'none'; });
   document.querySelectorAll('.open').forEach(function(el) { el.classList.remove('open'); });
+  zetMenuOpen(false);
+  document.getElementById('meer-info-toggle').setAttribute('aria-expanded', 'false');
   huidigeGebruiker = ''; boekingen = []; undoStack = []; logItems = []; meldingen = [];
   pendingBoeking = null; detailBoekingen = []; detailUsername = '';
   boekingOpslaanBezig = false;
