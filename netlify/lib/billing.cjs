@@ -187,10 +187,28 @@ async function entitlement(uid, customer, deps) {
     }
   }
   if (lifetime) return {status: 'lifetime'};
+  let now = Date.now();
+  // Test clocks advance Stripe only, not the application server. Use the
+  // provider's clock for paid coverage in the sandbox; live billing always
+  // uses real time. Never take a time or clock ID from the browser.
+  if (deps.liveMode === false) {
+    const record = await deps.stripe.customers.retrieve(customer);
+    if (record.deleted || record.id !== customer || !matches(record.metadata, uid, deps.projectId)) {
+      throw new BillingError('Je betaalaccount kan niet worden gecontroleerd.');
+    }
+    if (record.test_clock) {
+      const clock = await deps.stripe.testHelpers.testClocks.retrieve(id(record.test_clock));
+      if (!Number.isSafeInteger(clock?.frozen_time * 1000) || clock.frozen_time <= 0) {
+        throw new BillingError('De simulatietijd kan niet worden gecontroleerd.');
+      }
+      now = clock.frozen_time * 1000;
+    }
+  }
   count = 0;
   for await (const subscription of deps.stripe.subscriptions.list({customer, status: 'all', limit: 100})) {
     if (++count > 100) throw new BillingError('De abonnementshistorie vereist controle door de beheerder.');
-    if (!matches(subscription.metadata, uid, deps.projectId) || !['active', 'past_due'].includes(subscription.status)) continue;
+    if (id(subscription.customer) !== customer || !matches(subscription.metadata, uid, deps.projectId) ||
+        !['active', 'past_due', 'unpaid', 'canceled', 'paused'].includes(subscription.status)) continue;
     const plan = subscription.metadata.plan, item = subscription.items?.data?.[0];
     if (plan === 'levenslang' || subscription.items.data.length !== 1 || item.quantity !== 1 || !validPrice(item.price, plan, deps.projectId)) continue;
     const invoices = await deps.stripe.invoices.list({subscription: subscription.id, status: 'paid', limit: 1});
@@ -203,16 +221,17 @@ async function entitlement(uid, customer, deps) {
       if (payment.payment?.type === 'payment_intent' && !await paymentValid(payment.payment.payment_intent, deps)) paid = false;
     }
     if (!paid) continue;
-    // The paid invoice determines coverage, not the next (possibly unpaid)
-    // subscription period. This prevents extending access on failed renewals.
+    // Only the paid invoice determines coverage. A cancellation stops future
+    // renewals, but must not erase a paid period, including a renewal invoice
+    // paid after Stripe canceled the subscription for failed collection.
     for await (const line of deps.stripe.invoices.listLineItems(invoice.id, {limit: 100})) {
       if (line.parent?.subscription_item_details?.subscription_item === item.id &&
           !line.parent.subscription_item_details.proration && line.period?.end > 0) {
-        validUntil = Math.max(validUntil, Math.min(line.period.end, item.current_period_end) * 1000);
+        validUntil = Math.max(validUntil, line.period.end * 1000);
       }
     }
   }
-  return validUntil > Date.now() ? {status: 'active', validUntil: Timestamp.fromMillis(validUntil)} : null;
+  return validUntil > now ? {status: 'active', validUntil: Timestamp.fromMillis(validUntil)} : null;
 }
 
 const WEBHOOK_EVENTS = new Set(['checkout.session.completed', 'checkout.session.async_payment_succeeded',

@@ -40,6 +40,10 @@ beforeEach(async () => {
     customers: {retrieve: async () => state.customer, create: async params => {
       state.calls.push(['customer', params]); return state.customer;
     }},
+    testHelpers: {testClocks: {retrieve: async clockId => {
+      state.calls.push(['clock', clockId]);
+      return state.clock;
+    }}},
     subscriptions: {list: () => list(state.subscriptions), retrieve: async subscriptionId => {
       state.calls.push(['subscription', subscriptionId]);
       return state.subscriptions.find(subscription => subscription.id === subscriptionId);
@@ -218,6 +222,8 @@ test('een betaald en beëindigd abonnement kan dezelfde dag door een ander plan 
   await createCheckout(identity, 'maand', deps);
   subscriptionPayment();
   state.subscriptions[0].status = 'canceled';
+  state.customer.test_clock = 'clock_alice';
+  state.clock = {frozen_time: state.lines[0].period.end + 1};
   Object.assign(state.sessions[0], {status: 'complete', payment_status: 'paid', subscription: 'sub_month'});
   await database.doc('billingAccess/' + uid).set({status: 'expired'});
 
@@ -234,6 +240,8 @@ test('een betaald en beëindigd abonnement kan dezelfde dag door een ander plan 
 test('een recente afgeronde Checkout blijft beschermd bij onbetaalde of niet-bevestigde beëindiging', async () => {
   await createCheckout(identity, 'maand', deps);
   subscriptionPayment();
+  state.customer.test_clock = 'clock_alice';
+  state.clock = {frozen_time: state.lines[0].period.end + 1};
   const subscription = state.subscriptions[0];
   const session = state.sessions[0];
   Object.assign(session, {status: 'complete', payment_status: 'unpaid', subscription: subscription.id});
@@ -294,8 +302,80 @@ test('een maandbetaling dekt alleen de werkelijk betaalde periode, ook bij mislu
   assert.equal((await database.doc('billingAccess/' + uid).get()).data().status, 'expired');
   state.subscriptions[0].status = 'canceled';
   state.lines[0].period.end = end;
+  state.customer.test_clock = 'clock_alice';
+  state.clock = {frozen_time: end};
   await processEvent(event('evt_canceled', 'customer.subscription.deleted'), deps);
   assert.equal((await database.doc('billingAccess/' + uid).get()).data().status, 'expired');
+});
+
+test('een later betaalde jaarfactuur herstelt de betaalde periode van een inmiddels opgezegd abonnement', async () => {
+  await boundCustomer(); subscriptionPayment();
+  const now = Date.UTC(2028, 11, 24) / 1000;
+  const paidEnd = Date.UTC(2029, 11, 23) / 1000;
+  state.customer.test_clock = 'clock_alice'; state.clock = {frozen_time: now};
+  const subscription = state.subscriptions[0];
+  subscription.metadata = meta('jaar');
+  subscription.items.data[0].price = state.prices.jaar;
+  subscription.status = 'past_due';
+  // A previously paid period has ended in Stripe's simulation, although it
+  // still lies in the future on the actual server clock.
+  state.lines[0].period.end = now - 86400;
+  await database.doc('billingAccess/' + uid).set({status: 'active', validUntil: Timestamp.fromMillis((now - 86400) * 1000)});
+  await processEvent(event('evt_renewal_failed', 'invoice.payment_failed'), deps);
+  assert.equal((await database.doc('billingAccess/' + uid).get()).data().status, 'expired');
+
+  subscription.status = 'canceled';
+  state.invoices.unshift({id: 'in_recovered_year', customer: 'cus_alice', status: 'paid'});
+  state.lines[0].period.end = paidEnd;
+  state.paymentValid = false;
+  await processEvent(event('evt_still_processing', 'invoice.paid'), deps);
+  assert.equal((await database.doc('billingAccess/' + uid).get()).data().status, 'expired');
+  state.paymentValid = true;
+  await processEvent(event('evt_recovered_year', 'invoice.paid'), deps);
+  let access = (await database.doc('billingAccess/' + uid).get()).data();
+  assert.equal(access.status, 'active');
+  assert.equal(access.validUntil.toMillis(), paidEnd * 1000);
+  assert.equal(subscription.status, 'canceled');
+  assert.equal((await billingOverview(identity, {}, deps)).subscription.nextPaymentAt, null);
+  await assert.rejects(createCheckout(identity, 'jaar', deps), /al betaalde toegang/);
+  await processEvent(event('evt_late_cancellation', 'customer.subscription.deleted'), deps);
+  assert.equal((await database.doc('billingAccess/' + uid).get()).data().status, 'active');
+
+  state.clock.frozen_time = paidEnd;
+  await processEvent(event('evt_coverage_finished', 'customer.subscription.deleted'), deps);
+  access = (await database.doc('billingAccess/' + uid).get()).data();
+  assert.equal(access.status, 'expired');
+  assert.equal(state.invoices.length, 2);
+  assert.equal((await database.doc('boekingen/alice').get()).data().prijs, 0);
+});
+
+test('opzegging wist betaalde resterende tijd niet; terugbetaling en vreemde abonnementen geven geen toegang', async () => {
+  await boundCustomer(); const end = subscriptionPayment();
+  state.subscriptions[0].status = 'canceled';
+  await processEvent(event('evt_paid_cancelled', 'invoice.paid'), deps);
+  assert.equal((await database.doc('billingAccess/' + uid).get()).data().validUntil.toMillis(), end * 1000);
+  state.refunded = true;
+  await processEvent(event('evt_cancelled_refunded', 'charge.refunded'), deps);
+  assert.equal((await database.doc('billingAccess/' + uid).get()).data().status, 'expired');
+  state.refunded = false; state.subscriptions[0].customer = 'cus_bob';
+  await processEvent(event('evt_foreign_subscription', 'invoice.paid'), deps);
+  assert.equal((await database.doc('billingAccess/' + uid).get()).data().status, 'expired');
+});
+
+test('een onbereikbare simulatieklok bewaart bestaande rechten; live betalingen gebruiken uitsluitend echte tijd', async () => {
+  await boundCustomer(); const end = subscriptionPayment();
+  const ref = database.doc('billingAccess/' + uid);
+  await ref.set({status: 'active', validUntil: Timestamp.fromMillis(end * 1000)});
+  const original = (await ref.get()).data();
+  state.customer.test_clock = 'clock_alice';
+  deps.stripe.testHelpers.testClocks.retrieve = async () => { throw new Error('Simulatie tijdelijk onbereikbaar'); };
+  await assert.rejects(processEvent(event('evt_clock_outage'), deps), /tijdelijk/);
+  assert.deepEqual((await ref.get()).data(), original);
+  assert.equal((await database.doc('billingEvents/evt_clock_outage').get()).exists, false);
+  deps.liveMode = true;
+  await database.doc('billing/config').update({stripeLiveMode: true});
+  await processEvent({...event('evt_live_real_time'), livemode: true}, deps);
+  assert.equal((await ref.get()).data().validUntil.toMillis(), end * 1000);
 });
 
 test('gratis toegang blijft bestaan en betaalberichten van een ander account worden genegeerd', async () => {

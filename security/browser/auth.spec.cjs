@@ -125,6 +125,31 @@ test('abonnement beheren staat in het menu en toont eigen betaalstatus, datums, 
   await expect(page.locator('#app')).toBeVisible();
 });
 
+test('een betaalde jaarperiode blijft bruikbaar nadat het Stripe-abonnement is opgezegd', async ({page}) => {
+  await seedUser(); await enableTrial();
+  const end = Date.UTC(2029, 11, 23, 12);
+  await database.doc('billingAccess/alice-uid').set({status: 'active', validUntil: Timestamp.fromMillis(end)});
+  const fixture = billingFixture();
+  fixture.access = {allowed: true, kind: 'active', expiresAt: end};
+  fixture.subscription = {plan: 'jaar', label: 'Per jaar', amountCents: 5999, currency: 'EUR',
+    status: 'canceled', currentPeriodEnd: end - 365 * 86400000, nextPaymentAt: null, cancelAtPeriodEnd: false};
+  fixture.invoices = [{...fixture.invoices[1], totalCents: 5999, paidCents: 5999}];
+  await page.route('**/api/billing-overview', route => route.fulfill({status: 200,
+    contentType: 'application/json', body: JSON.stringify(fixture)}));
+  await page.goto('/'); await login(page);
+  await expect(page.locator('#app')).toBeVisible();
+  await page.locator('#hamburger-btn').click(); await page.locator('#menu-abonnement').click();
+  await expect(page.locator('#abonnement-huidig-status')).toHaveText('Betaalde toegang · opgezegd');
+  await expect(page.locator('#abonnement-huidig-periode')).toContainText('23 december 2029');
+  await expect(page.locator('#abonnement-huidig-periode')).toContainText('niet automatisch verlengd');
+  await expect(page.locator('#abonnement-volgend-bedrag')).toHaveText('Geen betaling gepland');
+  await expect(page.locator('#abonnement-volgend-uitleg')).toHaveText('Je abonnement wordt niet opnieuw verlengd.');
+  await expect(page.getByRole('link', {name: 'Factuur betalen'})).toHaveCount(0);
+  await page.locator('#abonnement-pagina-terug').click();
+  await expect(page.locator('#app')).toBeVisible();
+  await expect(page.locator('#abonnement-overlay')).toBeHidden();
+});
+
 test('proefgebruikers zien een helder leeg factuuroverzicht en kunnen bij een storing opnieuw ophalen', async ({page}) => {
   await seedUser(); await enableTrial();
   let attempts = 0;

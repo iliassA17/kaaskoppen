@@ -244,6 +244,39 @@ test('een geldige betaalperiode en levenslange toegang werken zonder een nieuwe 
   }
 });
 
+test('opnieuw controleren ververst ook eerder geldige toegang na een Stripe-klokwijziging', async () => {
+  const event = await eventFor();
+  await subscriptionAccount({status: 'active', validUntil: Timestamp.fromMillis(Date.now() + 86400000)});
+  await database.doc('billing/config').update({provider: 'stripe'});
+  const billing = require('../netlify/lib/billing.cjs');
+  const original = billing.refreshAccess;
+  const names = ['STRIPE_SECRET_KEY', 'FIREBASE_SERVICE_ACCOUNT'];
+  const saved = names.map(name => process.env[name]);
+  let checkedUid;
+  try {
+    // The actual Stripe call is replaced here; authentication, Firestore REST
+    // reads and the rules used by the endpoint still run against the emulators.
+    process.env.STRIPE_SECRET_KEY = 'sk_test_local_fixture';
+    process.env.FIREBASE_SERVICE_ACCOUNT = 'local-test-placeholder';
+    billing.refreshAccess = async uid => {
+      checkedUid = uid;
+      await database.doc('billingAccess/' + uid).set({status: 'expired'});
+    };
+    const {handler} = require('../netlify/functions/subscription-status.js');
+    const response = await handler(event);
+    assert.equal(response.statusCode, 200, response.body);
+    assert.equal(checkedUid, 'api-test');
+    assert.equal(JSON.parse(response.body).allowed, false);
+    assert.equal((await requireUser(event)).statusCode, 402);
+  } finally {
+    billing.refreshAccess = original;
+    names.forEach((name, index) => {
+      if (saved[index] === undefined) delete process.env[name];
+      else process.env[name] = saved[index];
+    });
+  }
+});
+
 test('serverfuncties weigeren ontbrekende en vervalste sessies', async () => {
   const pathe = require('../netlify/functions/pathe.js');
   const push = require('../netlify/functions/send-push.js');

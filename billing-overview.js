@@ -79,7 +79,7 @@ function renderAbonnementSamenvatting(data) {
   var statuses = {active: 'Actief', past_due: 'Betaling achterstallig', canceled: 'Opgezegd', unpaid: 'Onbetaald',
     incomplete: 'Betaling nog niet afgerond', incomplete_expired: 'Betaling verlopen', trialing: 'Proefperiode', lifetime: 'Levenslang'};
   status.textContent = access.kind === 'trial' ? 'Proefweek actief' :
-    (subscription && subscription.status === 'canceled' ? 'Opgezegd' :
+    (subscription && subscription.status === 'canceled' ? (access.kind === 'active' && access.allowed ? 'Betaalde toegang · opgezegd' : 'Opgezegd') :
       subscription && subscription.cancelAtPeriodEnd ? (access.allowed ? 'Opgezegd · loopt nog' : 'Opgezegd') :
       !access.allowed ? 'Toegang verlopen' : subscription ? statuses[subscription.status] || 'In behandeling' : 'Actief');
   status.className = 'factuur-status ' + (access.allowed ? 'betaald' : 'openstaand');
@@ -91,7 +91,9 @@ function renderAbonnementSamenvatting(data) {
       (data.taxIncluded ? ' · inclusief btw' : '');
     var comparison = abonnementPrijsVergelijking({months: months, amountCents: subscription.amountCents}, data.plans);
     if (comparison && subscription.currency === 'EUR') price += ' ' + comparison.monthly;
-    if (subscription.cancelAtPeriodEnd) period = 'Opgezegd. Je abonnement stopt op ' +
+    if (subscription.status === 'canceled' && access.kind === 'active' && access.allowed) {
+      period = 'Je betaalde toegang loopt tot ' + factuurDatum(access.expiresAt) + '. Je abonnement wordt niet automatisch verlengd.';
+    } else if (subscription.cancelAtPeriodEnd) period = 'Opgezegd. Je abonnement stopt op ' +
       factuurDatum(subscription.cancelAt || subscription.currentPeriodEnd) + '.';
     else if (access.expiresAt) period = 'Je betaalde toegang loopt tot ' + factuurDatum(access.expiresAt) + '.';
     if (access.kind === 'trial') period = 'Je gratis proefweek loopt tot ' + factuurDatum(access.expiresAt) + '.';
@@ -122,7 +124,7 @@ function renderAbonnementSamenvatting(data) {
     'Factuur ' + outstanding.number + ' is nog niet volledig betaald. Je kunt de factuur hieronder bekijken en betalen.' : next ?
     'Verwachte verlenging van je abonnement. Openstaande facturen vind je hieronder.' :
     access.kind === 'trial' ? 'Na de proefweek kies je zelf een betaaloptie. Er wordt nu niets automatisch afgeschreven.' :
-    subscription && subscription.cancelAtPeriodEnd ? 'Je abonnement wordt niet opnieuw verlengd.' :
+    subscription && (subscription.cancelAtPeriodEnd || subscription.status === 'canceled') ? 'Je abonnement wordt niet opnieuw verlengd.' :
     ['free', 'admin', 'lifetime'].includes(access.kind) ? 'Je hoeft je toegang niet periodiek te verlengen.' :
     'Een eventuele openstaande betaling vind je bij je facturen.';
   document.getElementById('abonnement-portaal-openen').hidden = !data.hasCustomer;
