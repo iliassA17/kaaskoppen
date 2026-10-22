@@ -106,7 +106,7 @@ async function openApp(page, path = '/') {
   });
 }
 
-test('de nieuwe vormgeving past op mobiel, behoudt toetsenbordnavigatie en respecteert minder beweging', async ({ page }) => {
+test('de bestaande stijl met gekozen verbeteringen past op mobiel en blijft met toetsenbord bruikbaar', async ({ page }) => {
   await openApp(page);
   await page.setViewportSize({width: 1440, height: 1080});
   await page.evaluate(() => {
@@ -120,7 +120,9 @@ test('de nieuwe vormgeving past op mobiel, behoudt toetsenbordnavigatie en respe
     setView('week');
   });
   await page.evaluate(() => document.fonts.ready);
-  expect(await page.evaluate(() => document.fonts.check('400 16px "DM Sans"'))).toBe(true);
+  expect(await page.evaluate(() => document.fonts.check('400 16px "DM Mono"'))).toBe(true);
+  await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(15, 14, 12)');
+  await expect(page.locator('body')).toHaveCSS('font-family', '"DM Mono", monospace');
   await page.screenshot({path: test.info().outputPath('planning-desktop.png'), fullPage: true, animations: 'disabled'});
   await page.locator('#hamburger-btn').click();
   await expect(page.locator('#menu-schema')).toBeFocused();
@@ -141,6 +143,14 @@ test('de nieuwe vormgeving past op mobiel, behoudt toetsenbordnavigatie en respe
     expect(date.y).toBeGreaterThan(name.y); expect(Math.abs(date.y - time.y)).toBeLessThan(2);
     await page.locator('#tab-maand').click();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    const cells = await page.locator('.month-cell').evaluateAll(cells => cells.map(c => ({left:c.getBoundingClientRect().left,right:c.getBoundingClientRect().right})));
+    expect(cells.every(cell => cell.left >= 0 && cell.right <= width)).toBe(true);
+    if (width === 390) await page.screenshot({path:test.info().outputPath('maand-mobiel.png'),fullPage:true,animations:'disabled'});
+    for (const selector of ['#naam','#datum','#starttijd']) {
+      const input = await page.locator(selector).boundingBox(), card = await page.locator('#app>.form-card').boundingBox();
+      expect(input.x + input.width).toBeLessThanOrEqual(card.x + card.width);
+      expect(await page.locator(selector).evaluate(el => parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(16);
+    }
     await page.locator('#tab-week').click();
     if (width === 390) await page.screenshot({path: test.info().outputPath('planning-mobiel.png'), fullPage: true, animations: 'disabled'});
   }
@@ -158,6 +168,27 @@ test('de nieuwe vormgeving past op mobiel, behoudt toetsenbordnavigatie en respe
   await page.setViewportSize({width: 390, height: 844});
   await expect(page.locator('#auth-btn')).toBeInViewport();
   await page.screenshot({path: test.info().outputPath('inloggen-mobiel.png'), fullPage: true, animations: 'disabled'});
+});
+
+test('screenshotherkenning wordt pas na upload geladen en daarna hergebruikt', async ({page}) => {
+  const extras=[];
+  page.on('request', request => { if (/tesseract|emailjs/.test(request.url())) extras.push(request.url()); });
+  await openApp(page);
+  expect(extras).toEqual([]);
+  let requests=0;
+  await page.route('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js', route => {
+    requests++;
+    return route.fulfill({contentType:'application/javascript',body:'window.Tesseract={recognize:async()=>({data:{text:"23/10/2026 10:00"}})};'});
+  });
+  await page.locator('#scan-btn').click();
+  const file={name:'boeking.png',mimeType:'image/png',buffer:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aUuoAAAAASUVORK5CYII=','base64')};
+  await page.locator('#scan-input').setInputFiles(file);
+  await expect(page.locator('#scan-resultaat')).toBeVisible();
+  expect(requests).toBe(1);
+  await page.evaluate(() => resetScan());
+  await page.locator('#scan-input').setInputFiles({...file,name:'nog-een.png'});
+  await expect(page.locator('#scan-resultaat')).toBeVisible();
+  expect(requests).toBe(1);
 });
 
 for (const path of ['/', '/boekingen.html']) {
