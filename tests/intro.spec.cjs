@@ -30,11 +30,14 @@ test('demonstratie speelt af, pauzeert, eindigt en kan opnieuw of per stap bekek
   const demo=page.locator('.demo'),play=page.locator('#demo-play');
   await play.click();await expect(demo).toHaveAttribute('data-playing','true');
   await page.clock.fastForward(4100);await expect(demo).toHaveAttribute('data-step','1');
+  await expect(page.locator('.scan-preview')).toBeVisible();
+  await expect(page.locator('.date-value')).toHaveText('28 oktober');
+  await expect(page.locator('.time-value')).toHaveText('14:00');
   await play.click();await expect(play).toContainText('Speel verder');
   await page.clock.fastForward(10000);await expect(demo).toHaveAttribute('data-step','1');
   await play.click();await page.clock.fastForward(4100);
   await expect(demo).toHaveAttribute('data-step','2');await expect(page.locator('.demo-result')).toBeVisible();
-  await expect(page.locator('.demo-result')).toContainText('Emma');
+  await expect(page.locator('.demo-result')).toContainText('Boeking 2');
   await page.clock.fastForward(4100);await expect(play).toContainText('Opnieuw afspelen');
   await play.click();await expect(demo).toHaveAttribute('data-step','0');
   await page.locator('[data-demo-step="2"]').click();await expect(demo).toHaveAttribute('data-playing','false');
@@ -55,6 +58,7 @@ test('mobiel menu, faq en stappen blijven bruikbaar; minder beweging speelt niet
       await page.locator('[data-demo-step="'+step+'"]').click();
       await expect(page.locator('.demo')).toHaveAttribute('data-playing','false');
       expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+      if(step===1)expect(await page.locator('.fake-save').evaluate(el=>el.getBoundingClientRect().bottom<=el.closest('.demo-app').getBoundingClientRect().bottom)).toBe(true);
       if(step===2)expect(await page.locator('.result-toast').evaluate(el=>el.getBoundingClientRect().bottom<=el.closest('.demo-app').getBoundingClientRect().bottom)).toBe(true);
     }
     if(width===390){
@@ -66,5 +70,5 @@ test('mobiel menu, faq en stappen blijven bruikbaar; minder beweging speelt niet
   await expect(page.locator('.demo')).toHaveAttribute('data-playing','false');
   await page.locator('.faq summary').nth(1).click();
   await expect(page.locator('.faq details').nth(1)).toHaveAttribute('open','');
-  await expect(page.locator('.faq details').nth(1)).toContainText('zelf in');
+  await expect(page.locator('.faq details').nth(1)).toContainText('zelf invoeren');
 });

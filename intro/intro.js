@@ -23,9 +23,9 @@
   const result = document.querySelector('.demo-result');
   const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
   const captions = [
-    'Een klant stuurt je een bericht. Jullie spreken een moment af.',
-    'Jij vult de naam, datum en starttijd in en voegt de boeking toe.',
-    'Emma staat in je planning. Je houdt de afspraak en betaalstatus bij.'
+    'Spreek af met je klant en maak een screenshot met de datum en tijd.',
+    'Scan je screenshot. Controleer de gevonden datum en tijd en voeg de boeking toe.',
+    'Je boeking staat in je planning. Houd je volgende vrije plek en betaalstatus in beeld.'
   ];
   let step = 0, playing = false, finished = false, timer = null, started = 0, remaining = 4000;
   function label() {
@@ -38,7 +38,7 @@
     demo.dataset.playing = String(playing);
     caption.textContent = captions[step];
     document.querySelector('.demo-number').textContent = '0' + (step + 1);
-    document.querySelector('.app-caption').textContent = step === 2 ? '03 / Je houdt overzicht' : '02 / Je voert de afspraak in';
+    document.querySelector('.app-caption').textContent = step === 2 ? '03 / Je houdt overzicht' : '02 / Je scant je screenshot';
     form.hidden = step === 2; result.hidden = step !== 2;
     steps.forEach((button, index) => { if (index === step) button.setAttribute('aria-current', 'step'); else button.removeAttribute('aria-current'); });
     label();

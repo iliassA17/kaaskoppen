@@ -6,8 +6,10 @@ https://boekingsschema-stripe-test.netlify.app/intro/
 De bestaande ingang `/` blijft de app met het inlogscherm. De introductiepagina
 laadt geen Firebase-, Stripe- of appcode en leest geen gebruikerssessies. Het is
 een statische pagina met eigen opmaak en een korte, afspeelbare demonstratie.
-De demonstratie gebruikt fictieve gegevens en toont handmatige invoer na een
-klantgesprek; er is geen automatische WhatsApp-koppeling.
+De demonstratie gebruikt fictieve gegevens en toont hoe een gebruiker na een
+klantgesprek zelf een screenshot kiest, de gevonden datum en tijd controleert
+en de boeking toevoegt; er is geen automatische WhatsApp-koppeling. Het is een
+animatie van het proces en verwerkt zelf geen afbeeldingen.
 
 ## Een vaste plek kiezen
 

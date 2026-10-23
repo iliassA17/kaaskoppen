@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#141510">
-  <meta name="description" content="Rust in je planning. Houd je afspraken, parallelle tijdvakken en betaalstatus overzichtelijk bij met Boekingsschema. Bekijk hoe het werkt.">
+  <meta name="description" content="Scan je screenshot naar een boeking. Houd je planning, tijdvakken, betalingen en statistieken op één plek met Boekingsschema. Bekijk hoe het werkt.">
   <meta name="robots" content="noindex, nofollow">
   <title>Boekingsschema — Rust in je planning. Ruimte voor je dag.</title>
   <link rel="icon" href="/favicon.ico" sizes="any">
@@ -29,7 +29,7 @@
       <div class="hero-copy">
         <p class="eyebrow"><span class="tiny-star" aria-hidden="true">✳</span> Jij regelt de afspraak. Wij het overzicht.</p>
         <h1>Rust in je planning.<br><em>Ruimte voor je dag.</em></h1>
-        <p class="hero-lead">Een afspraak hier, een berichtje daar. Zet je boekingen op één plek en zie meteen wat er gepland staat, waar nog ruimte is en wat al betaald is.</p>
+        <p class="hero-lead">Boekingen via WhatsApp, Marktplaats, TikTok of Snapchat? Breng ze samen in één planning. Scan de datum en tijd uit je screenshot, houd je betalingen bij en laat de app meerekenen met je volgende vrije plek.</p>
         <div class="hero-actions"><a class="button button-gold" href="#zo-werkt-het"><svg class="inline-icon" aria-hidden="true"><use href="#i-play"/></svg> Bekijk hoe het werkt</a><a class="text-link" href="/">Ik heb al een account <svg class="inline-icon" aria-hidden="true"><use href="#i-arrow"/></svg></a></div>
         <p class="hero-note"><span aria-hidden="true">✓</span> 7 dagen gratis proberen met je uitnodigingscode</p>
       </div>
@@ -51,17 +51,17 @@
         <span class="visual-caption">Een voorbeeld van jouw planning</span>
       </div>
     </section>
-    <div class="benefit-strip"><div class="wrap"><span><svg aria-hidden="true"><use href="#i-calendar"/></svg> Je afspraken overzichtelijk</span><span><svg aria-hidden="true"><use href="#i-layers"/></svg> Tot 4 parallelle tijdvakken</span><span><svg aria-hidden="true"><use href="#i-check"/></svg> Betaald of nog open</span><span><svg aria-hidden="true"><use href="#i-phone"/></svg> Op telefoon en laptop</span></div></div>
+    <div class="benefit-strip"><div class="wrap"><span><svg aria-hidden="true"><use href="#i-scan"/></svg> Screenshot erin. Datum en tijd eruit.</span><span><svg aria-hidden="true"><use href="#i-calendar"/></svg> Minder puzzelen met tijden</span><span><svg aria-hidden="true"><use href="#i-layers"/></svg> Tot 4 parallelle tijdvakken</span><span><svg aria-hidden="true"><use href="#i-bell"/></svg> Herinneringen voor open betalingen</span></div></div>
 
     <section class="demo-section" id="zo-werkt-het" aria-labelledby="demo-heading">
       <div class="wrap">
-        <div class="section-heading demo-heading"><div><p class="eyebrow">ZO WERKT HET</p><h2 id="demo-heading">Een berichtje.<br>Een afspraak. <em>Geregeld.</em></h2></div><p>Je spreekt je klant via WhatsApp of een ander kanaal. De afspraak zet je daarna zelf in Boekingsschema. Zo houd jij de regie.</p></div>
+        <div class="section-heading demo-heading"><div><p class="eyebrow">DE SCREENSHOTSCANNER</p><h2 id="demo-heading">Van screenshot<br>naar boeking. <em>Zonder overtypen.</em></h2></div><p>Gebruik de screenshot die je met je klant hebt gedeeld. De scanner haalt de datum en tijd eruit. Jij controleert het resultaat en voegt de boeking direct toe aan je planning.</p></div>
         <div class="demo" data-step="0" data-playing="false">
           <div class="demo-stage">
             <div class="chat-pane">
               <div class="chat-phone">
                 <div class="chat-top"><span aria-hidden="true">‹</span><span class="avatar">E</span><div><strong>Emma</strong><small>Voorbeeldgesprek</small></div><span class="chat-more" aria-hidden="true">•••</span></div>
-                <div class="chat-messages"><span class="chat-date">WOENSDAG AFSPREKEN</span><div class="bubble incoming">Hoi! Heb je woensdag om 14:00 nog plek?<small>10:24</small></div><div class="bubble outgoing">Ja, dat kan. Ik zet je erin!<small>10:25 <span aria-hidden="true">✓✓</span></small></div><div class="bubble incoming last-message">Top, dankjewel!<small>10:25</small></div></div>
+                <div class="chat-messages"><span class="chat-date">WOENSDAG AFSPREKEN</span><div class="bubble incoming">Hoi! Heb je woensdag 28 oktober om 14:00 nog plek?<small>10:24</small></div><div class="bubble outgoing">Ja! Woensdag 28 oktober om 14:00. Tot dan!<small>10:25 <span aria-hidden="true">✓✓</span></small></div><div class="bubble incoming last-message">Top, dankjewel!<small>10:25</small></div></div>
                 <div class="chat-input" aria-hidden="true"><span>Bericht</span><span>◉</span></div>
               </div>
               <span class="pane-caption">01 / Je spreekt je klant</span>
@@ -70,28 +70,32 @@
             <div class="app-pane">
               <div class="demo-app">
                 <div class="demo-app-header"><img src="/icon-192.png" width="27" height="27" alt=""><strong>Boekingsschema</strong><span aria-hidden="true">☰</span></div>
-                <div class="demo-form"><span class="demo-kicker">NIEUWE BOEKING</span><h3>Een plek voor Emma.</h3><div class="fake-field"><small>Naam</small><span class="typed name-value">Emma</span></div><div class="fake-field"><small>Datum</small><span>Woensdag 28 oktober</span></div><div class="fake-field"><small>Starttijd</small><span class="typed time-value">14:00</span></div><div class="fake-save" aria-hidden="true">+ Toevoegen</div></div>
-                <div class="demo-result" hidden><div class="result-heading"><div><span class="demo-kicker">JE PLANNING</span><h3>Woensdag 28 oktober</h3></div><span class="result-check" aria-hidden="true">✓</span></div><div class="result-booking"><span>14:00</span><div><strong>Emma</strong><small>14:00 – 15:35</small><span class="payment-badge">Nog te betalen</span></div></div><div class="result-space"><span class="space-line"></span><span>Ruimte voor de volgende afspraak</span></div><div class="result-toast"><span aria-hidden="true">✓</span> Boeking toegevoegd aan je planning</div></div>
+                <div class="demo-form"><span class="demo-kicker">SCREENSHOT SCANNEN</span><h3>Datum en tijd gevonden.</h3><div class="scan-preview"><span class="scan-file"><svg aria-hidden="true"><use href="#i-scan"/></svg> Jouw screenshot</span><p>Woensdag 28 oktober<br>om <strong>14:00</strong>. Tot dan!</p><span class="scan-beam" aria-hidden="true"></span></div><div class="scan-fields"><div class="fake-field"><small>Datum gevonden</small><span class="typed date-value">28 oktober</span></div><div class="fake-field"><small>Tijd gevonden</small><span class="typed time-value">14:00</span></div></div><p class="scan-review">Controleer de datum en tijd.</p><div class="fake-save" aria-hidden="true">+ Boeking toevoegen</div></div>
+                <div class="demo-result" hidden><div class="result-heading"><div><span class="demo-kicker">JE PLANNING</span><h3>Woensdag 28 oktober</h3></div><span class="result-check" aria-hidden="true">✓</span></div><div class="result-booking"><span>14:00</span><div><strong>Boeking 2</strong><small>14:00 – 15:35</small><span class="payment-badge">Nog te betalen</span></div></div><div class="result-space"><span class="space-line"></span><span>Volgende plek vanaf 15:35 in dit tijdvak</span></div><div class="result-toast"><span aria-hidden="true">✓</span> Boeking toegevoegd aan je planning</div></div>
               </div>
-              <span class="pane-caption app-caption">02 / Je voert de afspraak in</span>
+              <span class="pane-caption app-caption">02 / Je scant je screenshot</span>
             </div>
           </div>
           <div class="demo-footer"><div><span class="demo-number" aria-hidden="true">01</span><p id="demo-caption" aria-live="polite">Een klant stuurt je een bericht. Jullie spreken een moment af.</p></div><button class="button demo-play" id="demo-play" type="button"><svg class="inline-icon" aria-hidden="true"><use href="#i-play"/></svg> Speel demo af</button></div>
-          <div class="demo-steps" aria-label="Kies een stap in de demonstratie"><button type="button" data-demo-step="0" aria-current="step"><span>01</span> Spreek af</button><button type="button" data-demo-step="1"><span>02</span> Plan in</button><button type="button" data-demo-step="2"><span>03</span> Houd overzicht</button></div>
+          <div class="demo-steps" aria-label="Kies een stap in de demonstratie"><button type="button" data-demo-step="0" aria-current="step"><span>01</span> Spreek af</button><button type="button" data-demo-step="1"><span>02</span> Scan screenshot</button><button type="button" data-demo-step="2"><span>03</span> Houd overzicht</button></div>
         </div>
-        <p class="demo-footnote">Demonstratie met fictieve gegevens. De chat is een voorbeeld; Boekingsschema leest geen WhatsApp-berichten.</p>
+        <p class="demo-footnote">Demonstratie met fictieve gegevens. Je kiest zelf een screenshot om te scannen en controleert de gevonden datum en tijd. De app leest geen gesprekken uit andere apps.</p>
       </div>
     </section>
 
     <section class="features wrap section-space" id="mogelijkheden" aria-labelledby="features-heading">
-      <div class="section-heading"><div><p class="eyebrow">KLEINE TOOLS. GROOT OVERZICHT.</p><h2 id="features-heading">Alles wat je dag<br><em>net wat makkelijker maakt.</em></h2></div><p>Van de eerste afspraak tot de laatste betaling. De handige dingen bij elkaar, binnen handbereik.</p></div>
+      <div class="section-heading"><div><p class="eyebrow">MINDER HOOFDWERK. MEER OVERZICHT.</p><h2 id="features-heading">Je hoeft het niet<br><em>allemaal te onthouden.</em></h2></div><p>Geen losse lijstjes per app, geen tijden uit je hoofd optellen en geen openstaande betaling uit het oog verliezen. Deze tools helpen je om je dag te regelen.</p></div>
       <div class="feature-grid">
-        <article><span class="feature-icon"><svg aria-hidden="true"><use href="#i-calendar"/></svg></span><h3>Jouw planning, jouw blik</h3><p>Bekijk je boekingen per dag, week of maand. Van een snel overzicht naar de details van één afspraak.</p><span class="feature-tag">Dag / Week / Maand</span></article>
-        <article><span class="feature-icon"><svg aria-hidden="true"><use href="#i-layers"/></svg></span><h3>Meer tegelijk kunnen plannen</h3><p>Gebruik één tot vier parallelle tijdvakken en geef ze een eigen naam. Handig als meerdere boekingen tegelijk mogelijk zijn.</p><span class="feature-tag">Tot 4 tijdvakken</span></article>
-        <article><span class="feature-icon"><svg aria-hidden="true"><use href="#i-check"/></svg></span><h3>Betaald? Vink het af.</h3><p>Markeer zelf welke boekingen betaald zijn. Zie wat nog openstaat, zonder steeds terug te zoeken in je gesprekken.</p><span class="feature-tag">Betaald / Achteraf</span></article>
-        <article><span class="feature-icon"><svg aria-hidden="true"><use href="#i-scan"/></svg></span><h3>Een screenshot als begin</h3><p>Laat een screenshot uitlezen om een datum en tijd over te nemen. Controleer het resultaat en voeg de boeking toe.</p><span class="feature-tag">Minder overtypen</span></article>
-        <article><span class="feature-icon"><svg aria-hidden="true"><use href="#i-chart"/></svg></span><h3>Weet hoe je ervoor staat</h3><p>Bekijk je boekingen, ontvangen bedragen en openstaande betalingen in je statistieken. Ook uitgesplitst naar platform.</p><span class="feature-tag">Inzicht in je cijfers</span></article>
-        <article><span class="feature-icon"><svg aria-hidden="true"><use href="#i-sliders"/></svg></span><h3>Laat de app bij jou passen</h3><p>Stel je starttijden, minimale tussentijd en standaardprijs in. Kies een lichte of donkere weergave die prettig werkt.</p><span class="feature-tag">Jouw instellingen</span></article>
+        <article><span class="feature-icon"><svg aria-hidden="true"><use href="#i-scan"/></svg></span><h3>Scan het. Boek het.</h3><p>De screenshot die je naar je klant stuurt, gebruik je ook in de scanner. Laat de datum en tijd uitlezen, controleer ze en voeg de afspraak toe. Dat scheelt handmatig overtypen.</p><span class="feature-tag">Screenshot → datum en tijd → boeking</span></article>
+        <article><span class="feature-icon"><svg aria-hidden="true"><use href="#i-calendar"/></svg></span><h3>Je volgende plek, zonder puzzelwerk</h3><p>Al je boekingen samen in een dag-, week- of maandoverzicht. De app rekent met jouw ingestelde tussentijd en geeft bij een overlap aan wanneer er weer plek is. Jij hoeft de tijden niet steeds zelf op te tellen.</p><span class="feature-tag">Eén planning voor al je kanalen</span></article>
+        <article><span class="feature-icon"><svg aria-hidden="true"><use href="#i-layers"/></svg></span><h3>Twee accounts? Twee tijdvakken.</h3><p>Kun je meerdere boekingen tegelijk aannemen? Voeg een eigen tijdvak toe voor elk account en geef het een naam. Met maximaal vier parallelle tijdvakken houd je ook een drukke planning overzichtelijk.</p><span class="feature-tag">1, 2, 3 of 4 tijdvakken</span></article>
+        <article><span class="feature-icon"><svg aria-hidden="true"><use href="#i-chart"/></svg></span><h3>Zie wat je werk oplevert</h3><p>Hoeveel boekingen heb je gehad? Welk bedrag heb je ontvangen en wat staat nog open? Je statistieken geven je inzicht in je resultaten, ook uitgesplitst naar het platform waar je boekingen vandaan komen.</p><span class="feature-tag">Boekingen / Ontvangen / Openstaand</span></article>
+        <article><span class="feature-icon"><svg aria-hidden="true"><use href="#i-bell"/></svg></span><h3>Achteraf betalen? Blijft in beeld.</h3><p>Markeer een boeking als achteraf te betalen en vink hem af zodra je betaald bent. Stel zelf in hoeveel minuten vóór of na de boeking je een melding over de openstaande betaling wilt krijgen.</p><span class="feature-tag">Jij bepaalt je herinneringsmoment</span></article>
+        <article><span class="feature-icon"><svg aria-hidden="true"><use href="#i-sliders"/></svg></span><h3>Jouw werkwijze. Jouw instellingen.</h3><p>Pas je starttijden, tussentijd, standaardprijs, tijdvakken en meldingen aan. Kies een lichte of donkere weergave. Je hebt de ruimte om Boekingsschema in te richten zoals jij prettig werkt.</p><span class="feature-tag">Stel de app op jouw manier in</span></article>
+      </div>
+      <div class="ranking-spotlight" aria-labelledby="ranking-heading">
+        <div><p class="eyebrow">EEN BEETJE GEZONDE COMPETITIE</p><h3 id="ranking-heading">Hoe doe jij het<br><em>tussen de anderen?</em></h3><p>Vergelijk jezelf met andere actieve gebruikers in de ranglijst. Wie heeft de meeste boekingen en wie heeft de meeste boekingsomzet? Bekijk de resultaten van de dag, week of maand en ga voor je volgende plek.</p><p class="ranking-privacy">Jij bepaalt in je instellingen of je profiel zichtbaar is. Niet-actieve gebruikers worden niet aan anderen getoond.</p></div>
+        <div class="ranking-preview" aria-label="Fictief voorbeeld van de ranglijst"><div class="ranking-preview-top"><svg aria-hidden="true"><use href="#i-trophy"/></svg><strong>Ranglijst</strong><span>Voorbeeld</span></div><div class="ranking-periods" aria-label="Beschikbare periodes"><span>Dag</span><span class="selected">Week</span><span>Maand</span></div><div class="ranking-preview-row"><span class="rank-medal">1</span><div><strong>Jij</strong><small>Op naar je volgende boeking</small></div><svg aria-hidden="true"><use href="#i-trophy"/></svg></div><div class="ranking-metrics"><span><svg aria-hidden="true"><use href="#i-calendar"/></svg> Aantal boekingen</span><span><svg aria-hidden="true"><use href="#i-chart"/></svg> Boekingsomzet</span></div><p>Voorbeeldweergave met fictieve gegevens.</p></div>
       </div>
     </section>
 
@@ -109,7 +113,7 @@
 
     <section class="faq wrap" aria-labelledby="faq-heading"><div><p class="eyebrow">GOED OM TE WETEN</p><h2 id="faq-heading">Nog een<br><em>kleine vraag?</em></h2></div><div class="faq-list">
       <details><summary>Moeten mijn klanten ook een account maken?</summary><p>Nee. Je legt de afspraken zelf vast in jouw Boekingsschema-account. Je klant hoeft daarvoor niets te installeren of een account aan te maken.</p></details>
-      <details><summary>Worden WhatsApp-berichten automatisch overgenomen?</summary><p>Nee. De chat in de demonstratie laat zien hoe je een afspraak met je klant maakt. Daarna voer je de boeking zelf in. Je kunt ook een screenshot laten uitlezen en de gevonden datum en tijd controleren.</p></details>
+      <details><summary>Moet ik de datum en tijd altijd zelf intypen?</summary><p>Nee. Kies zelf een screenshot van je afspraak. De scanner leest de datum en tijd uit, waarna jij het resultaat controleert en de boeking toevoegt. Je kunt een afspraak ook zelf invoeren. De app leest geen gesprekken rechtstreeks uit WhatsApp, Marktplaats of andere apps.</p></details>
       <details><summary>Hoe begin ik aan mijn gratis proefweek?</summary><p>Je hebt een uitnodigingscode nodig. Open de app, kies Registreren en bevestig je e-mailadres. Je proefweek begint zodra je voor het eerst met je bevestigde account inlogt.</p></details>
       <details><summary>Kan ik mijn facturen terugvinden?</summary><p>Ja. Via Abonnement beheren zie je je gekozen betaaloptie, de volgende betaling en je eigen facturen. Je kunt facturen bekijken en als PDF downloaden.</p></details>
       <details><summary>Kan ik een abonnement al tijdens de proefweek kiezen?</summary><p>Ja. Je kunt direct betalen. De betaalde looptijd begint na je proefweek, zodat je de resterende proeftijd behoudt. Bij een terugkerend abonnement volgt de volgende afschrijving na de eerste betaalde periode.</p></details>
@@ -129,6 +133,8 @@
     <symbol id="i-scan" viewBox="0 0 24 24"><path d="M3 8V4a1 1 0 0 1 1-1h4m8 0h4a1 1 0 0 1 1 1v4M3 16v4a1 1 0 0 0 1 1h4m8 0h4a1 1 0 0 0 1-1v-4M3 12h18"/><path d="m8 9 2-2 3 3 2-1 2 3"/></symbol>
     <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 3v17h17M8 16v-4m5 4V7m5 9V4"/></symbol>
     <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h5m6 0h5M4 17h9m6 0h1"/><circle cx="12" cy="7" r="3"/><circle cx="16" cy="17" r="3"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24"><path d="M5 17h14l-2-3V9a5 5 0 0 0-10 0v5l-2 3Zm5 3h4M12 2v2"/></symbol>
+    <symbol id="i-trophy" viewBox="0 0 24 24"><path d="M7 3h10v6a5 5 0 0 1-10 0V3Zm10 2h4v3a4 4 0 0 1-4 4M7 5H3v3a4 4 0 0 0 4 4m5 2v6m-4 1h8"/></symbol>
   </defs></svg>
 </body>
 </html>
