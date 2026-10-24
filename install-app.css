@@ -1,0 +1,22 @@
+.auth-install-links{display:grid;justify-items:center;gap:9px;margin-top:20px;padding-top:17px;border-top:1px solid var(--border)}
+.auth-install-links button,.auth-install-links a{font:inherit;font-size:.7rem;color:var(--accent);background:none;border:0;cursor:pointer;text-decoration:underline;text-underline-offset:4px;line-height:1.7}
+.auth-install-links a{font-size:.65rem;color:var(--muted)}
+a.menu-item{text-decoration:none}
+.install-dialog{width:min(690px,calc(100% - 28px));max-height:calc(100dvh - 36px);padding:28px;margin:auto;overflow-y:auto;overscroll-behavior:contain;border:1px solid var(--border);border-radius:17px;background:var(--surface);color:var(--text);box-shadow:0 20px 80px #0007;font-family:'DM Mono',monospace}
+.install-dialog::backdrop{background:#000a;backdrop-filter:blur(3px)}
+.install-header{display:flex;align-items:flex-start;gap:15px;justify-content:space-between}
+.install-header h2{font:400 1.7rem/1.2 Fraunces,serif;color:var(--accent);margin:0}
+.install-close{width:33px;height:33px;flex-shrink:0;border:1px solid var(--border);border-radius:7px;color:var(--text);background:var(--surface2);font:22px sans-serif;cursor:pointer}
+.install-dialog>p{font-size:.75rem;line-height:1.9;color:var(--muted);margin-top:18px}
+.install-dialog #install-native{margin-top:20px}
+.install-dialog [hidden]{display:none!important}
+.install-platforms{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-top:23px}
+.install-platforms section{border:1px solid var(--border);border-radius:10px;padding:17px;background:var(--surface2);min-width:0}
+.install-platforms h3{font-size:.85rem;font-weight:500;color:var(--accent);margin-bottom:13px}
+.install-platforms ol{padding-left:19px;font-size:.74rem;line-height:1.9;color:var(--muted)}
+.install-platforms li+li{margin-top:12px}.install-platforms strong{font-weight:400;color:var(--text)}
+.install-app-link{display:grid;gap:8px;border-top:1px solid var(--border);padding-top:20px;margin-top:22px;font-size:.72rem;line-height:1.7;color:var(--muted)}
+.install-app-link a{color:var(--accent);overflow-wrap:anywhere;text-underline-offset:4px}
+.install-dialog>.install-footnote{font-size:.65rem;margin-top:16px}
+.install-dialog .install-already{color:var(--success)}
+@media(max-width:600px){.install-dialog{padding:23px 19px}.install-platforms{grid-template-columns:1fr}.install-header h2{font-size:1.5rem}.install-dialog>p{font-size:.74rem}.install-platforms ol{font-size:.75rem}}

@@ -1,5 +1,12 @@
 // Service Worker — Boekingschema Push Notificaties
-var CACHE_NAME = 'boekingschema-v1';
+function appTarget(value) {
+  try {
+    var target = new URL(value || '/app/', self.location.origin);
+    if (target.origin !== self.location.origin) return self.location.origin + '/app/';
+    if (target.pathname === '/' || target.pathname === '/boekingen.html') target.pathname = '/app/';
+    return target.pathname.indexOf('/app/') === 0 ? target.href : self.location.origin + '/app/';
+  } catch (_) { return self.location.origin + '/app/'; }
+}
 
 // Push ontvangen
 self.addEventListener('push', function(event) {
@@ -15,7 +22,7 @@ self.addEventListener('push', function(event) {
     badge: '/icon-192.png',
     tag: data.tag || 'boekingschema',
     renotify: true,
-    data: { url: data.url || '/' },
+    data: { url: appTarget(data.url) },
     vibrate: [200, 100, 200],
     requireInteraction: false
   };
@@ -28,19 +35,18 @@ self.addEventListener('push', function(event) {
 // Klik op notificatie → open app op juiste pagina
 self.addEventListener('notificationclick', function(event) {
   event.notification.close();
-  var targetUrl = (event.notification.data && event.notification.data.url)
-    ? event.notification.data.url
-    : '/';
+  var targetUrl = appTarget(event.notification.data && event.notification.data.url);
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(clientList) {
       // Als de app al open is, focus dan die tab en stuur bericht
       for (var i = 0; i < clientList.length; i++) {
         var client = clientList[i];
-        if (client.url.indexOf(self.location.origin) === 0 && 'focus' in client) {
-          client.focus();
-          client.postMessage({ type: 'NAVIGATE', url: targetUrl });
-          return;
+        if (new URL(client.url).origin === self.location.origin &&
+            new URL(client.url).pathname.indexOf('/app/') === 0 && 'focus' in client) {
+          return client.focus().then(function() {
+            client.postMessage({ type: 'NAVIGATE', url: targetUrl });
+          });
         }
       }
       // Anders: open nieuw tabblad

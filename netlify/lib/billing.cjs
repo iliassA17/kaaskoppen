@@ -169,7 +169,7 @@ async function createCheckout(identity, plan, deps = dependencies()) {
     const mode = plan === 'levenslang' ? 'payment' : 'subscription';
     const params = {mode, customer, client_reference_id: identity.user.uid, metadata,
       line_items: [{price: price.id, quantity: 1}],
-      success_url: deps.appUrl + '/?betaling=geslaagd', cancel_url: deps.appUrl + '/?betaling=geannuleerd'};
+      success_url: deps.appUrl + '/app/?betaling=geslaagd', cancel_url: deps.appUrl + '/app/?betaling=geannuleerd'};
     if (mode === 'subscription') {
       params.subscription_data = {metadata};
       if (prepay) {
@@ -207,7 +207,7 @@ async function createPortal(identity, deps = dependencies()) {
   if (!record?.customerId) throw new BillingError('Je hebt nog geen betaalaccount. Kies eerst een betaaloptie.', 404);
   const customer = await deps.stripe.customers.retrieve(record.customerId);
   if (customer.deleted || !matches(customer.metadata, identity.user.uid, deps.projectId)) throw new BillingError('Je betaalaccount kan niet worden gecontroleerd.');
-  const session = await deps.stripe.billingPortal.sessions.create({customer: customer.id, return_url: deps.appUrl});
+  const session = await deps.stripe.billingPortal.sessions.create({customer: customer.id, return_url: deps.appUrl + '/app/'});
   return {url: session.url};
 }
 

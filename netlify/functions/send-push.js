@@ -36,7 +36,7 @@ exports.handler = async function(event, context) {
   var payload = JSON.stringify({
     title: body.title || 'Boekingschema',
     body: body.body || '',
-    url: body.url || '/',
+    url: body.url || '/app/',
     tag: body.tag || 'boekingschema',
     icon: body.icon || '/icon-192.png'
   });

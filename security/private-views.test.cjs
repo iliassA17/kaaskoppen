@@ -81,7 +81,7 @@ test('weergaven accepteren nooit een vreemde identiteit, datumbereik of onjuiste
 
 test('manifest, telefooniconen en favicon bevatten de juiste echte afbeeldingsformaten', () => {
   const root = path.join(__dirname, '..'), manifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.webmanifest')));
-  assert.equal(manifest.display, 'standalone'); assert.equal(manifest.start_url, '/');
+  assert.equal(manifest.display, 'standalone'); assert.equal(manifest.start_url, '/app/'); assert.equal(manifest.scope, '/app/'); assert.equal(manifest.id, '/');
   for (const [name, size] of [['icon-192.png', 192], ['icon-512.png', 512], ['apple-touch-icon.png', 180], ['favicon-32.png', 32]]) {
     const data = fs.readFileSync(path.join(root, name));
     assert.equal(data.readUInt32BE(16), size); assert.equal(data.readUInt32BE(20), size);

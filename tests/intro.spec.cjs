@@ -11,13 +11,14 @@ test.beforeEach(async ({page}) => {
 });
 test.afterEach(async ({page})=>{expect(page.errors).toEqual([]);expect(page.externalRequests).toEqual([]);});
 
-test('intro is een losse pagina zonder sessie, externe diensten of aanpassingen aan de inlogroute',async({page,request})=>{
-  await page.setViewportSize({width:1440,height:1050});await page.goto('/intro/');
+test('hoofdadres toont de intro zonder sessie of externe diensten, app heeft een rechtstreekse ingang',async({page,request})=>{
+  await page.setViewportSize({width:1440,height:1050});await page.goto('/');
   await expect(page.getByRole('heading',{level:1})).toContainText('Rust in je planning.');
   await page.evaluate(()=>document.fonts.ready);
-  const app=await (await request.get('/')).text();
+  const app=await (await request.get('/app/')).text();
   expect(app).toContain('id="auth-overlay"');expect(app).not.toContain('intro/intro');
-  await expect(page.locator('#site-nav').getByRole('link',{name:'Open de app'})).toHaveAttribute('href','/');
+  await expect(page.locator('#site-nav').getByRole('link',{name:'Open de app'})).toHaveAttribute('href','/app/');
+  await expect(page.getByRole('link',{name:'Hoe zet ik de app op mijn beginscherm?'})).toHaveAttribute('href','/app/#installeren');
   await expect(page.locator('script[src*="firebase"],script[src*="auth.js"]')).toHaveCount(0);
   expect(await page.evaluate(()=>({local:localStorage.length,session:sessionStorage.length}))).toEqual({local:0,session:0});
   await expect(page.locator('.feature-grid article')).toHaveCount(6);
@@ -30,9 +31,27 @@ test('intro is een losse pagina zonder sessie, externe diensten of aanpassingen 
   await page.screenshot({path:test.info().outputPath('intro-desktop.png'),fullPage:true,animations:'disabled'});
 });
 
+test('bestaande betaal-, melding- en introductielinks blijven naar de juiste ingang leiden',async({page})=>{
+  // Inspect destinations only; never load the app's remote authentication SDKs.
+  await page.route('**/app/**',route=>route.fulfill({contentType:'text/html',body:'<h1>App-ingang</h1>'}));
+  for(const query of ['?betaling=geslaagd','?betaling=geannuleerd','?goto=nieuws']){
+    await page.goto('/'+query+'#test');
+    await expect(page).toHaveURL(new RegExp('/app/'+query.replace(/[?]/g,'\\?')+'#test$'));
+  }
+  await page.goto('/intro/');
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole('heading',{level:1})).toContainText('Rust in je planning.');
+  await page.addInitScript(()=>Object.defineProperty(navigator,'standalone',{value:true,configurable:true}));
+  await page.goto('/');
+  await expect(page).toHaveURL(/\/app\/$/);
+  await page.goto('/#introductie');
+  await expect(page.getByRole('heading',{level:1})).toContainText('Rust in je planning.');
+  await expect(page).toHaveURL(/\/#introductie$/);
+});
+
 test('demonstratie start bij scrollen, herhaalt en pauzeert buiten beeld',async({page})=>{
   await page.emulateMedia({reducedMotion:'no-preference'});
-  await page.clock.install();await page.goto('/intro/');
+  await page.clock.install();await page.goto('/');
   const demo=page.locator('.demo'),stage=page.locator('.demo-stage');
   await expect(demo).toHaveAttribute('data-playing','false');
   await expect(demo.locator('button')).toHaveCount(0);
@@ -55,7 +74,7 @@ test('demonstratie start bij scrollen, herhaalt en pauzeert buiten beeld',async(
 
 test('mobiel toont drie concurrenten en een passende dagplanning; minder beweging toont de hele uitleg stil',async({page})=>{
   await page.emulateMedia({reducedMotion:'reduce'});await page.setViewportSize({width:390,height:844});
-  await page.goto('/intro/');
+  await page.goto('/');
   await page.locator('.nav-toggle').click();await expect(page.locator('#site-nav')).toBeVisible();
   await page.keyboard.press('Escape');await expect(page.locator('#site-nav')).toBeHidden();
   await expect(page.locator('.nav-toggle')).toBeFocused();

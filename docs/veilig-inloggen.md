@@ -17,7 +17,7 @@ uit voordat je de nieuwe site beschikbaar maakt voor gebruikers.
 - Het gedeelde beheerderswachtwoord vervalt. Alleen persoonlijke accounts met
   een door de projecteigenaar toegekende `admin`- of `beheerder`-claim krijgen
   toegang. Een veld in het gebruikersprofiel geeft geen beheerrechten.
-- De oude URL `/boekingen.html` verwijst door naar de beveiligde hoofdpagina.
+- De oude URL `/boekingen.html` verwijst in deze testbranch door naar de beveiligde app op `/app/`.
 
 ## 1. Firebase Authentication instellen
 
@@ -35,7 +35,7 @@ Open project **boekingsschema** in de Firebase-console:
 
 De frontend bevat de bestaande publieke Firebase-projectconfiguratie. Deze is
 geen beheerderscredential. Gebruik je een ander project, pas dan de configuratie
-in `index.html` én `FIREBASE_PROJECT_ID` in Netlify aan.
+in `app-main.js` én `FIREBASE_PROJECT_ID` in Netlify aan.
 
 ## 2. Bestaande accounts veilig overzetten
 

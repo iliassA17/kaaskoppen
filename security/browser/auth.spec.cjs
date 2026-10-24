@@ -86,6 +86,28 @@ function billingFixture() {
     ]};
 }
 
+test('intro, appmenu en beginscherm-uitleg behouden de bestaande aanmeldsessie', async ({page}) => {
+  await seedUser(); await enableTrial();
+  await page.goto('/');
+  await expect(page.getByRole('heading',{level:1})).toContainText('Rust in je planning.');
+  await page.locator('#site-nav').getByRole('link',{name:'Open de app'}).click();
+  await expect(page).toHaveURL(/\/app\/$/);
+  await login(page);
+  await expect(page.locator('#app')).toBeVisible();
+  await page.locator('#hamburger-btn').click();
+  await page.locator('#menu-installeren').click();
+  await expect(page.locator('#install-dialog')).toBeVisible();
+  await page.getByRole('button',{name:'Uitleg sluiten'}).click();
+  await page.locator('#hamburger-btn').click();
+  await page.locator('#menu-intro').click();
+  await expect(page.getByRole('heading',{level:1})).toContainText('Rust in je planning.');
+  await page.locator('#site-nav').getByRole('link',{name:'Open de app'}).click();
+  await expect(page.locator('#app')).toBeVisible();
+  await expect(page.locator('#auth-overlay')).toBeHidden();
+  await page.reload();
+  await expect(page.locator('#app')).toBeVisible();
+});
+
 test('abonnement beheren staat in het menu en toont eigen betaalstatus, datums, PDF’s en volgende betaling', async ({page}) => {
   await seedUser(); await enableTrial();
   const fixture = billingFixture(); let requestedAfter = null;
@@ -96,7 +118,7 @@ test('abonnement beheren staat in het menu en toont eigen betaalstatus, datums, 
     const data = body.after ? {...fixture, invoices: [{...fixture.invoices[1], id: 'in_older', number: 'BS-2026-000'}], nextCursor: null} : fixture;
     return route.fulfill({status: 200, contentType: 'application/json', body: JSON.stringify(data)});
   });
-  await page.goto('/'); await login(page);
+  await page.goto('/app/'); await login(page);
   await expect(page.locator('#app')).toBeVisible();
   await page.locator('#hamburger-btn').click();
   await page.locator('#menu-abonnement').click();
@@ -136,7 +158,7 @@ test('een betaalde jaarperiode blijft bruikbaar nadat het Stripe-abonnement is o
   fixture.invoices = [{...fixture.invoices[1], totalCents: 5999, paidCents: 5999}];
   await page.route('**/api/billing-overview', route => route.fulfill({status: 200,
     contentType: 'application/json', body: JSON.stringify(fixture)}));
-  await page.goto('/'); await login(page);
+  await page.goto('/app/'); await login(page);
   await expect(page.locator('#app')).toBeVisible();
   await page.locator('#hamburger-btn').click(); await page.locator('#menu-abonnement').click();
   await expect(page.locator('#abonnement-huidig-status')).toHaveText('Betaalde toegang · opgezegd');
@@ -159,7 +181,7 @@ test('proefgebruikers zien een helder leeg factuuroverzicht en kunnen bij een st
       {error: 'Facturen zijn tijdelijk niet beschikbaar.'} :
       {access: {allowed: true, kind: 'trial', expiresAt: Date.now() + 86400000}, subscription: null, invoices: [], nextCursor: null, hasCustomer: false})});
   });
-  await page.goto('/'); await login(page);
+  await page.goto('/app/'); await login(page);
   await expect(page.locator('#app')).toBeVisible();
   await page.evaluate(() => openAbonnementOverzicht());
   await expect(page.locator('#abonnement-overzicht-fout')).toContainText('tijdelijk');
@@ -183,7 +205,7 @@ test('in de proefweek staan alle prijzen, besparingen en vooruitbetalen op de ab
     chosen = route.request().postDataJSON();
     return route.fulfill({status: 503, contentType: 'application/json', body: JSON.stringify({error: 'Probeer opnieuw.'})});
   });
-  await page.goto('/'); await login(page);
+  await page.goto('/app/'); await login(page);
   await expect(page.locator('#app')).toBeVisible();
   await page.locator('#hamburger-btn').click();
   await page.locator('#menu-abonnement').click();
@@ -219,7 +241,7 @@ test('een vooruitbetaalde proefweek toont de gekozen periode en geen tweede koop
   fixture.invoices = [];
   await page.route('**/api/billing-overview', route => route.fulfill({status: 200,
     contentType: 'application/json', body: JSON.stringify(fixture)}));
-  await page.goto('/'); await login(page);
+  await page.goto('/app/'); await login(page);
   await expect(page.locator('#app')).toBeVisible();
   await page.evaluate(() => openAbonnementOverzicht());
   await expect(page.locator('#abonnement-huidig-status')).toHaveText('Vooruitbetaald · proefweek actief');
@@ -240,7 +262,7 @@ test('verlopen gebruikers kunnen facturen openen zonder de boekingsblokkade te o
   data.invoices[0].number = '<img src=x onerror=alert(1)>';
   data.invoices[0].pdfUrl = 'javascript:alert(1)';
   await page.route('**/api/billing-overview', route => route.fulfill({status: 200, contentType: 'application/json', body: JSON.stringify(data)}));
-  await page.goto('/'); await login(page);
+  await page.goto('/app/'); await login(page);
   await expect(page.locator('#abonnement-overlay')).toBeVisible();
   await page.locator('#abonnement-beheren').click();
   await expect(page.locator('#pagina-abonnement')).toBeVisible();
@@ -263,7 +285,7 @@ test('een factuurantwoord na uitloggen verschijnt nooit in de volgende sessie', 
     await wait;
     return route.fulfill({status: 200, contentType: 'application/json', body: JSON.stringify(billingFixture())});
   });
-  await page.goto('/'); await login(page);
+  await page.goto('/app/'); await login(page);
   await expect(page.locator('#app')).toBeVisible();
   await page.evaluate(() => { openAbonnementOverzicht(); });
   await expect(page.locator('#abonnement-overzicht-laden')).toBeVisible();
@@ -277,7 +299,7 @@ test('een factuurantwoord na uitloggen verschijnt nooit in de volgende sessie', 
 test('de eerste bevestigde login start een proefweek; herladen start geen nieuwe week', async ({ page }) => {
   await seedUser();
   await enableTrial();
-  await page.goto('/');
+  await page.goto('/app/');
   await login(page);
   await expect(page.locator('#app')).toBeVisible();
   await expect(page.locator('#abonnement-overlay')).toBeHidden();
@@ -292,7 +314,7 @@ test('de eerste bevestigde login start een proefweek; herladen start geen nieuwe
 test('na afloop verschijnt het centrale keuzescherm met vier opties en blijft de database beschermd', async ({ page }) => {
   await seedUser();
   await enableTrial(Date.now() - 8 * 86400000);
-  await page.goto('/');
+  await page.goto('/app/');
   await login(page);
   await expect(page.locator('#abonnement-overlay')).toBeVisible();
   await expect(page.locator('#app')).toBeHidden();
@@ -346,7 +368,7 @@ test('nieuwe gebruikers openen de ranglijst zonder privéaccounts of inactieve a
   await database.doc('accounts/carol').update({ranglijstPrive: true});
   await database.doc('boekingen/alice').update({datumStr: '2020-01-01'});
   await database.doc('boekingen/dave').update({datumStr: '2020-01-01'});
-  await page.goto('/'); await login(page);
+  await page.goto('/app/'); await login(page);
   await expect(page.locator('#app')).toBeVisible();
   await page.locator('#hamburger-btn').click();
   await expect(page.locator('#menu-ranglijst')).toBeVisible();
@@ -385,7 +407,7 @@ test('een late kalenderafbeelding verschijnt niet na uitloggen of bij een ander 
     await gate;
     await route.fulfill({status: 200, contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg"><text>ALICE-PLANNING</text></svg>'}).catch(() => {});
   });
-  await page.goto('/'); await login(page);
+  await page.goto('/app/'); await login(page);
   await expect(page.locator('#abonnement-overlay')).toBeVisible();
   await page.locator('#abonnement-uitloggen').click();
   await expect(page.locator('#auth-overlay')).toBeVisible();
@@ -399,7 +421,7 @@ test('een late kalenderafbeelding verschijnt niet na uitloggen of bij een ander 
 test('de proefperiode verloopt ook terwijl de app open blijft; toegang herstelt na een vertrouwde toekenning', async ({ page }) => {
   await seedUser();
   await enableTrial(Date.now() - 7 * 86400000 + 10000);
-  await page.goto('/');
+  await page.goto('/app/');
   await login(page);
   await expect(page.locator('#app')).toBeVisible();
   await expect(page.locator('#abonnement-overlay')).toBeVisible({timeout: 15000});
@@ -430,7 +452,7 @@ test('een tijdelijke storing in de toegangscontrole houdt de app dicht en kan zo
     if (!await page.evaluate(() => window.testRetryRequested === true)) return route.fulfill({status: 503, contentType: 'application/json', body: JSON.stringify({error: 'Tijdelijk niet beschikbaar.'})});
     return route.fallback();
   });
-  await page.goto('/');
+  await page.goto('/app/');
   await login(page);
   await expect(page.locator('#abonnement-error')).toContainText('tijdelijk');
   await expect(page.locator('#app')).toBeHidden();
@@ -449,7 +471,7 @@ test('een vervalste betaal-terugkeerlink geeft geen toegang en betaalverzoeken b
     requested = route.request().postDataJSON();
     return route.fulfill({status: 200, contentType: 'application/json', body: JSON.stringify({url: 'https://onbekend.example/pay'})});
   });
-  await page.goto('/?betaling=geslaagd');
+  await page.goto('/app/?betaling=geslaagd');
   await login(page);
   await expect(page.locator('#abonnement-overlay')).toBeVisible();
   await expect(page.locator('#app')).toBeHidden();
@@ -484,7 +506,7 @@ test('nieuwe boeking bewaren werkt ook naast een oud veld dat niet aan de nieuwe
   await seedUser();
   await database.doc('boekingen/alice').update({ platform: null });
   const oldBooking = (await database.doc('boekingen/alice').get()).data();
-  await page.goto('/');
+  await page.goto('/app/');
   await login(page);
   await expect(page.locator('#app')).toBeVisible();
   await voegTestBoekingToe(page);
@@ -510,7 +532,7 @@ test('toevoegen naast 502 bestaande boekingen wijzigt uitsluitend de nieuwe boek
     await batch.commit();
   }
   const oldVersion = (await database.doc('boekingen/alice').get()).updateTime;
-  await page.goto('/');
+  await page.goto('/app/');
   await login(page);
   await expect(page.locator('#app')).toBeVisible();
   expect(await page.evaluate(() => boekingen.length)).toBe(502);
@@ -521,7 +543,7 @@ test('toevoegen naast 502 bestaande boekingen wijzigt uitsluitend de nieuwe boek
 
 test('toevoegen overschrijft of verwijdert geen andere wijzigingen van een tweede apparaat', async ({ page }) => {
   await seedUser();
-  await page.goto('/');
+  await page.goto('/app/');
   await login(page);
   await expect(page.locator('#app')).toBeVisible();
   await database.doc('boekingen/alice').update({ naam: 'Op ander apparaat gewijzigd' });
@@ -534,7 +556,7 @@ test('toevoegen overschrijft of verwijdert geen andere wijzigingen van een tweed
 
 test('bewerken behoudt het document-ID en nulprijs, en verwijderen en ongedaan maken blijven werken', async ({ page }) => {
   await seedUser();
-  await page.goto('/');
+  await page.goto('/app/');
   await login(page);
   await expect(page.locator('#app')).toBeVisible();
   await page.evaluate(() => openBewerkModal('2026-11-02', 600, 0));
@@ -557,7 +579,7 @@ test('bewerken behoudt het document-ID en nulprijs, en verwijderen en ongedaan m
 
 test('een gelijktijdig gewijzigde boeking geeft een duidelijke melding en wordt niet overschreven', async ({ page }) => {
   await seedUser();
-  await page.goto('/');
+  await page.goto('/app/');
   await login(page);
   await expect(page.locator('#app')).toBeVisible();
   await database.doc('boekingen/alice').update({ naam: 'Actuele naam' });
@@ -570,7 +592,7 @@ test('een gelijktijdig gewijzigde boeking geeft een duidelijke melding en wordt 
 
 test('een geweigerde boeking toont een rechtenmelding en laat de database ongewijzigd', async ({ page }) => {
   await seedUser();
-  await page.goto('/');
+  await page.goto('/app/');
   await login(page);
   await expect(page.locator('#app')).toBeVisible();
   await page.locator('#datum').fill('2026-11-03');
@@ -585,7 +607,7 @@ test('een geweigerde boeking toont een rechtenmelding en laat de database ongewi
 test('een vervalste oude browsersessie geeft geen toegang', async ({ page }) => {
   await seedUser();
   await page.addInitScript(() => localStorage.setItem('auth_sessie', 'alice'));
-  await page.goto('/');
+  await page.goto('/app/');
   await expect(page.locator('#auth-overlay')).toBeVisible();
   await expect(page.locator('#app')).toBeHidden();
   expect(await page.evaluate(() => huidigeGebruiker)).toBe('');
@@ -596,7 +618,7 @@ test('een vervalste oude browsersessie geeft geen toegang', async ({ page }) => 
 
 test('geverifieerd inloggen, sessieherstel en uitloggen gebruiken Firebase', async ({ page }) => {
   await seedUser();
-  await page.goto('/');
+  await page.goto('/app/');
   await login(page);
   await expect(page.locator('#app')).toBeVisible();
   await expect(page.locator('#auth-overlay')).toBeHidden();
@@ -618,7 +640,7 @@ test('het eerste scherm blijft neutraal totdat Firebase weet of er een sessie is
     await gate; return route.fallback();
   });
   try {
-    await page.goto('/', {waitUntil: 'commit'});
+    await page.goto('/app/', {waitUntil: 'commit'});
     await expect(page.locator('#sessie-laden')).toBeVisible();
     await expect(page.locator('#auth-overlay')).toBeHidden();
     await expect(page.locator('#app')).toBeHidden();
@@ -639,7 +661,7 @@ test('herladen herstelt de sessie zonder het inlogformulier te laten zien', asyn
       if (login && login.getBoundingClientRect().width > 0) window.testLoginFlits = true;
     }).observe(document, {subtree: true, childList: true, attributes: true, attributeFilter: ['style', 'hidden']});
   });
-  await page.goto('/'); await login(page);
+  await page.goto('/app/'); await login(page);
   await expect(page.locator('#app')).toBeVisible();
   await page.evaluate(() => sessionStorage.setItem('test-volg-sessie', 'ja'));
   let reloaded = false, delayed = false, release;
@@ -678,7 +700,7 @@ test((prepaid ? 'een vooruitbetaalde proefweek' : 'een geldige sessie') + ' open
     return route.fallback();
   });
   try {
-    await page.goto('/'); await login(page);
+    await page.goto('/app/'); await login(page);
     await expect(page.locator('#app')).toBeVisible();
     await expect.poll(() => started).toBe(true);
     await expect(page.locator('#sessie-laden')).toBeHidden();
@@ -701,7 +723,7 @@ test('een oude naam met hoofdletters, spaties en accent werkt na migratie en beh
   await migrate({ database, authentication, apply: true });
   const migrated = await authentication.getUserByEmail('legacy@example.test');
   await authentication.updateUser(migrated.uid, { password, emailVerified: true });
-  await page.goto('/');
+  await page.goto('/app/');
   await login(page, 'legacy@example.test');
   await expect(page.locator('#app')).toBeVisible();
   expect(await page.evaluate(() => huidigeGebruiker)).toBe(name);
@@ -716,7 +738,7 @@ test('een oude naam met hoofdletters, spaties en accent werkt na migratie en beh
 
 test('verkeerd wachtwoord en onbevestigde e-mail houden de app gesloten', async ({ page }) => {
   await seedUser('alice', { verified: false });
-  await page.goto('/');
+  await page.goto('/app/');
   await login(page, 'alice@example.test', 'VerkeerdWachtwoord');
   await expect(page.locator('#auth-error')).toContainText('niet gelukt');
   await login(page);
@@ -728,7 +750,7 @@ test('verkeerd wachtwoord en onbevestigde e-mail houden de app gesloten', async 
 
 test('registratie accepteert zes tekens, weigert vijf en vereist uitnodiging en e-mailverificatie', async ({ page }) => {
   await database.doc('codes/UITNODIGING-123').set({ code: 'UITNODIGING-123', gebruikt: false, gebruiker: null });
-  await page.goto('/');
+  await page.goto('/app/');
   await page.locator('#auth-wissel').click();
   await page.locator('#auth-user').fill('nieuw');
   await page.locator('#auth-email').fill('nieuw@example.test');
@@ -758,7 +780,7 @@ test('registratie accepteert zes tekens, weigert vijf en vereist uitnodiging en 
 
 test('wachtwoordherstel gebruikt een Firebase-resetcode en het nieuwe wachtwoord werkt', async ({ page }) => {
   await seedUser();
-  await page.goto('/');
+  await page.goto('/app/');
   await page.locator('#vergeten-link').click();
   await page.locator('#vergeten-user').fill('alice@example.test');
   await page.locator('#vergeten-btn').click();
@@ -774,7 +796,7 @@ test('wachtwoordherstel gebruikt een Firebase-resetcode en het nieuwe wachtwoord
 
 test('een persoonlijk admin-token opent beheer zonder gedeeld beheerderswachtwoord', async ({ page }) => {
   await seedUser('root', { admin: true });
-  await page.goto('/');
+  await page.goto('/app/');
   await login(page, 'root@example.test');
   await expect(page.locator('#app')).toBeVisible();
   await page.evaluate(() => openBeheerPagina());
@@ -789,7 +811,7 @@ test('mobiel beheer houdt menu en tabbladen bereikbaar, codes ingeklapt en lange
   await Promise.all(Array.from({length:20}, (_,i) => database.doc('updates/u'+i).set({
     titel:'Update '+i, inhoud:'Dit is een lange update. '.repeat(30), aangemaakt:Timestamp.fromMillis(Date.now() - i*1000)
   })));
-  await page.setViewportSize({width:390,height:844}); await page.goto('/'); await login(page,'root@example.test');
+  await page.setViewportSize({width:390,height:844}); await page.goto('/app/'); await login(page,'root@example.test');
   await expect(page.locator('#app')).toBeVisible();
   await page.locator('#hamburger-btn').click(); await page.locator('#menu-beheer').click();
   await expect(page.locator('#admin-panel')).toBeVisible();
@@ -838,7 +860,7 @@ test('mobiel beheer houdt menu en tabbladen bereikbaar, codes ingeklapt en lange
 test('profiel toont lidmaatschapsdatum zonder tijd en plaatst facturen onder de profielkaart', async ({page}) => {
   await seedUser(); await enableTrial();
   await database.doc('accounts/alice').update({aangemaakt:'2026-10-22T22:30:00.000Z'});
-  await page.setViewportSize({width:390,height:844}); await page.goto('/'); await login(page);
+  await page.setViewportSize({width:390,height:844}); await page.goto('/app/'); await login(page);
   await expect(page.locator('#app')).toBeVisible();
   await page.evaluate(() => { window.getAccount = () => new Promise(() => {}); });
   await page.locator('#hamburger-btn').click(); await page.locator('#menu-profiel').click();
@@ -855,7 +877,7 @@ test('profiel toont lidmaatschapsdatum zonder tijd en plaatst facturen onder de 
 test('na wisselen van account worden alleen de boekingen van de nieuwe gebruiker geladen', async ({ page }) => {
   await seedUser('alice');
   await seedUser('bob');
-  await page.goto('/');
+  await page.goto('/app/');
   await login(page);
   await expect(page.locator('#app')).toBeVisible();
   expect(await page.evaluate(() => boekingen.map(b => b.gebruiker))).toEqual(['alice']);

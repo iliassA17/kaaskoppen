@@ -111,7 +111,7 @@ test('de vier betaalopties gebruiken uitsluitend serverprijzen, vaste looptijden
     assert.deepEqual(params.line_items, [{price: 'price_' + plan, quantity: 1}]);
     assert.equal(params.mode, plan === 'levenslang' ? 'payment' : 'subscription');
     assert.equal(params.client_reference_id, uid);
-    assert.equal(params.success_url, 'https://app.example.test/?betaling=geslaagd');
+    assert.equal(params.success_url, 'https://app.example.test/app/?betaling=geslaagd');
     assert.equal((params.subscription_data || params.payment_intent_data).metadata.plan, plan);
     if (plan === 'levenslang') assert.deepEqual(params.invoice_creation, {enabled: true});
   }
@@ -516,7 +516,7 @@ test('facturen en opzeggen openen uitsluitend het Stripe-portaal van de geverifi
   await assert.rejects(createPortal(identity, deps), /nog geen betaalaccount/);
   await boundCustomer();
   assert.match((await createPortal(identity, deps)).url, /^https:\/\/billing\.stripe\.com\//);
-  assert.deepEqual(state.calls.at(-1), ['portal', {customer: 'cus_alice', return_url: 'https://app.example.test'}]);
+  assert.deepEqual(state.calls.at(-1), ['portal', {customer: 'cus_alice', return_url: 'https://app.example.test/app/'}]);
   state.customer.metadata.uid = 'bob-uid';
   await assert.rejects(createPortal(identity, deps), /niet worden gecontroleerd/);
 });
