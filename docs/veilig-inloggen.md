@@ -17,7 +17,7 @@ uit voordat je de nieuwe site beschikbaar maakt voor gebruikers.
 - Het gedeelde beheerderswachtwoord vervalt. Alleen persoonlijke accounts met
   een door de projecteigenaar toegekende `admin`- of `beheerder`-claim krijgen
   toegang. Een veld in het gebruikersprofiel geeft geen beheerrechten.
-- De oude URL `/boekingen.html` verwijst door naar de beveiligde hoofdpagina.
+- De oude URL `/boekingen.html` verwijst door naar de beveiligde app op `/app/`.
 
 ## 1. Firebase Authentication instellen
 

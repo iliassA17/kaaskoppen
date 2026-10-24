@@ -9,7 +9,7 @@ test.afterEach(async ({ page }) => {
 });
 
 // All remote requests are blocked. These tests never read or write live accounts.
-async function openApp(page, path = '/') {
+async function openApp(page, path = '/app/') {
   await page.route('**/*', route => {
     const url = new URL(route.request().url());
     return url.hostname === '127.0.0.1' ? route.continue() : route.abort();
@@ -106,6 +106,75 @@ async function openApp(page, path = '/') {
   });
 }
 
+test('installatie-uitleg werkt vanuit het menu en inlogscherm met optionele browserinstallatie', async ({page}) => {
+  await openApp(page);
+  await page.setViewportSize({width:390,height:844});
+  await page.locator('#hamburger-btn').click();
+  await page.locator('#menu-installeren').click();
+  const dialog=page.getByRole('dialog',{name:'Je planning binnen één tik'});
+  await expect(dialog).toBeVisible();
+  await expect(page.locator('#menu-bar')).toBeHidden();
+  await expect(dialog).toContainText('Android · Chrome');
+  await expect(dialog).toContainText('iPhone · Safari');
+  const androidTab=dialog.getByRole('tab',{name:'Android · Chrome'});
+  const iphoneTab=dialog.getByRole('tab',{name:'iPhone · Safari'});
+  await androidTab.click();
+  await expect(page.locator('#install-android')).toBeVisible();
+  await expect(page.locator('#install-iphone')).toBeHidden();
+  const illustrations=page.locator('#install-android img');
+  await expect(illustrations).toHaveCount(3);
+  for(const image of await illustrations.all()){
+    await image.scrollIntoViewIfNeeded();
+    await expect.poll(()=>image.evaluate(img=>img.complete&&img.naturalWidth>0)).toBe(true);
+  }
+  await page.locator('#install-dialog').evaluate(el=>el.scrollTop=0);
+  await iphoneTab.click();
+  await expect(page.locator('#install-iphone')).toBeVisible();
+  await expect(page.locator('#install-android')).toBeHidden();
+  await expect(page.locator('#install-iphone img')).toHaveCount(3);
+  for(const image of await page.locator('#install-iphone img').all()){
+    await image.scrollIntoViewIfNeeded();
+    await expect.poll(()=>image.evaluate(img=>img.complete&&img.naturalWidth>0)).toBe(true);
+  }
+  await iphoneTab.focus();await page.keyboard.press('ArrowLeft');
+  await expect(androidTab).toHaveAttribute('aria-selected','true');
+  await expect(androidTab).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(page.locator('#install-android')).toBeFocused();
+  await page.getByRole('button',{name:'Uitleg sluiten'}).focus();
+  await page.locator('#install-dialog').evaluate(el=>el.scrollTop=0);
+  await expect(page.locator('#install-app-link')).toHaveAttribute('href','/app/');
+  await expect(page.locator('#install-native')).toBeHidden();
+  await page.screenshot({path:test.info().outputPath('installeren-mobiel.png'),fullPage:true});
+  await page.keyboard.press('Escape');await expect(dialog).toBeHidden();
+  await page.evaluate(()=>{
+    document.getElementById('app').style.display='none';
+    document.getElementById('auth-overlay').style.display='flex';
+    window.installPrompts=0;
+    const event=new Event('beforeinstallprompt',{cancelable:true});
+    event.prompt=async()=>{window.installPrompts++};
+    window.dispatchEvent(event);
+  });
+  await page.locator('#auth-overlay [data-open-install]').click();
+  await expect(dialog).toBeVisible();
+  await page.locator('#install-native').click();
+  expect(await page.evaluate(()=>window.installPrompts)).toBe(1);
+  await expect(page.locator('#install-native')).toBeHidden();
+  await page.getByRole('button',{name:'Uitleg sluiten'}).click();
+  await expect(dialog).toBeHidden();
+});
+
+test('installatielink opent de uitleg en bewaart een schone app-link voor het beginscherm', async ({page}) => {
+  await openApp(page,'/app/#installeren');
+  await expect(page.locator('#install-dialog')).toBeVisible();
+  expect(new URL(page.url()).pathname).toBe('/app/');
+  expect(new URL(page.url()).hash).toBe('');
+  await page.getByRole('button',{name:'Uitleg sluiten'}).click();
+  await page.locator('#hamburger-btn').click();
+  await page.locator('#menu-intro').click();
+  await expect(page.getByRole('heading',{level:1})).toContainText('Rust in je planning.');
+});
+
 test('de bestaande stijl met gekozen verbeteringen past op mobiel en blijft met toetsenbord bruikbaar', async ({ page }) => {
   await openApp(page);
   await page.setViewportSize({width: 1440, height: 1080});
@@ -195,7 +264,7 @@ test('screenshotherkenning wordt pas na upload geladen en daarna hergebruikt', a
   expect(requests).toBe(1);
 });
 
-for (const path of ['/', '/boekingen.html']) {
+for (const path of ['/app/', '/boekingen.html']) {
   test.describe(path, () => {
     test.beforeEach(async ({ page }) => openApp(page, path));
 

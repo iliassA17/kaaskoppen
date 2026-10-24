@@ -9,10 +9,13 @@ livesleutel, een passend productie-serviceaccount en `BILLING_LIVE_ENABLED=true`
 Zie [Stripe activeren op Windows](docs/stripe-activeren-windows.md).
 
 De aangeleverde boekingsapp met prijs- en betrouwbaarheidsverbeteringen en een
-nieuwe login via Firebase Authentication. De hoofdpagina is `index.html`.
+nieuwe login via Firebase Authentication. De introductie staat op `/`
+(`index.html`) en de beveiligde app op `/app/` (`app/index.html`).
 De clientlogica en publieke Firebase-configuratie staan in `app-main.js`;
 de aanvullende vormgeving staat in `app.css`.
-`boekingen.html` verwijst door naar dezelfde beveiligde app.
+`boekingen.html` verwijst door naar dezelfde beveiligde app. De visuele
+installatie-uitleg voor Android en iPhone staat bij de login en in het appmenu.
+Zie [Introductie en app-ingang](docs/introductiepagina.md).
 
 **Activeer deze versie samen met de Firebase-instellingen en databaseregels.**
 Alleen de bestanden uploaden naar Netlify is onvoldoende. Zie

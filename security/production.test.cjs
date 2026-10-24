@@ -12,7 +12,8 @@ const production = {projectId: 'boekingsschema', key: 'sk_live_local_fixture',
 
 test('de overgezette webapp houdt het productieproject en dezelfde toegestane openbare sleutel', () => {
   const root = path.resolve(__dirname, '..');
-  const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+  const html = fs.readFileSync(path.join(root, 'app/index.html'), 'utf8');
+  const introduction = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
   const script = fs.readFileSync(path.join(root, 'app-main.js'), 'utf8');
   const config = script.match(/var firebaseConfig = \{[\s\S]*?\n\};/)[0];
   assert.match(config, /projectId: "boekingsschema"/);
@@ -23,6 +24,9 @@ test('de overgezette webapp houdt het productieproject en dezelfde toegestane op
   assert.ok(fs.readFileSync(path.join(root, 'netlify.toml'), 'utf8').includes('"' + publicKey + '"'));
   assert.match(html, /<script defer src="\/app-main\.js"><\/script>/);
   assert.doesNotMatch(html, /TESTOMGEVING|bs-test-b94c7/);
+  assert.doesNotMatch(introduction, /<script[^>]*src="\/app-main\.js"|bs-test-b94c7/);
+  assert.match(introduction, /href="\/app\/"/);
+  assert.match(introduction, /rel="canonical" href="https:\/\/boekingschema\.netlify\.app\/"/);
 });
 
 test('productie accepteert alleen de echte combinatie van project, livesleutel, serviceaccount en site', () => {

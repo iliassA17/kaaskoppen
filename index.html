@@ -1,1310 +1,167 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="nl">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Boekingsschema</title>
-<meta name="theme-color" content="#0f0e0c">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Boekingsschema">
-<link rel="icon" href="/favicon.ico" sizes="any">
-<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
-<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
-<link rel="manifest" href="/manifest.webmanifest">
-<link rel="preconnect" href="https://www.gstatic.com" crossorigin>
-<link rel="preload" href="/fonts/dm-mono-400.woff2" as="font" type="font/woff2" crossorigin>
-<style>
-  :root{--bg:#0f0e0c;--surface:#1a1916;--surface2:#242320;--border:#2e2d2a;--accent:#e8c97a;--accent2:#c4a84f;--text:#f0ede6;--muted:#7a7870;--error:#e07070;--success:#7ec896;--blue:#8ab4d4;--blue-bg:rgba(138,180,212,0.1);}
-  body.licht-thema{--bg:#f5f4f0;--surface:#ffffff;--surface2:#f0ede6;--border:#d8d4cc;--accent:#b8860b;--accent2:#a07800;--text:#1a1916;--muted:#7a7870;--error:#c0392b;--success:#27ae60;--blue:#2980b9;--blue-bg:rgba(41,128,185,0.08);}
-  body.licht-thema .auth-overlay{background:rgba(245,244,240,0.97);}
-  body.licht-thema .booking-item{background:#eaf4ea;border-color:#a8d8a8;}
-  body.licht-thema .booking-item.onbetaald{background:#fce8ef;border-color:#e8a0b8;}
-  body.licht-thema .week-booking-pill{background:#eaf4ea;border-color:#a8d8a8;}
-  body.licht-thema .week-booking-pill.onbetaald{background:#fce8ef;border-color:#e8a0b8;}
-  body.licht-thema .month-pill{background:#eaf4ea;}
-  body.licht-thema .month-pill.onbetaald{background:#fce8ef;}
-
-  .thema-toggle{display:flex;gap:4px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:3px;}
-  .thema-opt{background:none;border:1px solid transparent;border-radius:6px;cursor:pointer;font-family:'DM Mono',monospace;font-size:0.72rem;color:var(--muted);padding:6px 12px;transition:all 0.2s;}
-  .thema-opt:hover{border-color:var(--accent2);color:var(--text);}
-  .thema-opt.actief{background:rgba(232,201,122,0.12);color:var(--accent);border:1px solid var(--accent2);}
-  /* Toggle switch (schuifballetje) */
-  .push-toggle{width:50px;height:28px;border-radius:14px;background:var(--error);position:relative;cursor:pointer;transition:background 0.25s;flex-shrink:0;border:none;outline:none;}
-  .push-toggle.aan{background:var(--success);}
-  .push-toggle-bal{width:22px;height:22px;border-radius:50%;background:#fff;position:absolute;top:3px;left:3px;transition:left 0.25s;box-shadow:0 1px 4px rgba(0,0,0,0.25);}
-  .push-toggle.aan .push-toggle-bal{left:25px;}
-  *{box-sizing:border-box;margin:0;padding:0;}
-  body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;min-height:100vh;padding:32px 20px;}
-  h1{font-family:'Fraunces',serif;font-size:2rem;font-weight:300;color:var(--accent);letter-spacing:-0.02em;margin-bottom:2px;}
-  .subtitle{font-size:0.68rem;color:var(--muted);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:28px;}
-  .container{max-width:1000px;margin:0 auto;position:relative;}
-  .form-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:24px;}
-  .form-title{font-family:'Fraunces',serif;font-size:0.95rem;font-weight:600;color:var(--accent);margin-bottom:16px;}
-  .form-row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;}
-  .form-group{display:flex;flex-direction:column;gap:5px;flex:1;min-width:140px;}
-  label{font-size:0.62rem;color:var(--muted);letter-spacing:0.12em;text-transform:uppercase;}
-  input[type="text"],input[type="time"],input[type="date"],input[type="email"],input[type="password"]{background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'DM Mono',monospace;font-size:0.88rem;padding:9px 12px;outline:none;transition:border-color 0.2s;width:100%;}
-  input:focus{border-color:var(--accent2);}
-  input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(0.7);}
-  .add-btn{background:var(--accent);border:none;border-radius:8px;color:var(--bg);cursor:pointer;font-family:'DM Mono',monospace;font-size:0.78rem;font-weight:500;letter-spacing:0.08em;padding:10px 22px;text-transform:uppercase;transition:background 0.2s,transform 0.1s;white-space:nowrap;}
-  .add-btn:hover{background:var(--accent2);}
-  .add-btn:active{transform:scale(0.97);}
-  .view-bar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:18px;}
-  .view-tabs{display:flex;background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden;}
-  .view-tab{background:none;border:none;color:var(--muted);cursor:pointer;font-family:'DM Mono',monospace;font-size:0.68rem;letter-spacing:0.1em;padding:8px 16px;text-transform:uppercase;transition:all 0.2s;}
-  .view-tab.active{background:var(--accent);color:var(--bg);}
-  .view-tab:not(.active):hover{box-shadow:inset 0 0 0 2px var(--accent2);}
-  .nav-btns{display:flex;align-items:center;gap:8px;}
-  .nav-btn{background:none;border:1px solid var(--border);border-radius:6px;color:var(--muted);cursor:pointer;font-family:'DM Mono',monospace;font-size:0.75rem;padding:6px 12px;transition:all 0.2s;}
-  .nav-btn:hover{border-color:var(--accent);color:var(--accent);}
-  .nav-label{font-family:'Fraunces',serif;font-size:1rem;font-weight:400;color:var(--text);min-width:160px;text-align:center;}
-  .today-btn{background:none;border:1px solid var(--accent2);border-radius:6px;color:var(--accent);cursor:pointer;font-family:'DM Mono',monospace;font-size:0.65rem;letter-spacing:0.08em;padding:6px 12px;text-transform:uppercase;transition:all 0.2s;}
-  .today-btn:hover{background:rgba(232,201,122,0.1);}
-  .clear-btn{background:none;border:1px solid var(--border);border-radius:6px;color:var(--muted);cursor:pointer;font-family:'DM Mono',monospace;font-size:0.62rem;letter-spacing:0.1em;padding:6px 12px;text-transform:uppercase;transition:all 0.2s;}
-  .clear-btn:hover{border-color:var(--error);color:var(--error);}
-  .undo-btn{background:none;border:1px solid var(--border);border-radius:6px;color:var(--muted);cursor:pointer;font-family:'DM Mono',monospace;font-size:0.75rem;padding:6px 10px;transition:all 0.2s;}
-  .undo-btn:hover:not(:disabled){border-color:var(--blue);color:var(--blue);}
-  .undo-btn:disabled{opacity:0.3;cursor:not-allowed;}
-  .logout-btn{background:none;border:1px solid var(--border);border-radius:6px;color:var(--muted);cursor:pointer;font-family:'DM Mono',monospace;font-size:0.62rem;letter-spacing:0.1em;padding:6px 12px;text-transform:uppercase;transition:all 0.2s;}
-  .logout-btn:hover{border-color:var(--error);color:var(--error);}
-  .auth-overlay{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:999;padding:24px;}
-  .sessie-laden{position:fixed;inset:0;z-index:1001;display:flex;flex-direction:column;gap:20px;align-items:center;justify-content:center;background:var(--bg);color:var(--muted);text-align:center;padding:24px;font-size:0.8rem;line-height:1.7;}
-  .sessie-laden[hidden]{display:none;}
-  .sessie-laden-titel{font-family:'Fraunces',serif;font-size:2rem;font-weight:300;color:var(--accent);}
-  .sessie-spinner{width:28px;height:28px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:sessie-draaien 0.8s linear infinite;}
-  @keyframes sessie-draaien{to{transform:rotate(360deg);}}
-  @media(prefers-reduced-motion:reduce){.sessie-spinner{animation:none;}}
-  .auth-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:40px 36px;width:100%;max-width:400px;}
-  .auth-title{font-family:'Fraunces',serif;font-size:1.8rem;font-weight:300;color:var(--accent);margin-bottom:4px;}
-  .auth-subtitle{font-size:0.65rem;color:var(--muted);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:28px;}
-  .auth-group{display:flex;flex-direction:column;gap:6px;margin-bottom:14px;}
-  .auth-group label{font-size:0.62rem;color:var(--muted);letter-spacing:0.12em;text-transform:uppercase;}
-  .auth-btn{background:var(--accent);border:none;border-radius:8px;color:var(--bg);cursor:pointer;font-family:'DM Mono',monospace;font-size:0.8rem;font-weight:500;letter-spacing:0.08em;padding:11px;text-transform:uppercase;transition:background 0.2s;width:100%;margin-top:8px;}
-  .auth-btn:hover{background:var(--accent2);}
-  .auth-btn:disabled{opacity:0.6;cursor:not-allowed;}
-  .auth-switch{font-size:0.7rem;color:var(--muted);text-align:center;margin-top:18px;}
-  .auth-switch a{color:var(--accent);cursor:pointer;text-decoration:underline;}
-  .auth-error{font-size:0.72rem;color:var(--error);background:rgba(224,112,112,0.08);border:1px solid rgba(224,112,112,0.25);border-radius:8px;padding:10px 14px;margin-bottom:14px;display:none;}
-  .auth-success{font-size:0.72rem;color:var(--success);background:rgba(126,200,150,0.08);border:1px solid rgba(126,200,150,0.25);border-radius:8px;padding:10px 14px;margin-bottom:14px;display:none;}
-  .auth-onthoud{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:0.7rem;color:var(--muted);cursor:pointer;}
-  .auth-onthoud input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;cursor:pointer;}
-  .gebruiker-rij{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;margin-bottom:8px;}
-  .gebruiker-avatar{width:32px;height:32px;border-radius:50%;background:rgba(232,201,122,0.15);border:1px solid rgba(232,201,122,0.3);display:flex;align-items:center;justify-content:center;font-family:'Fraunces',serif;font-size:0.9rem;color:var(--accent);flex-shrink:0;}
-  .gebruiker-info{flex:1;margin-left:12px;}
-  .gebruiker-naam{font-size:0.82rem;color:var(--text);}
-  .gebruiker-email{font-size:0.65rem;color:var(--muted);margin-top:2px;}
-  .gebruiker-datum{font-size:0.62rem;color:var(--muted);text-align:right;}
-  .code-rij{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;margin-bottom:8px;}
-  .code-tekst{font-family:'DM Mono',monospace;font-size:0.9rem;letter-spacing:0.12em;color:var(--accent);}
-  .code-status{font-size:0.65rem;padding:3px 8px;border-radius:4px;}
-  .code-status.beschikbaar{background:rgba(126,200,150,0.12);color:var(--success);border:1px solid rgba(126,200,150,0.3);}
-  .code-status.gebruikt{background:rgba(224,112,112,0.12);color:var(--error);border:1px solid rgba(224,112,112,0.3);}
-  .code-verwijder{background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.85rem;padding:3px 6px;border-radius:4px;transition:color 0.2s;}
-  .code-verwijder:hover{color:var(--error);}
-  .loader{display:inline-block;width:14px;height:14px;border:2px solid rgba(0,0,0,0.2);border-top-color:var(--bg);border-radius:50%;animation:spin 0.6s linear infinite;vertical-align:middle;margin-right:6px;}
-  @keyframes spin{to{transform:rotate(360deg);}}
-  .day-header{font-family:'Fraunces',serif;font-size:1.05rem;font-weight:600;color:var(--text);margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px;}
-  .day-header.today-label{color:var(--accent);}
-  .booking-item{background:#1e2a1e;border:1px solid #3a5c3a;border-left:3px solid var(--success);border-radius:10px;padding:13px 16px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;animation:slideIn 0.3s ease;}
-  .booking-item.onbetaald{background:#2a1020;border:1px solid #5c1a3a;border-left:3px solid #f4a0b8;}
-  .week-booking-pill.onbetaald{background:#2a1020;border:1px solid #5c1a3a;border-left:3px solid #f4a0b8;}
-  .month-pill.onbetaald{background:#2a1020;border-left:2px solid #f4a0b8;}
-  @keyframes slideIn{from{opacity:0;transform:translateX(-8px);}to{opacity:1;transform:translateX(0);}}
-  @keyframes fadeIn{from{opacity:0;transform:translateY(-4px);}to{opacity:1;transform:translateY(0);}}
-  .booking-left{display:flex;align-items:center;gap:14px;}
-  .booking-num{font-size:0.62rem;color:var(--muted);width:22px;text-align:right;}
-  .booking-name{font-family:'Fraunces',serif;font-size:0.95rem;color:var(--text);}
-  .booking-time{font-size:0.78rem;color:var(--accent);margin-top:2px;}
-  .booking-dur{font-size:0.65rem;color:var(--muted);margin-top:2px;}
-  .edit-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.95rem;padding:4px 8px;border-radius:6px;transition:all 0.2s;}
-  .edit-btn:hover{background:rgba(138,180,212,0.15);color:var(--blue);}
-  .delete-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.95rem;padding:4px 8px;border-radius:6px;transition:all 0.2s;}
-  .delete-btn:hover{background:rgba(224,112,112,0.15);color:var(--error);}
-  .scan-btn{background:none;border:1px solid var(--border);border-radius:8px;color:var(--muted);cursor:pointer;font-family:'DM Mono',monospace;font-size:0.68rem;letter-spacing:0.04em;padding:6px 12px;transition:all 0.2s;}
-  .scan-btn:hover{border-color:var(--accent2);color:var(--accent);}
-  .scan-dropzone{border:2px dashed var(--border);border-radius:10px;padding:24px;text-align:center;cursor:pointer;transition:border-color 0.2s;min-height:100px;display:flex;align-items:center;justify-content:center;}
-  .scan-dropzone:hover,.scan-dropzone.drag{border-color:var(--accent2);background:rgba(232,201,122,0.04);}
-  .betaald-btn{background:none;border:1px solid rgba(126,200,150,0.4);border-radius:6px;color:var(--success);cursor:pointer;font-family:'DM Mono',monospace;font-size:0.68rem;letter-spacing:0.06em;padding:4px 10px;transition:all 0.2s;}
-  .betaald-btn:hover{background:rgba(126,200,150,0.15);}
-  .slot-indicator{display:flex;align-items:center;gap:10px;padding:7px 12px 7px 18px;margin-left:18px;}
-  .slot-next{border-left:2px dashed var(--accent2);margin-top:2px;margin-bottom:6px;}
-  .slot-prev{border-left:2px dashed #5a7a9a;margin-top:6px;margin-bottom:2px;}
-  .slot-label{font-size:0.58rem;color:var(--muted);letter-spacing:0.1em;text-transform:uppercase;}
-  .slot-time-gold{font-size:0.8rem;color:var(--accent);background:rgba(232,201,122,0.1);border:1px solid rgba(232,201,122,0.25);border-radius:5px;padding:2px 9px;}
-  .slot-time-blue{font-size:0.8rem;color:var(--blue);background:var(--blue-bg);border:1px solid rgba(138,180,212,0.25);border-radius:5px;padding:2px 9px;}
-  .slot-closed{font-size:0.65rem;color:var(--error);opacity:0.75;}
-  .empty-day{color:var(--muted);font-size:0.75rem;padding:20px;text-align:center;border:1px dashed var(--border);border-radius:10px;}
-  .week-grid-wrapper{overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:6px;}
-  .week-grid-wrapper::-webkit-scrollbar{height:4px;}
-  .week-grid-wrapper::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
-  .week-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:10px;min-width:700px;}
-  .week-col{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;min-height:120px;}
-  .week-col.past-col{opacity:0.45;filter:grayscale(0.4);}
-  .week-col.today-col{border:2px solid var(--accent2);}
-  .week-col:not(.today-col):hover{outline:2px solid var(--accent2);outline-offset:-1px;}
-  .week-col.today-col:hover{border:3px solid var(--accent);}
-  .week-col-header{padding:10px 10px 8px;border-bottom:1px solid var(--border);font-size:0.65rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);}
-  .week-col.today-col .week-col-header{color:var(--accent);}
-  .week-col-date{font-family:'Fraunces',serif;font-size:1.1rem;color:var(--text);margin-top:1px;}
-  .week-col.today-col .week-col-date{color:var(--accent);}
-  .week-bookings{padding:8px;}
-  .week-booking-pill{background:#1e2a1e;border:1px solid #3a5c3a;border-left:3px solid var(--success);border-radius:6px;padding:5px 8px;margin-bottom:5px;}
-  .week-pill-name{font-size:0.68rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .week-pill-time{font-size:0.6rem;color:var(--accent);margin-top:1px;}
-  .week-empty{font-size:0.62rem;color:var(--muted);padding:8px;text-align:center;opacity:0.6;}
-  .month-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;}
-  .month-day-name{font-size:0.6rem;color:var(--muted);letter-spacing:0.1em;text-transform:uppercase;text-align:center;padding:6px 0;}
-  .month-cell{background:var(--surface);border:1px solid var(--border);border-radius:8px;min-height:80px;padding:7px;cursor:pointer;transition:border-color 0.2s;}
-  .month-cell:hover{border-color:var(--accent2);}
-  .month-cell.today-cell{border-color:var(--accent);}
-  .month-cell.other-month{opacity:0.35;}
-  .month-num{font-size:0.72rem;color:var(--muted);margin-bottom:5px;}
-  .month-cell.today-cell .month-num{color:var(--accent);font-weight:500;}
-  .month-pill{background:#1e2a1e;border-left:2px solid var(--success);border-radius:3px;padding:2px 5px;margin-bottom:2px;font-size:0.58rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .month-more{font-size:0.58rem;color:var(--muted);margin-top:2px;}
-  .log-section{margin-top:32px;}
-  .section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
-  .section-title{font-family:'Fraunces',serif;font-size:1rem;font-weight:600;color:var(--text);}
-  .log-empty{color:var(--muted);font-size:0.75rem;padding:20px;text-align:center;border:1px dashed var(--border);border-radius:10px;}
-  .log-item{display:flex;gap:10px;align-items:flex-start;padding:9px 13px;border-radius:8px;margin-bottom:5px;font-size:0.73rem;line-height:1.55;animation:fadeIn 0.3s ease;}
-  .log-item.success{background:rgba(126,200,150,0.07);border:1px solid rgba(126,200,150,0.2);color:var(--success);}
-  .log-item.error{background:rgba(224,112,112,0.07);border:1px solid rgba(224,112,112,0.2);color:var(--error);}
-  .log-time{font-size:0.6rem;opacity:0.5;margin-left:auto;white-space:nowrap;padding-left:10px;flex-shrink:0;}
-  .rules-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px 20px;margin-top:24px;font-size:0.68rem;color:var(--muted);line-height:1.8;}
-  .rules-card span{color:var(--accent);}
-
-  /* Meer informatie uitklapper */
-  .meer-info-toggle{border-top:1px solid var(--border);margin-top:16px;padding-top:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-size:0.68rem;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;transition:color 0.2s;}
-  .meer-info-toggle:hover{color:var(--accent);}
-  .meer-info-sectie{max-height:0;overflow:hidden;transition:max-height 0.3s ease,padding 0.3s ease;}
-  .meer-info-sectie.open{max-height:300px;padding-top:16px;}
-  .meer-info-rij{display:flex;gap:20px;flex-wrap:wrap;}
-  .toggle-groep{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;}
-  .toggle-opt{background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--muted);cursor:pointer;font-family:'DM Mono',monospace;font-size:0.7rem;letter-spacing:0.06em;padding:6px 12px;transition:all 0.15s;}
-  .toggle-opt:hover{border-color:var(--accent2);color:var(--text);}
-  .toggle-opt.active{background:rgba(232,201,122,0.12);border-color:var(--accent2);color:var(--accent);}
-  .platform-select{background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'DM Mono',monospace;font-size:0.82rem;padding:9px 12px;outline:none;transition:border-color 0.2s;width:100%;cursor:pointer;}
-  .platform-select:focus{border-color:var(--accent2);}
-  .platform-select option{background:var(--surface2);color:var(--text);}
-
-  /* Profiel */
-  .profiel-avatar{width:64px;height:64px;border-radius:50%;background:rgba(232,201,122,0.15);border:2px solid var(--accent2);display:flex;align-items:center;justify-content:center;font-family:'Fraunces',serif;font-size:1.6rem;color:var(--accent);margin:0 auto 24px;}
-  .profiel-rij{display:flex;justify-content:space-between;align-items:center;padding:14px 0;border-bottom:1px solid var(--border);}
-  .profiel-rij:last-child{border-bottom:none;}
-  .profiel-label{font-size:0.65rem;color:var(--muted);letter-spacing:0.1em;text-transform:uppercase;}
-  .profiel-waarde{font-size:0.88rem;color:var(--text);}
-
-  /* Instellingen */
-  .instelling-rij{display:flex;justify-content:space-between;align-items:center;padding:16px 0;border-bottom:1px solid var(--border);gap:16px;}
-  .instelling-rij:last-of-type{border-bottom:none;}
-  .instelling-label{font-size:0.82rem;color:var(--text);margin-bottom:3px;}
-  .instelling-info{font-size:0.65rem;color:var(--muted);}
-  .instelling-rij input[type="number"]{background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'DM Mono',monospace;font-size:0.88rem;padding:8px 10px;outline:none;text-align:center;}
-  .instelling-rij input[type="number"]:focus,.instelling-rij input[type="time"]:focus{border-color:var(--accent2);}
-
-  .pagina-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;}
-
-  /* Statistieken */
-  .stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;}
-  .stat-kaart{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px;}
-  .stat-label{font-size:0.62rem;color:var(--muted);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:8px;}
-  .stat-waarde{font-family:'Fraunces',serif;font-size:1.8rem;font-weight:300;color:var(--accent);}
-  .stat-sub{font-size:0.68rem;color:var(--muted);margin-top:4px;}
-  .stat-sectie-titel{font-family:'Fraunces',serif;font-size:0.95rem;font-weight:600;color:var(--accent);margin-bottom:14px;}
-  .platform-rij{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:0.78rem;}
-  .platform-rij:last-child{border-bottom:none;}
-  .platform-naam{color:var(--text);text-transform:capitalize;}
-  .platform-count{color:var(--accent);font-weight:500;}
-  .openstaand-bedrag{font-family:'Fraunces',serif;font-size:2rem;font-weight:300;color:#f4a0b8;margin:8px 0;}
-  .openstaand-count{font-size:0.72rem;color:var(--muted);}
-  .stat-dag-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:4px;}
-  .stat-dag-cel{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 4px;text-align:center;cursor:pointer;transition:all 0.15s;}
-  .stat-dag-cel:hover{border-color:var(--accent2);}
-  .stat-dag-cel.actief{background:rgba(232,201,122,0.12);border-color:var(--accent);color:var(--accent);}
-  .stat-dag-cel.vandaag-cel{border-color:var(--accent2);}
-  .stat-dag-naam{font-size:0.58rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;}
-  .stat-dag-num{font-family:'Fraunces',serif;font-size:1rem;margin-top:2px;}
-  .stat-dag-dot{width:5px;height:5px;border-radius:50%;background:var(--success);margin:3px auto 0;}
-  .stat-maand-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
-  .stat-maand-cel{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:6px 4px;text-align:center;cursor:pointer;transition:all 0.15s;min-height:36px;}
-  .stat-maand-cel:hover{border-color:var(--accent2);}
-  .stat-maand-cel.actief{background:rgba(232,201,122,0.12);border-color:var(--accent);}
-  .stat-maand-cel.vandaag-cel{border-color:var(--accent2);}
-  .stat-maand-cel.andere-maand{opacity:0.3;}
-  .stat-maand-num{font-size:0.7rem;color:var(--text);}
-  .stat-maand-cel.actief .stat-maand-num{color:var(--accent);}
-  .pathe-film-kaart{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin-bottom:12px;transition:border-color 0.2s;}
-  .pathe-film-kaart:hover{border-color:var(--accent2);}
-  .pathe-film-titel{font-family:'Fraunces',serif;font-size:1rem;font-weight:600;color:var(--accent);margin-bottom:6px;}
-  .pathe-film-info{font-size:0.72rem;color:var(--muted);margin-bottom:10px;line-height:1.6;}
-  .pathe-tijden{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
-  .pathe-tijd-chip{background:rgba(232,201,122,0.1);border:1px solid rgba(232,201,122,0.3);border-radius:6px;color:var(--accent);font-size:0.68rem;padding:4px 10px;cursor:pointer;transition:all 0.2s;font-family:'DM Mono',monospace;}
-  .pathe-tijd-chip:hover{background:rgba(232,201,122,0.2);}
-  .pathe-tijd-chip.past{background:rgba(126,200,150,0.1);border-color:rgba(126,200,150,0.3);color:var(--success);}
-  .pathe-tijdslot{display:inline-flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px 12px;margin-right:8px;margin-bottom:4px;font-size:0.72rem;color:var(--muted);}
-  .pathe-tijdslot strong{color:var(--text);}
-  .pathe-laden{text-align:center;padding:32px;color:var(--muted);font-size:0.78rem;}
-  .pathe-vestiging-label{font-size:0.65rem;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.08em;}align-items:center;justify-content:space-between;padding:12px 14px;background:var(--surface2);border:1px solid var(--border);border-left:3px solid #f4a0b8;border-radius:8px;margin-bottom:8px;cursor:pointer;transition:background 0.15s;}
-  .openstaand-item:hover{background:#2a1020;}
-  .openstaand-item-naam{font-family:'Fraunces',serif;font-size:0.9rem;color:var(--text);}
-  .openstaand-item-info{font-size:0.65rem;color:var(--muted);margin-top:2px;}
-  .openstaand-item-bedrag{font-size:0.88rem;color:#f4a0b8;font-weight:500;white-space:nowrap;}
-  .bel-btn{background:none;border:1px solid var(--border);border-radius:8px;cursor:pointer;padding:8px 10px;position:relative;transition:border-color 0.2s;font-size:1rem;line-height:1;height:38px;display:flex;align-items:center;justify-content:center;}
-  .bel-btn:hover{border-color:var(--accent2);}
-  .bel-btn.heeft-meldingen{border-color:var(--error);}
-  .bel-icoon{font-size:1rem;line-height:1;}
-  .bel-stip{position:absolute;top:4px;right:4px;width:8px;height:8px;background:var(--error);border-radius:50%;border:1.5px solid var(--bg);}
-
-  /* Melding bar */
-  .melding-bar{position:fixed;top:0;left:0;right:0;background:var(--surface);border-bottom:1px solid var(--border);z-index:200;transform:translateY(-100%);transition:transform 0.25s ease,visibility 0.25s;visibility:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.3);}
-  .melding-bar.open{transform:translateY(0);visibility:visible;}
-  .melding-notif{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;cursor:pointer;transition:background 0.15s;border-bottom:1px solid var(--border);gap:12px;}
-  .melding-notif:last-child{border-bottom:none;}
-  .melding-notif:hover{background:var(--surface2);}
-  .melding-notif-links{display:flex;align-items:center;gap:12px;}
-  .melding-notif-stip{width:8px;height:8px;border-radius:50%;background:var(--error);flex-shrink:0;}
-  .melding-notif-tekst{font-size:0.78rem;color:var(--text);}
-  .melding-notif-tijd{font-size:0.65rem;color:var(--muted);}
-  .melding-notif-pijl{font-size:0.8rem;color:var(--muted);}
-  .melding-leeg{padding:16px 20px;font-size:0.75rem;color:var(--muted);text-align:center;}
-  .hamburger-btn{background:none;border:1px solid var(--border);border-radius:8px;cursor:pointer;padding:8px 10px;display:flex;flex-direction:column;gap:4px;height:38px;justify-content:center;transition:border-color 0.2s;}
-  .hamburger-btn:hover{border-color:var(--accent2);}
-  .hamburger-btn span{display:block;width:18px;height:2px;background:var(--text);border-radius:2px;transition:background 0.2s;}
-  .hamburger-btn.open span{background:var(--accent);}
-  .menu-bar{position:fixed;top:0;left:0;right:0;background:var(--surface);border-bottom:1px solid var(--border);padding:8px 0;z-index:200;transform:translateY(-100%);transition:transform 0.25s ease,visibility 0.25s;visibility:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.3);}
-  .menu-bar.open{transform:translateY(0);visibility:visible;}
-  .menu-item{padding:14px 24px;font-family:'DM Mono',monospace;font-size:0.82rem;color:var(--text);cursor:pointer;letter-spacing:0.04em;transition:background 0.15s;}
-  .menu-item:hover{background:var(--surface2);}
-  .menu-item-danger{color:var(--error);}
-  .menu-item-danger:hover{background:rgba(224,112,112,0.08);}
-  @media(max-width:768px){
-    body{padding:16px 12px;}
-    h1{font-size:1.5rem;}
-    .subtitle{margin-bottom:16px;}
-    .form-card{padding:16px;}
-    .form-row{flex-direction:column;gap:10px;}
-    .form-group{min-width:unset;width:100%;}
-    .form-group label{font-size:0.6rem;margin-bottom:2px;}
-    .form-group input{padding:11px 12px;font-size:0.9rem;}
-    .add-btn{width:100%;padding:12px;font-size:0.8rem;margin-top:4px;}
-    .view-bar{gap:8px;}
-    .view-tab{padding:6px 10px;font-size:0.62rem;}
-    .nav-label{min-width:100px;font-size:0.85rem;}
-    .nav-btn{padding:5px 8px;font-size:0.68rem;}
-    .today-btn{padding:5px 8px;font-size:0.6rem;}
-    .clear-btn{padding:5px 8px;font-size:0.58rem;}
-    .month-cell{min-height:52px;padding:4px;}
-    .month-num{font-size:0.65rem;}
-    .booking-item{padding:10px 12px;}
-    .booking-name{font-size:0.85rem;}
-    .booking-time{font-size:0.72rem;}
-    .slot-indicator{padding:5px 8px 5px 12px;margin-left:10px;}
-    .slot-label{font-size:0.55rem;}
-    .slot-time-gold,.slot-time-blue{font-size:0.72rem;padding:2px 6px;}
-    .auth-card{padding:28px 20px;}
-    .auth-title{font-size:1.5rem;}
-    .log-item{font-size:0.68rem;padding:7px 10px;}
-    .rules-card{padding:12px 14px;font-size:0.65rem;}
-  }
-  @media(max-width:480px){
-    .month-grid{gap:3px;}
-    .month-cell{min-height:44px;padding:3px;}
-    .month-day-name{font-size:0.55rem;padding:4px 0;}
-    .view-bar{flex-wrap:wrap;}
-  }
-
-  /* Parallelle tijdvakken — altijd naast elkaar, ook op mobiel */
-  .tijdvak-kolom-grid{display:grid;gap:8px;align-items:start;}
-  .tijdvak-kolom{min-width:0;overflow:hidden;}
-  .tijdvak-kolom .booking-item{margin-bottom:6px;}
-  .tijdvak-kolom .slot-indicator{margin-left:2px;}
-  /* Compactere weergave in tijdvak-kolommen op smalle schermen */
-  @media(max-width:600px){
-    .tijdvak-kolom .booking-item{padding:8px 8px;}
-    .tijdvak-kolom .booking-name{font-size:0.72rem;}
-    .tijdvak-kolom .booking-time{font-size:0.65rem;}
-    .tijdvak-kolom .booking-dur{font-size:0.6rem;}
-    .tijdvak-kolom .booking-num{width:18px;height:18px;font-size:0.6rem;margin-right:6px;}
-    .tijdvak-kolom .edit-btn,.tijdvak-kolom .delete-btn{padding:4px 6px;font-size:0.7rem;}
-    .tijdvak-kolom .betaald-btn{padding:4px 6px;font-size:0.65rem;}
-    .tijdvak-kolom .slot-indicator{font-size:0.62rem;padding:4px 6px;}
-  }
-
-  .online-dot { display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;vertical-align:middle; }
-  .online-dot.online { background:var(--success); }
-  .online-dot.offline { background:var(--muted); }
-  .gebruiker-naam-link { cursor:pointer;color:var(--accent);text-decoration:underline dotted; }
-  .gebruiker-naam-link:hover { color:var(--accent2); }
-  .detail-overlay { position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:1000;display:none;align-items:flex-start;justify-content:center;overflow-y:auto;padding:16px; }
-  .detail-card { background:var(--surface);border:1px solid var(--border);border-radius:16px;width:100%;max-width:520px;margin:auto;overflow:hidden; }
-  .detail-header { padding:20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px; }
-  .detail-avatar { width:48px;height:48px;border-radius:50%;background:var(--accent);color:#0f0e0c;display:flex;align-items:center;justify-content:center;font-size:1.3rem;font-weight:700;flex-shrink:0; }
-  .detail-tabs { display:flex;border-bottom:1px solid var(--border); }
-  .detail-tab { flex:1;padding:11px;font-size:0.72rem;background:none;border:none;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s; }
-  .detail-tab.active { color:var(--accent);border-bottom-color:var(--accent); }
-  .detail-sectie { display:none;padding:16px; }
-  .detail-sectie.actief { display:block; }
-  .detail-stat-grid { display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px; }
-  .detail-stat-kaart { background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px; }
-  .detail-stat-label { font-size:0.58rem;color:var(--muted);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:4px; }
-  .detail-stat-waarde { font-size:1.1rem;font-weight:700;color:var(--text); }
-  .detail-log-item { display:flex;justify-content:space-between;align-items:center;padding:8px 16px;border-bottom:1px solid var(--border);font-size:0.72rem; }
-  .nav-btns { display:flex;align-items:center;gap:6px; }
-  .nav-btn { background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:4px 10px;cursor:pointer;font-size:0.85rem; }
-  .nav-btn:hover { background:var(--border); }
-  .nav-label { font-size:0.75rem;color:var(--text);min-width:100px;text-align:center; }
-</style>
-<style>
-  .abonnement-overlay[hidden]{display:none;}
-  .abonnement-overlay{position:fixed;inset:0;z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(0,0,0,0.42);backdrop-filter:blur(1.5px);overflow:auto;}
-  .abonnement-dialoog{outline:none;width:min(1180px,100%);max-height:calc(100dvh - 40px);overflow:auto;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px;color:var(--text);box-shadow:0 18px 70px #0007;}
-  .abonnement-dialoog h2{font-size:1.3rem;line-height:1.5;margin:0 0 12px;}
-  .abonnement-dialoog>p{font-size:0.83rem;line-height:1.7;color:var(--muted);}
-  .abonnement-opties{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:22px 0;}
-  .abonnement-optie{display:flex;flex-direction:column;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:18px;}
-  .abonnement-optie .auth-btn{margin-top:auto;}
-  .abonnement-optie h3{font-size:0.9rem;margin:0 0 12px;}
-  .abonnement-prijs{font-size:1.3rem;font-weight:700;color:var(--accent);}
-  .abonnement-optie p{font-size:0.75rem;color:var(--muted);margin:8px 0 15px;}
-  .abonnement-optie .abonnement-maandprijs{color:var(--accent);line-height:1.6;margin:8px 0;}
-  .abonnement-acties{display:flex;gap:12px;flex-wrap:wrap;}
-  .abonnement-acties button{flex:1;min-width:145px;}
-  .abonnement-dialoog [hidden]{display:none;}
-  .abonnement-menu-item{display:block;width:100%;text-align:left;background:none;border:0;}
-  .abonnement-beheer{padding-top:16px;}
-  .abonnement-beheer [hidden]{display:none!important;}
-  .abonnement-beheer .pagina-header{gap:16px;align-items:flex-start;}
-  .abonnement-beheer h1{font-size:clamp(1.45rem,4vw,2.2rem);}
-  .abonnement-intro{color:var(--muted);font-size:0.8rem;line-height:1.8;margin:-8px 0 28px;}
-  .abonnement-samenvatting{display:grid;grid-template-columns:1.2fr 1fr;gap:18px;margin-bottom:26px;}
-  .abonnement-kaart,.factuur-kaart{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:24px;}
-  .abonnement-kaart h2{font-size:1.4rem;margin:12px 0;color:var(--accent);}
-  .abonnement-kaart p{font-size:0.78rem;line-height:1.8;color:var(--muted);margin:8px 0 0;}
-  .abonnement-label{font-size:0.66rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);}
-  .factuur-status{display:inline-block;border:1px solid var(--border);border-radius:30px;padding:5px 10px;font-size:0.65rem;line-height:1.5;}
-  .factuur-status.betaald{color:var(--success);border-color:var(--success);}
-  .factuur-status.openstaand{color:var(--accent);border-color:var(--accent);}
-  .factuur-status.oninbaar{color:var(--error);border-color:var(--error);}
-  .abonnement-pagina-acties,.factuur-acties{display:flex;gap:10px;flex-wrap:wrap;margin:16px 0 26px;}
-  .factuur-knop{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:11px 15px;color:var(--text);font-family:inherit;font-size:0.72rem;text-decoration:none;cursor:pointer;line-height:1.5;}
-  .factuur-knop:hover{border-color:var(--accent);color:var(--accent);}
-  .factuur-knop.primair{background:var(--accent);border-color:var(--accent);color:#171511;}
-  .factuur-knop:disabled{opacity:0.5;cursor:wait;}
-  .facturen-kop{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:30px 0 16px;}
-  .facturen-kop h2{font-size:1.2rem;}
-  .facturen-lijst{display:grid;gap:14px;}
-  .factuur-kop{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;}
-  .factuur-kop h3{font-size:0.85rem;overflow-wrap:anywhere;margin:0;}
-  .factuur-details{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin:20px 0 0;}
-  .factuur-details dt{font-size:0.65rem;color:var(--muted);margin-bottom:7px;line-height:1.7;}
-  .factuur-details dd{font-size:0.82rem;margin:0;line-height:1.6;}
-  .factuur-acties{margin:20px 0 0;}
-  .facturen-leeg{padding:32px 24px;border:1px dashed var(--border);border-radius:14px;color:var(--muted);font-size:0.8rem;line-height:1.9;}
-  .abonnement-pagina-fout{color:var(--error);font-size:0.8rem;line-height:1.8;margin:16px 0;}
-  .abonnement-laden{color:var(--muted);font-size:0.8rem;margin:20px 0;}
-  @media(max-width:620px){.abonnement-samenvatting{grid-template-columns:1fr;}.abonnement-kaart,.factuur-kaart{padding:20px;}.factuur-details{grid-template-columns:1fr 1fr;}.abonnement-pagina-acties .factuur-knop{flex:1;}.facturen-kop{align-items:flex-start;}}
-  @media(max-width:850px){.abonnement-opties{grid-template-columns:1fr;}.abonnement-dialoog{padding:20px;}}
-
-  .abonnement-vergrendeld{overflow:hidden;}
-  .abonnement-achtergrond[hidden]{display:none;}
-  .abonnement-achtergrond{position:fixed;inset:0;z-index:1900;pointer-events:none;overflow:hidden;background:var(--bg);}
-  .abonnement-achtergrond img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center top;}
-  .abonnement-achtergrond img:not([src]){display:none;}
-  .planning-omtrek{max-width:1150px;min-width:850px;padding:45px 20px;margin:0 auto;color:var(--muted);}
-  .planning-omtrek>p{font-size:0.7rem;margin-top:12px;letter-spacing:0.15em;}
-  .planning-formulier{margin:45px 0;padding:28px;background:var(--surface);border:1px solid var(--border);border-radius:14px;color:var(--accent);}
-  .planning-formulier>div{height:44px;margin-top:20px;background:var(--surface2);border-radius:8px;}
-  .planning-dagen{display:grid;grid-template-columns:repeat(7,1fr);gap:12px;}
-  .planning-dagen span{height:380px;padding:16px 10px;border:1px solid var(--border);border-radius:12px;background:var(--surface);font-size:0.65rem;}
-  .abonnement-dialoog>.abonnement-bewaar-label{color:var(--accent);text-transform:uppercase;letter-spacing:0.12em;font-size:0.65rem;margin-bottom:10px;}
-  .ranglijst-balk{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 20px;flex-wrap:wrap;}
-  .ranglijst-periode{font-size:0.65rem;color:var(--muted);letter-spacing:0.1em;text-transform:uppercase;}
-  .ranglijst-uitleg{font-size:0.68rem;color:var(--muted);line-height:1.8;margin-top:16px;}
-  .ranglijst-leeg{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:20px;text-align:center;color:var(--muted);font-size:0.75rem;}
-  .ranglijst-lijst{display:grid;gap:8px;margin-bottom:20px;}
-  .ranglijst-kaart{display:flex;align-items:center;gap:14px;padding:14px 16px;background:var(--surface2);border:2px solid var(--border);border-radius:12px;position:relative;}
-  .ranglijst-zelf{border-color:var(--accent2);}
-  .ranglijst-eerste{border-color:var(--accent);box-shadow:0 0 12px rgba(200,170,110,0.15);}
-  .ranglijst-positie{font-size:0.9rem;min-width:28px;text-align:center;font-weight:700;color:var(--muted);}
-  .ranglijst-podium{font-size:1.4rem;}
-  .ranglijst-eerste .ranglijst-positie{color:var(--accent);}
-  .ranglijst-avatar{display:flex;align-items:center;justify-content:center;width:38px;height:38px;flex-shrink:0;border-radius:50%;background:var(--accent);color:var(--bg);font-size:15px;font-weight:700;overflow:hidden;}
-  .ranglijst-zelf .ranglijst-avatar{background:var(--accent2);}
-  .ranglijst-avatar img{width:100%;height:100%;object-fit:cover;}
-  .ranglijst-profiel{flex:1;min-width:0;overflow-wrap:anywhere;font-size:0.82rem;}
-  .ranglijst-profiel p{font-size:0.68rem;line-height:1.7;margin-top:6px;color:var(--muted);}
-  .ranglijst-cijfers{display:grid;gap:4px;justify-items:end;font-size:0.72rem;white-space:nowrap;}
-  .ranglijst-score-leider{color:var(--accent);}
-  .ranglijst-jij{position:absolute;top:-1px;right:10px;font-size:0.55rem;background:var(--accent2);color:var(--bg);border-radius:0 0 6px 6px;padding:2px 7px;letter-spacing:0.08em;text-transform:uppercase;}
-  .ranglijst-grijs{background:var(--surface2);border:1px solid var(--border);border-radius:12px;overflow:hidden;opacity:0.65;margin-top:12px;}
-  .ranglijst-groepskop{padding:10px 16px;border-bottom:1px solid var(--border);font-size:0.6rem;color:var(--muted);letter-spacing:0.1em;text-transform:uppercase;}
-  .ranglijst-eigen-inactief{color:var(--muted);border:0;border-radius:0;padding:10px 16px;gap:12px;background:rgba(255,255,255,0.03);}
-  .ranglijst-eigen-inactief .ranglijst-positie,.ranglijst-eigen-inactief .ranglijst-cijfers{display:none;}
-  .ranglijst-eigen-inactief .ranglijst-avatar{width:32px;height:32px;background:var(--border);color:var(--muted);}
-  .ranglijst-eigen-inactief .ranglijst-jij{position:static;display:inline-block;border-radius:4px;padding:1px 5px;letter-spacing:normal;}
-  @media(max-width:520px){.ranglijst-kaart{padding:14px 12px;gap:9px;}.ranglijst-avatar{width:34px;height:34px;}.ranglijst-positie{min-width:24px;}.ranglijst-cijfers{font-size:0.68rem;}}
-
-</style>
-<link rel="stylesheet" href="/app.css">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#141510">
+  <meta name="description" content="Scan je screenshot naar een boeking. Houd je planning, tijdvakken, betalingen en statistieken op één plek met Boekingsschema. Bekijk hoe het werkt.">
+  <link rel="canonical" href="https://boekingschema.netlify.app/">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="nl_NL">
+  <meta property="og:title" content="Boekingsschema — Rust in je planning. Ruimte voor je dag.">
+  <meta property="og:description" content="Scan je screenshot naar een boeking. Houd je planning, tijdvakken, betalingen en statistieken op één plek.">
+  <meta property="og:url" content="https://boekingschema.netlify.app/">
+  <meta property="og:image" content="https://boekingschema.netlify.app/icon-512.png">
+  <title>Boekingsschema — Rust in je planning. Ruimte voor je dag.</title>
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="preload" href="/fonts/fraunces-300-700.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="/site-entry.js"></script>
+  <link rel="stylesheet" href="/intro/intro.css">
+  <script defer src="/intro/intro.js"></script>
 </head>
 <body>
-
-
-<div id="abonnement-achtergrond" class="abonnement-achtergrond" aria-hidden="true" inert hidden>
-  <div class="planning-omtrek">
-    <h1>Boekingsschema</h1><p>RESERVERINGSBEHEER</p>
-    <div class="planning-formulier"><strong>Nieuwe boeking</strong><div></div></div>
-    <div class="planning-dagen"><span>Maandag</span><span>Dinsdag</span><span>Woensdag</span><span>Donderdag</span><span>Vrijdag</span><span>Zaterdag</span><span>Zondag</span></div>
-  </div>
-  <img id="abonnement-achtergrond-afbeelding" alt="" decoding="async">
-</div>
-<div class="abonnement-overlay" id="abonnement-overlay" hidden>
-  <section class="abonnement-dialoog" id="abonnement-dialoog" role="dialog" aria-modal="true" aria-labelledby="abonnement-titel" aria-describedby="abonnement-uitleg" tabindex="-1">
-    <p class="abonnement-bewaar-label">Je planning blijft bewaard</p>
-    <h2 id="abonnement-titel">Je proefperiode is afgelopen</h2>
-    <p id="abonnement-uitleg">Kies een abonnement om verder te gaan. Je bestaande boekingen blijven bewaard.</p>
-    <p id="abonnement-error" role="alert" hidden></p>
-    <div class="abonnement-opties" id="abonnement-opties"></div>
-    <p id="abonnement-btw"></p>
-    <div class="abonnement-acties">
-      <button class="auth-btn" id="abonnement-opnieuw" type="button">Opnieuw controleren</button>
-      <button class="auth-btn" id="abonnement-beheren" type="button">Abonnement beheren</button>
-      <button class="auth-btn" id="abonnement-uitloggen" type="button">Uitloggen</button>
-    </div>
-  </section>
-</div>
-
-<!-- Auth scherm -->
-<div class="sessie-laden" id="sessie-laden" role="status" aria-live="polite">
-  <div class="sessie-laden-titel">Boekingsschema</div>
-  <div class="sessie-spinner" aria-hidden="true"></div>
-  <p id="sessie-laden-tekst">Je sessie wordt hersteld…</p>
-</div>
-
-<div class="auth-overlay" id="auth-overlay" style="display:none;">
-  <div class="auth-card">
-    <div class="auth-title" id="auth-title">Welkom</div>
-    <div class="auth-subtitle" id="auth-subtitle">Log in met je e-mailadres</div>
-    <div class="auth-error" id="auth-error"></div>
-    <div class="auth-success" id="auth-success"></div>
-    <div class="auth-group">
-      <label id="auth-user-label">E-mailadres</label>
-      <input type="email" id="auth-user" placeholder="jouw@email.nl" autocomplete="username" />
-    </div>
-    <div class="auth-group" id="auth-email-group" style="display:none;">
-      <label>E-mailadres</label>
-      <input type="email" id="auth-email" placeholder="jouw@email.nl" />
-    </div>
-    <div class="auth-group">
-      <label>Wachtwoord</label>
-      <input type="password" id="auth-pass" placeholder="Wachtwoord" autocomplete="current-password" />
-    </div>
-    <div class="auth-group" id="auth-pass2-group" style="display:none;">
-      <label>Wachtwoord herhalen</label>
-      <input type="password" id="auth-pass2" placeholder="Herhaal wachtwoord" />
-    </div>
-    <div class="auth-group" id="auth-code-group" style="display:none;">
-      <label>Uitnodigingscode</label>
-      <input type="text" id="auth-code" placeholder="Plak je uitnodigingscode" style="text-transform:uppercase;letter-spacing:0.1em;" />
-    </div>
-    <label class="auth-onthoud" id="auth-onthoud-wrap">
-      <input type="checkbox" id="auth-onthoud" /> Blijf ingelogd
-    </label>
-    <button class="auth-btn" id="auth-btn">Inloggen</button>
-    <button class="auth-btn" id="verificatie-opnieuw" style="display:none;margin-top:10px;">Verificatiemail opnieuw versturen</button>
-    <div class="auth-switch" id="auth-switch">
-      <span id="auth-wissel-tekst">Nog geen account? </span><a id="auth-wissel">Registreren</a>
-    </div>
-    <div style="text-align:center;margin-top:10px;">
-      <a id="vergeten-link" style="font-size:0.68rem;color:var(--muted);cursor:pointer;text-decoration:underline;">Wachtwoord vergeten?</a>
-    </div>
-    <div style="text-align:center;margin-top:6px;">
-      <a id="admin-link" style="font-size:0.62rem;color:var(--muted);cursor:pointer;letter-spacing:0.06em;">Beheerder</a>
-    </div>
-  </div>
-</div>
-
-<!-- Beheerder scherm -->
-<div class="container beheer-pagina" id="admin-overlay" style="display:none;">
-  <div class="admin-inhoud">
-    <div class="pagina-header">
-      <div style="display:flex;align-items:center;gap:12px;min-width:0;">
-        <button class="nav-btn" id="admin-terug-link" type="button" aria-label="Terug naar boekingsschema">&#8592;</button>
-        <div><h1 style="margin-bottom:0;">Beheerderspagina</h1><div class="subtitle" style="margin-bottom:0;">Codes &amp; gebruikersbeheer</div></div>
-      </div>
-      <button class="hamburger-btn" id="hamburger-btn-admin" type="button" aria-label="Menu"><span></span><span></span><span></span></button>
-    </div>
-    <div class="auth-error" id="admin-error"></div>
-    <div id="admin-panel" style="display:none;">
-      <!-- Tabs -->
-      <div class="beheer-navigatie"><div class="view-tabs beheer-tabs" aria-label="Beheeronderdelen">
-        <button class="view-tab active" id="admin-tab-codes" onclick="adminTabWissel('codes')">Uitnodigingscodes</button>
-        <button class="view-tab" id="admin-tab-gebruikers" onclick="adminTabWissel('gebruikers')">Gebruikers</button>
-        <button class="view-tab" id="admin-tab-topseller" onclick="adminTabWissel('topseller')">Top Seller</button>
-        <button class="view-tab" id="admin-tab-updates" onclick="adminTabWissel('updates')">Updates</button>
-        <button class="view-tab" id="admin-tab-meldingen" onclick="adminTabWissel('meldingen')">Meldingen</button>
-      </div>
-    </div>
-      <!-- Codes -->
-      <div id="admin-sectie-codes">
-        <button class="add-btn" id="admin-genereer-btn" style="width:100%;margin-bottom:20px;">+ Nieuwe code genereren</button>
-        <div id="admin-codes-lijst"></div>
-      </div>
-      <!-- Gebruikers -->
-      <div id="admin-sectie-gebruikers" style="display:none;">
-        <div id="admin-gebruikers-lijst"></div>
-      </div>
-      <!-- Top Seller -->
-      <div id="admin-sectie-topseller" style="display:none;">
-        <div id="admin-topseller-inhoud"></div>
-      </div>
-      <!-- Updates -->
-      <div id="admin-sectie-updates" style="display:none;">
-        <div class="auth-group">
-          <label>Titel</label>
-          <input type="text" id="admin-update-titel" placeholder="Titel van de update" />
-        </div>
-        <div class="auth-group">
-          <label>Inhoud</label>
-          <textarea id="admin-update-inhoud" placeholder="Beschrijf de update..." style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'DM Mono',monospace;font-size:0.85rem;padding:9px 12px;outline:none;width:100%;min-height:80px;resize:vertical;"></textarea>
-        </div>
-        <button class="add-btn" id="admin-update-publiceer-btn" style="width:100%;margin-bottom:20px;">&#128240; Publiceren</button>
-        <div id="admin-updates-lijst"></div>
-      </div>
-      <!-- Meldingen van gebruikers -->
-      <div id="admin-sectie-meldingen" style="display:none;">
-        <div id="admin-meldingen-lijst"></div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Wachtwoord vergeten scherm -->
-<div class="auth-overlay" id="vergeten-overlay" style="display:none;">
-  <div class="auth-card">
-    <div class="auth-title">Wachtwoord vergeten</div>
-    <div class="auth-subtitle">Vul je e-mailadres in</div>
-    <div class="auth-error" id="vergeten-error"></div>
-    <div class="auth-success" id="vergeten-success"></div>
-    <div class="auth-group">
-      <label>E-mailadres</label>
-      <input type="email" id="vergeten-user" placeholder="jouw@email.nl" autocomplete="email" />
-    </div>
-    <button class="auth-btn" id="vergeten-btn">Reset mail versturen</button>
-    <div style="text-align:center;margin-top:16px;">
-      <a id="vergeten-terug" style="font-size:0.68rem;color:var(--muted);cursor:pointer;text-decoration:underline;">&#8592; Terug naar inloggen</a>
-    </div>
-  </div>
-</div>
-
-<!-- Beheerderspagina (voor gebruikers met isBeheerder:true) -->
-<div class="container" id="pagina-beheer" style="display:none;">
-  <div class="pagina-header">
-    <div style="display:flex;align-items:center;gap:12px;">
-      <button class="nav-btn" id="beheer-terug">&#8592;</button>
-      <div>
-        <h1 style="margin-bottom:0;">&#128737; Beheerderspagina</h1>
-        <div class="subtitle" style="margin-bottom:0;">Codes &amp; gebruikersbeheer</div>
-      </div>
-    </div>
-    <button class="hamburger-btn" id="hamburger-btn-beheer">
-      <span></span><span></span><span></span>
-    </button>
-  </div>
-  <div class="beheer-navigatie"><div class="view-tabs beheer-tabs" aria-label="Beheeronderdelen">
-    <button class="view-tab active" id="beheer-tab-codes" onclick="beheerTabWissel('codes')">Uitnodigingscodes</button>
-    <button class="view-tab" id="beheer-tab-gebruikers" onclick="beheerTabWissel('gebruikers')">Gebruikers</button>
-    <button class="view-tab" id="beheer-tab-topseller" onclick="beheerTabWissel('topseller')">Top Seller</button>
-    <button class="view-tab" id="beheer-tab-updates" onclick="beheerTabWissel('updates')">Updates</button>
-    <button class="view-tab" id="beheer-tab-meldingen" onclick="beheerTabWissel('meldingen')">Meldingen</button>
-  </div>
-  </div>
-  <div id="beheer-sectie-codes">
-    <button class="add-btn" id="beheer-genereer-btn" style="width:100%;margin-bottom:20px;">+ Nieuwe code genereren</button>
-    <div id="beheer-codes-lijst"></div>
-  </div>
-  <div id="beheer-sectie-gebruikers" style="display:none;">
-    <div id="beheer-gebruikers-lijst"></div>
-  </div>
-  <div id="beheer-sectie-topseller" style="display:none;">
-    <div id="beheer-topseller-inhoud"></div>
-  </div>
-  <div id="beheer-sectie-updates" style="display:none;">
-    <div class="auth-group">
-      <label>Titel</label>
-      <input type="text" id="beheer-update-titel" placeholder="Titel van de update" />
-    </div>
-    <div class="auth-group">
-      <label>Inhoud</label>
-      <textarea id="beheer-update-inhoud" placeholder="Beschrijf de update..." style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'DM Mono',monospace;font-size:0.85rem;padding:9px 12px;outline:none;width:100%;min-height:80px;resize:vertical;"></textarea>
-    </div>
-    <button class="add-btn" id="beheer-update-publiceer-btn" style="width:100%;margin-bottom:20px;">&#128240; Publiceren</button>
-    <div id="beheer-updates-lijst"></div>
-  </div>
-  <div id="beheer-sectie-meldingen" style="display:none;">
-    <div id="beheer-meldingen-lijst"></div>
-  </div>
-</div>
-
-<!-- Ranglijst pagina (voor alle gebruikers) -->
-<div class="container" id="pagina-ranglijst" style="display:none;">
-  <div class="pagina-header">
-    <div style="display:flex;align-items:center;gap:12px;">
-      <button class="nav-btn" id="ranglijst-terug">&#8592;</button>
-      <div>
-        <h1 style="margin-bottom:0;">&#127942; Ranglijst</h1>
-        <div class="subtitle" style="margin-bottom:0;">Wie staat er bovenaan?</div>
-      </div>
-    </div>
-    <button class="hamburger-btn" id="hamburger-btn-ranglijst">
-      <span></span><span></span><span></span>
-    </button>
-  </div>
-  <div id="ranglijst-inhoud"></div>
-</div>
-
-<!-- Nieuws pagina -->
-<div class="container" id="pagina-nieuws" style="display:none;">
-  <div class="pagina-header">
-    <div style="display:flex;align-items:center;gap:12px;">
-      <button class="nav-btn" id="nieuws-terug">&#8592;</button>
-      <div>
-        <h1 style="margin-bottom:0;">&#128240; Nieuws &amp; Updates</h1>
-        <div class="subtitle" style="margin-bottom:0;">Blijf op de hoogte</div>
-      </div>
-    </div>
-    <div style="display:flex;gap:8px;align-items:center;">
-      <button class="bel-btn" id="bel-btn-nieuws" title="Meldingen">
-        <span class="bel-icoon">&#128276;</span>
-        <span class="bel-stip" id="bel-stip-nieuws" style="display:none;"></span>
-      </button>
-      <button class="hamburger-btn" id="hamburger-btn-nieuws">
-        <span></span><span></span><span></span>
-      </button>
-    </div>
-  </div>
-  <div class="view-tabs" style="margin-bottom:20px;">
-    <button class="view-tab active" id="nieuws-tab-updates" onclick="nieuwsTabWissel('updates')">Updates</button>
-    <button class="view-tab" id="nieuws-tab-meldingen" onclick="nieuwsTabWissel('meldingen')">Meldingen</button>
-  </div>
-  <!-- Updates tab -->
-  <div id="nieuws-sectie-updates">
-    <div id="nieuws-updates-lijst"><p style="font-size:0.75rem;color:var(--muted);text-align:center;padding:24px 0;">Laden...</p></div>
-  </div>
-  <!-- Meldingen tab -->
-  <div id="nieuws-sectie-meldingen" style="display:none;">
-    <div class="form-card" style="margin-bottom:16px;">
-      <div class="form-title">Stuur een melding of verzoek</div>
-      <div class="auth-group">
-        <label>Titel</label>
-        <input type="text" id="nieuws-melding-titel" placeholder="Korte omschrijving" />
-      </div>
-      <div class="auth-group">
-        <label>Omschrijving</label>
-        <textarea id="nieuws-melding-inhoud" placeholder="Beschrijf je verzoek of melding..." style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'DM Mono',monospace;font-size:0.85rem;padding:9px 12px;outline:none;width:100%;min-height:80px;resize:vertical;"></textarea>
-      </div>
-      <button class="add-btn" id="nieuws-melding-verstuur-btn" style="width:100%;margin-top:8px;">+ Versturen</button>
-    </div>
-    <div id="nieuws-meldingen-lijst"><p style="font-size:0.75rem;color:var(--muted);text-align:center;padding:24px 0;">Laden...</p></div>
-  </div>
-</div>
-
-<!-- Gebruiker detail overlay -->
-<div class="auth-overlay" id="gebruiker-detail-overlay" style="display:none;overflow-y:auto;" onclick="sluitGebruikerDetail(event)">
-  <div class="detail-card" style="margin:20px auto;">
-    <div class="detail-header">
-      <div class="detail-avatar" id="detail-avatar">?</div>
-      <div style="flex:1;min-width:0;">
-        <div id="detail-naam" style="font-size:1rem;font-weight:700;color:var(--text);"></div>
-        <div id="detail-email" style="font-size:0.72rem;color:var(--muted);margin-top:2px;"></div>
-        <div id="detail-online-status" style="margin-top:4px;display:flex;align-items:center;gap:6px;"></div>
-      </div>
-      <button onclick="document.getElementById('gebruiker-detail-overlay').style.display='none'" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.2rem;padding:4px 8px;border-radius:6px;" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--muted)'">&#10005;</button>
-    </div>
-    <div class="detail-tabs">
-      <button class="detail-tab active" onclick="detailTab('statistieken',this)">Statistieken</button>
-      <button class="detail-tab" onclick="detailTab('boekingen',this)">Boekingen</button>
-      <button class="detail-tab" onclick="detailTab('activiteit',this)">Activiteit</button>
-    </div>
-    <div id="detail-statistieken" class="detail-sectie actief"></div>
-    <div id="detail-boekingen" class="detail-sectie"></div>
-    <div id="detail-activiteit" class="detail-sectie"></div>
-  </div>
-</div>
-
-<!-- Gebruiker verwijderen bevestiging -->
-<div class="auth-overlay" id="verwijder-gebruiker-overlay" style="display:none;">
-  <div class="auth-card" style="max-width:420px;">
-    <div style="text-align:center;font-size:2rem;margin-bottom:12px;">&#9888;</div>
-    <div class="auth-title" style="color:var(--error);">Gebruiker verwijderen</div>
-    <div class="auth-subtitle" id="verwijder-gebruiker-tekst"></div>
-    <div style="background:rgba(224,112,112,0.08);border:1px solid rgba(224,112,112,0.25);border-radius:8px;padding:14px;margin:16px 0;font-size:0.78rem;color:var(--error);line-height:1.6;">
-      &#9888; Alle data van dit account wordt permanent verwijderd:<br>
-      boekingen, instellingen en accountgegevens.<br>
-      <strong>Dit kan niet ongedaan worden gemaakt.</strong>
-    </div>
-    <button id="verwijder-gebruiker-btn" class="auth-btn" style="background:var(--error);border-color:var(--error);">Ja, verwijder gebruiker</button>
-    <div style="text-align:center;margin-top:12px;">
-      <a id="verwijder-gebruiker-annuleer" style="font-size:0.68rem;color:var(--muted);cursor:pointer;text-decoration:underline;">Annuleren</a>
-    </div>
-  </div>
-</div>
-
-<!-- Bewerk modal -->
-<div class="auth-overlay" id="bewerk-overlay" style="display:none;">
-  <div class="auth-card">
-    <div class="auth-title">Boeking bewerken</div>
-    <div class="auth-subtitle" id="bewerk-subtitle">Pas de gegevens aan</div>
-    <div class="auth-group">
-      <label>Naam</label>
-      <input type="text" id="bewerk-naam" placeholder="Naam klant" />
-    </div>
-    <div class="auth-group">
-      <label>Starttijd</label>
-      <input type="time" id="bewerk-tijd" />
-    </div>
-    <div class="auth-group">
-      <label>Betaling</label>
-      <div class="toggle-groep">
-        <button class="toggle-opt" data-groep="bewerk-betaling" data-waarde="achteraf">Achteraf</button>
-        <button class="toggle-opt active" data-groep="bewerk-betaling" data-waarde="betaald">Betaald</button>
-      </div>
-    </div>
-    <div class="auth-group">
-      <label>Prijs (€)</label>
-      <input type="number" id="bewerk-prijs" min="0" step="0.01" value="10" />
-    </div>
-    <div class="auth-group">
-      <label>Platform (optioneel)</label>
-      <select id="bewerk-platform" class="platform-select">
-        <option value="">— Kies platform —</option>
-        <option value="marktplaats">Marktplaats</option>
-        <option value="instagram">Instagram</option>
-        <option value="snapchat">Snapchat</option>
-        <option value="tiktok">TikTok</option>
-        <option value="overig">Overig</option>
-      </select>
-    </div>
-    <div class="auth-group" id="bewerk-tijdvak-groep" style="display:none;">
-      <label>Tijdvak</label>
-    </div>
-    <div class="auth-error" id="bewerk-error"></div>
-    <button class="auth-btn" id="bewerk-opslaan-btn">Opslaan</button>
-    <div style="text-align:center;margin-top:12px;">
-      <a id="bewerk-annuleer" style="font-size:0.68rem;color:var(--muted);cursor:pointer;text-decoration:underline;">Annuleren</a>
-    </div>
-  </div>
-</div>
-
-<!-- Menu bar — fixed, altijd zichtbaar -->
-<nav class="menu-bar" id="menu-bar" aria-label="Hoofdnavigatie">
-  <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 16px 4px;">
-    <span style="font-size:0.62rem;color:var(--muted);letter-spacing:0.1em;text-transform:uppercase;">Menu</span>
-    <button id="menu-sluit" style="background:none;border:1px solid var(--border);border-radius:6px;color:var(--muted);cursor:pointer;font-size:0.9rem;padding:3px 8px;line-height:1;transition:all 0.2s;" title="Sluiten">&#10005;</button>
-  </div>
-  <button type="button" class="menu-item" id="menu-schema">&#128197; Boekingsschema</button>
-  <button type="button" class="menu-item" id="menu-statistieken">&#128200; Statistieken</button>
-  <button type="button" class="menu-item" id="menu-pathe">&#127916; Pathé Films <small>(in ontwikkeling)</small></button>
-  <button type="button" class="menu-item" id="menu-ranglijst">&#127942; Ranglijst</button>
-  <button type="button" class="menu-item" id="menu-nieuws">&#128240; Nieuws</button>
-  <button type="button" class="menu-item" id="menu-profiel">&#128100; Profiel</button>
-  <button class="menu-item abonnement-menu-item" id="menu-abonnement" type="button">&#128179; Abonnement beheren</button>
-  <button type="button" class="menu-item" id="menu-instellingen">&#9881; Instellingen</button>
-  <button type="button" class="menu-item" id="menu-beheer" style="display:none;">&#128737; Beheerderspagina</button>
-  <button type="button" class="menu-item menu-item-danger" id="menu-logout">&#8618; Uitloggen</button>
-</nav>
-
-<!-- Melding bar — fixed, altijd zichtbaar -->
-<div class="melding-bar" id="melding-bar">
-  <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 16px 4px;">
-    <span style="font-size:0.62rem;color:var(--muted);letter-spacing:0.1em;text-transform:uppercase;">Meldingen</span>
-    <button id="melding-sluit" style="background:none;border:1px solid var(--border);border-radius:6px;color:var(--muted);cursor:pointer;font-size:0.9rem;padding:3px 8px;line-height:1;transition:all 0.2s;" title="Sluiten">&#10005;</button>
-  </div>
-  <div id="melding-lijst"></div>
-</div>
-
-<!-- App -->
-<div class="container" id="app" style="display:none;">
-
-  <header class="app-header">
-    <div class="app-brand">
-      <img class="brand-icon" src="/icon-192.png" width="54" height="54" alt="">
-      <div><h1>Boekingsschema</h1><p class="subtitle" id="schema-subtitle">Rust in je planning. Ruimte voor je dag.</p></div>
-    </div>
-    <div class="header-actions">
-      <button class="bel-btn" id="bel-btn" title="Meldingen">
-        <span class="bel-icoon">&#128276;</span>
-        <span class="bel-stip" id="bel-stip" style="display:none;"></span>
-      </button>
-      <button class="hamburger-btn" id="hamburger-btn" title="Menu">
-        <span></span><span></span><span></span>
-      </button>
+  <a class="skip" href="#inhoud">Naar de inhoud</a>
+  <header class="site-header">
+    <div class="wrap nav-wrap">
+      <a class="brand" href="#" aria-label="Boekingsschema, naar boven"><img src="/icon-192.png" alt="" width="38" height="38"><span>Boekingsschema</span></a>
+      <button class="nav-toggle" type="button" aria-label="Menu openen" aria-controls="site-nav" aria-expanded="false"><span></span><span></span></button>
+      <nav id="site-nav" aria-label="Hoofdnavigatie">
+        <a href="#zo-werkt-het">Zo werkt het</a><a href="#mogelijkheden">Mogelijkheden</a><a href="#prijzen">Prijzen</a>
+        <a class="button button-small button-outline" href="/app/">Open de app <svg class="inline-icon" aria-hidden="true"><use href="#i-arrow"/></svg></a>
+      </nav>
     </div>
   </header>
-  <p id="proefperiode-info" hidden style="font-size:0.8rem;line-height:1.6;margin:0 0 20px;color:var(--accent);"></p>
-  <div class="form-card">
-    <div class="booking-form-header">
-      <div class="form-title">Nieuwe boeking</div>
-      <button class="scan-btn" id="scan-btn" title="Importeer via screenshot">&#128247; Scan screenshot</button>
-    </div>
-
-    <!-- Screenshot import sectie -->
-    <div id="scan-sectie" style="display:none;margin-bottom:16px;">
-      <div class="scan-dropzone" id="scan-dropzone">
-        <input type="file" id="scan-input" accept="image/*" style="display:none;" />
-        <div id="scan-placeholder">
-          <div style="font-size:1.8rem;margin-bottom:8px;">&#128247;</div>
-          <div style="font-size:0.78rem;color:var(--text);">Sleep een screenshot hierheen</div>
-          <div style="font-size:0.65rem;color:var(--muted);margin-top:4px;">of klik om te uploaden</div>
-        </div>
-        <img id="scan-preview" style="display:none;max-width:100%;max-height:160px;border-radius:8px;object-fit:contain;" />
+  <main id="inhoud">
+    <section class="hero wrap" id="introductie">
+      <div class="hero-copy">
+        <p class="eyebrow"><span class="tiny-star" aria-hidden="true">✳</span> Jij regelt de afspraak. Wij het overzicht.</p>
+        <h1>Rust in je planning.<br><em>Ruimte voor je dag.</em></h1>
+        <p class="hero-lead">Boekingen via WhatsApp, Marktplaats, TikTok of Snapchat? Breng ze samen in één planning. Scan de datum en tijd uit je screenshot, houd je betalingen bij en laat de app meerekenen met je volgende vrije plek.</p>
+        <div class="hero-actions"><a class="button button-gold" href="#zo-werkt-het"><svg class="inline-icon" aria-hidden="true"><use href="#i-play"/></svg> Bekijk hoe het werkt</a><a class="text-link" href="/app/">Ik heb al een account <svg class="inline-icon" aria-hidden="true"><use href="#i-arrow"/></svg></a></div>
+        <p class="hero-note"><span aria-hidden="true">✓</span> 7 dagen gratis proberen. <a href="#uitnodiging">Vraag je uitnodiging aan.</a></p>
       </div>
-      <div id="scan-status" style="font-size:0.72rem;color:var(--muted);margin-top:8px;text-align:center;"></div>
-      <div id="scan-resultaat" style="display:none;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;margin-top:10px;font-size:0.78rem;"></div>
-      <button id="scan-verwerk-btn" style="display:none;width:100%;margin-top:10px;" class="add-btn">&#10003; Boeking aanmaken</button>
-    </div>
-
-    <div class="form-row">
-      <div class="form-group">
-        <label for="naam">Naam (optioneel)</label>
-        <input type="text" id="naam" placeholder="Naam klant" />
-      </div>
-      <div class="form-group">
-        <label for="datum">Datum</label>
-        <div class="datum-tijd-veld"><input type="date" id="datum" /></div>
-      </div>
-      <div class="form-group">
-        <label for="starttijd">Starttijd</label>
-        <div class="datum-tijd-veld"><input type="time" id="starttijd" value="09:00" /></div>
-      </div>
-      <div class="form-group" id="tijdvak-form-groep" style="display:none;">
-        <label>Tijdvak</label>
-        <select id="tijdvak-select" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'DM Mono',monospace;font-size:0.82rem;padding:7px 10px;outline:none;">
-          <option value="0">Tijdvak 1</option>
-        </select>
-      </div>
-      <button class="add-btn" id="add-btn">+ Toevoegen</button>
-    </div>
-
-    <!-- Meer informatie uitklapper -->
-    <button type="button" class="meer-info-toggle" id="meer-info-toggle" aria-expanded="false" aria-controls="meer-info-sectie">
-      <span id="meer-info-label">&#43; Meer informatie</span>
-    </button>
-    <div class="meer-info-sectie" id="meer-info-sectie">
-      <div class="meer-info-rij">
-        <div class="form-group">
-          <label>Betaling</label>
-          <div class="toggle-groep">
-            <button class="toggle-opt" data-groep="betaling" data-waarde="achteraf">Achteraf</button>
-            <button class="toggle-opt active" data-groep="betaling" data-waarde="betaald">Betaald</button>
+      <div class="hero-visual" aria-label="Voorbeeld van een weekplanning met fictieve boekingen">
+        <div class="floating-note"><svg class="note-symbol" aria-hidden="true"><use href="#i-reply"/></svg><div><strong>‘Woensdag om 14:00?’</strong><span>Van een bericht naar je planning.</span></div></div>
+        <div class="product-window">
+          <div class="window-top"><span class="mini-brand"><img src="/icon-192.png" width="25" height="25" alt=""> Boekingsschema</span><span class="window-dots" aria-hidden="true">•••</span></div>
+          <div class="window-content"><div class="window-title"><div><small>JOUW OVERZICHT</small><h2>Een week met overzicht.</h2></div><span class="view-pill">Week</span></div>
+            <div class="mini-calendar">
+              <div class="mini-day"><span>MA <b>26</b></span><div class="mini-booking"><strong>Sophie</strong><small>10:00 – 11:35</small><i>Betaald</i></div></div>
+              <div class="mini-day"><span>DI <b>27</b></span><div class="mini-free">Nog ruimte</div></div>
+              <div class="mini-day selected"><span>WO <b>28</b></span><div class="mini-booking unpaid-booking"><strong>Emma</strong><small>14:00 – 15:35</small><i>Achteraf</i></div></div>
+              <div class="mini-day"><span>DO <b>29</b></span><div class="mini-booking"><strong>Milan</strong><small>11:00 – 12:35</small><i>Betaald</i></div></div>
+            </div>
+            <div class="window-bottom"><span><i class="status-dot"></i> Alles op één plek</span><span>Dag · Week · Maand</span></div>
           </div>
         </div>
-        <div class="form-group">
-          <label>Prijs (€)</label>
-          <input type="number" id="prijs-input" min="0" step="0.01" value="10" style="width:100%;" />
-        </div>
-        <div class="form-group">
-          <label>Platform (optioneel)</label>
-          <select id="platform-select" class="platform-select">
-            <option value="">— Kies platform —</option>
-            <option value="marktplaats">Marktplaats</option>
-            <option value="instagram">Instagram</option>
-            <option value="snapchat">Snapchat</option>
-            <option value="tiktok">TikTok</option>
-            <option value="overig">Overig</option>
-          </select>
-        </div>
+        <div class="floating-success"><span aria-hidden="true">✓</span><div><strong>Staat erin.</strong><small>En jij kunt weer verder.</small></div></div>
+        <span class="visual-caption">Een voorbeeld van jouw planning</span>
       </div>
-    </div>
-  </div>
-  <div class="view-bar">
-    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-      <div class="view-tabs">
-        <button class="view-tab" id="tab-dag">Dag</button>
-        <button class="view-tab active" id="tab-week">Week</button>
-        <button class="view-tab" id="tab-maand">Maand</button>
-      </div>
-      <button class="today-btn" id="today-btn">Vandaag</button>
-    </div>
-    <div class="nav-btns">
-      <button class="nav-btn" id="nav-prev" aria-label="Vorige periode">&#8592;</button>
-      <div class="nav-label" id="nav-label"></div>
-      <button class="nav-btn" id="nav-next" aria-label="Volgende periode">&#8594;</button>
-    </div>
-    <div style="display:flex;gap:6px;align-items:center;">
-      <button class="clear-btn" id="clear-btn">Dag wissen</button>
-      <button class="undo-btn" id="undo-btn" disabled title="Ongedaan maken">&#8617;</button>
-    </div>
-  </div>
-  <div id="overzicht"></div>
-  <div class="rules-card" id="rules-card">
-    Minimale tussentijd: <span id="rules-gap">1u 35m</span> &nbsp;&middot;&nbsp;
-    Starttijden: <span id="rules-open">09:00</span> &ndash; <span id="rules-sluit">00:00</span> &nbsp;&middot;&nbsp;
-    Boeking mag uitlopen na middernacht
-  </div>
-  <div class="log-section">
-    <div class="section-header">
-      <div class="section-title">Meldingen</div>
-      <button class="clear-btn" id="log-clear-btn">Wis log</button>
-    </div>
-    <div id="logboek"><div class="log-empty">Nog geen meldingen</div></div>
-  </div>
-</div>
-
-<!-- Abonnement en eigen facturen -->
-<div class="container abonnement-beheer" id="pagina-abonnement" style="display:none;" aria-busy="false">
-  <div class="pagina-header">
-    <div style="display:flex;align-items:center;gap:12px;">
-      <button class="nav-btn" id="abonnement-pagina-terug" type="button" aria-label="Terug">&#8592;</button>
-      <h1 style="margin-bottom:0;" id="abonnement-pagina-titel" tabindex="-1">Abonnement beheren</h1>
-    </div>
-    <button class="hamburger-btn" id="hamburger-btn-abonnement" type="button" aria-label="Menu"><span></span><span></span><span></span></button>
-  </div>
-  <p class="abonnement-intro">Je abonnement, betalingen en facturen op één plek.</p>
-  <p class="abonnement-laden" id="abonnement-overzicht-laden" role="status" hidden>Je abonnement en facturen worden opgehaald…</p>
-  <p class="abonnement-pagina-fout" id="abonnement-overzicht-fout" role="alert" hidden></p>
-  <div id="abonnement-overzicht-inhoud" hidden>
-    <div class="abonnement-samenvatting">
-      <section class="abonnement-kaart" aria-labelledby="abonnement-huidig-label">
-        <span class="abonnement-label" id="abonnement-huidig-label">Jouw abonnement</span>
-        <h2 id="abonnement-huidig-naam"></h2>
-        <span class="factuur-status" id="abonnement-huidig-status"></span>
-        <p id="abonnement-huidig-prijs"></p>
-        <p id="abonnement-huidig-periode"></p>
-      </section>
-      <section class="abonnement-kaart" aria-labelledby="abonnement-volgend-label">
-        <span class="abonnement-label" id="abonnement-volgend-label">Volgende betaling</span>
-        <h2 id="abonnement-volgend-bedrag"></h2>
-        <p id="abonnement-volgend-datum"></p>
-        <p id="abonnement-volgend-uitleg"></p>
-      </section>
-    </div>
-    <div class="abonnement-pagina-acties">
-      <button class="factuur-knop" id="abonnement-portaal-openen" type="button" hidden>Betaalgegevens en opzeggen</button>
-      <button class="factuur-knop primair" id="abonnement-betaalopties-openen" type="button" hidden>Betaalopties bekijken</button>
-    </div>
-    <section id="abonnement-proefweek-keuzes" aria-labelledby="abonnement-proefweek-titel" hidden>
-      <div class="facturen-kop"><h2 id="abonnement-proefweek-titel">Na je proefweek</h2></div>
-      <p class="facturen-leeg" id="abonnement-proefweek-uitleg"></p>
-      <div class="abonnement-opties" id="abonnement-proefweek-opties"></div>
-      <p class="facturen-leeg">Alle prijzen zijn inclusief btw. Een abonnement verlengt automatisch tot je opzegt. Zonder jouw betaalkeuze wordt niets afgeschreven.</p>
     </section>
-    <div class="facturen-kop"><h2>Facturen</h2></div>
-    <div class="facturen-lijst" id="abonnement-facturen-lijst"></div>
-    <p class="facturen-leeg" id="abonnement-facturen-leeg" hidden></p>
-    <div class="abonnement-pagina-acties"><button class="factuur-knop" id="abonnement-facturen-meer" type="button" hidden>Meer facturen laden</button></div>
-  </div>
-  <button class="factuur-knop" id="abonnement-overzicht-verversen" type="button">Opnieuw ophalen</button>
-</div>
+    <div class="benefit-strip"><div class="wrap"><span><svg aria-hidden="true"><use href="#i-scan"/></svg> Screenshot erin. Datum en tijd eruit.</span><span><svg aria-hidden="true"><use href="#i-calendar"/></svg> Minder puzzelen met tijden</span><span><svg aria-hidden="true"><use href="#i-layers"/></svg> Tot 4 parallelle tijdvakken</span><span><svg aria-hidden="true"><use href="#i-bell"/></svg> Herinneringen voor open betalingen</span></div></div>
 
-<!-- Profiel pagina -->
-<div class="container" id="pagina-profiel" style="display:none;">
-  <div class="pagina-header">
-    <div style="display:flex;align-items:center;gap:12px;">
-      <button class="nav-btn" id="profiel-terug">&#8592;</button>
-      <h1 style="margin-bottom:0;">Profiel</h1>
-    </div>
-    <div style="display:flex;gap:8px;align-items:center;">
-      <button class="bel-btn" id="bel-btn-profiel" title="Meldingen">
-        <span class="bel-icoon">&#128276;</span>
-        <span class="bel-stip" id="bel-stip-profiel" style="display:none;"></span>
-      </button>
-      <button class="hamburger-btn" id="hamburger-btn-profiel">
-        <span></span><span></span><span></span>
-      </button>
-    </div>
-  </div>
-  <div class="form-card">
-    <div style="text-align:center;margin-bottom:20px;">
-      <div style="position:relative;display:inline-block;">
-        <div class="profiel-avatar" id="profiel-avatar" style="cursor:pointer;margin-bottom:8px;" title="Klik om foto te wijzigen" onclick="document.getElementById('foto-input').click()"></div>
-        <div style="font-size:0.62rem;color:var(--muted);letter-spacing:0.06em;">Klik op avatar om foto te wijzigen</div>
-        <input type="file" id="foto-input" accept="image/*" style="display:none;" onchange="verwerkFoto(this)" />
+    <section class="demo-section" id="zo-werkt-het" aria-labelledby="demo-heading">
+      <div class="wrap">
+        <div class="section-heading demo-heading"><div><p class="eyebrow">DE SCREENSHOTSCANNER</p><h2 id="demo-heading">Van screenshot<br>naar boeking. <em>Zonder overtypen.</em></h2></div><p>Gebruik de screenshot die je met je klant hebt gedeeld. De scanner haalt de datum en tijd eruit. Jij controleert het resultaat en voegt de boeking direct toe aan je planning.</p></div>
+        <div class="demo" data-step="0" data-playing="false">
+          <div class="demo-stage">
+            <div class="chat-pane">
+              <div class="chat-phone">
+                <div class="chat-top"><span aria-hidden="true">‹</span><span class="avatar">E</span><div><strong>Emma</strong><small>Voorbeeldgesprek</small></div><span class="chat-more" aria-hidden="true">•••</span></div>
+                <div class="chat-messages"><span class="chat-date">WOENSDAG AFSPREKEN</span><div class="bubble incoming">Hoi! Heb je woensdag 28 oktober om 14:00 nog plek?<small>10:24</small></div><div class="bubble outgoing">Ja! Woensdag 28 oktober om 14:00. Tot dan!<small>10:25 <span aria-hidden="true">✓✓</span></small></div><div class="bubble incoming last-message">Top, dankjewel!<small>10:25</small></div></div>
+                <div class="chat-input" aria-hidden="true"><span>Bericht</span><span>◉</span></div>
+              </div>
+              <span class="pane-caption">01 / Je spreekt je klant</span>
+            </div>
+            <div class="demo-transfer" aria-hidden="true">→</div>
+            <div class="app-pane">
+              <div class="demo-app">
+                <div class="demo-app-header"><img src="/icon-192.png" width="27" height="27" alt=""><strong>Boekingsschema</strong><span aria-hidden="true">☰</span></div>
+                <div class="demo-form"><span class="demo-kicker">SCREENSHOT SCANNEN</span><h3>Datum en tijd gevonden.</h3><div class="scan-preview"><span class="scan-file"><svg aria-hidden="true"><use href="#i-scan"/></svg> Jouw screenshot</span><p>Woensdag 28 oktober<br>om <strong>14:00</strong>. Tot dan!</p><span class="scan-beam" aria-hidden="true"></span></div><div class="scan-fields"><div class="fake-field"><small>Datum gevonden</small><span class="typed date-value">28 oktober</span></div><div class="fake-field"><small>Tijd gevonden</small><span class="typed time-value">14:00</span></div></div><p class="scan-review">Controleer de datum en tijd.</p><div class="fake-save" aria-hidden="true">+ Boeking toevoegen</div></div>
+                <div class="demo-result" hidden><div class="result-heading"><div><span class="demo-kicker">JE PLANNING</span><h3>Woensdag 28 oktober</h3></div><span class="result-check" aria-hidden="true">✓</span></div><div class="result-booking"><span>14:00</span><div><strong>Boeking 2</strong><small>14:00 – 15:35</small><span class="payment-badge">Nog te betalen</span></div></div><div class="result-space"><span class="space-line"></span><span>Volgende plek vanaf 15:35 in dit tijdvak</span></div><div class="result-toast"><span aria-hidden="true">✓</span> Boeking toegevoegd aan je planning</div></div>
+              </div>
+              <span class="pane-caption app-caption">02 / Je scant je screenshot</span>
+            </div>
+          </div>
+          <div class="demo-footer"><div><span class="demo-number" aria-hidden="true">01</span><p id="demo-caption">Spreek af met je klant en maak een screenshot met de datum en tijd.</p></div><span class="demo-auto-label"><i aria-hidden="true"></i> Zo werkt het</span></div>
+          <div class="demo-steps" aria-label="De drie stappen"><span data-demo-step="0" aria-current="step"><small>01</small> Spreek af</span><span data-demo-step="1"><small>02</small> Scan screenshot</span><span data-demo-step="2"><small>03</small> Houd overzicht</span></div>
+        </div>
+        <p class="demo-footnote">Demonstratie met fictieve gegevens. Je kiest zelf een screenshot om te scannen en controleert de gevonden datum en tijd. De app leest geen gesprekken uit andere apps.</p>
       </div>
-    </div>
-    <div class="profiel-rij">
-      <div class="profiel-label">Gebruikersnaam</div>
-      <div class="profiel-waarde" id="profiel-naam"></div>
-    </div>
-    <div class="profiel-rij">
-      <div class="profiel-label">E-mailadres</div>
-      <div class="profiel-waarde" id="profiel-email"></div>
-    </div>
-    <div class="profiel-rij">
-      <div class="profiel-label">Lid sinds</div>
-      <div class="profiel-waarde" id="profiel-datum"></div>
-    </div>
-  </div>
-  <div id="profiel-abonnement-acties">
-  <button id="abonnement-beheren-profiel" class="auth-btn" type="button" hidden>Abonnement en facturen beheren</button>
-  <p id="abonnement-profiel-error" role="alert" hidden></p>
-  </div>
-</div>
+    </section>
 
-<!-- Instellingen pagina -->
-<div class="container" id="pagina-instellingen" style="display:none;">
-  <div class="pagina-header">
-    <div style="display:flex;align-items:center;gap:12px;">
-      <button class="nav-btn" id="instellingen-terug">&#8592;</button>
-      <h1 style="margin-bottom:0;">Instellingen</h1>
-    </div>
-    <div style="display:flex;gap:8px;align-items:center;">
-      <button class="bel-btn" id="bel-btn-inst" title="Meldingen">
-        <span class="bel-icoon">&#128276;</span>
-        <span class="bel-stip" id="bel-stip-inst" style="display:none;"></span>
-      </button>
-      <button class="hamburger-btn" id="hamburger-btn-inst">
-        <span></span><span></span><span></span>
-      </button>
-    </div>
-  </div>
-  <div class="form-card">
-    <div class="form-title">Boekingsregels</div>
-    <div class="instelling-rij">
-      <div>
-        <div class="instelling-label">Minimale tussentijd</div>
-        <div class="instelling-info">Minimale tijd tussen twee boekingen</div>
+    <section class="features wrap section-space" id="mogelijkheden" aria-labelledby="features-heading">
+      <div class="section-heading"><div><p class="eyebrow">MINDER HOOFDWERK. MEER OVERZICHT.</p><h2 id="features-heading">Je hoeft het niet<br><em>allemaal te onthouden.</em></h2></div><p>Geen losse lijstjes per app, geen tijden uit je hoofd optellen en geen openstaande betaling uit het oog verliezen. Deze tools helpen je om je dag te regelen.</p></div>
+      <div class="feature-grid">
+        <article><span class="feature-icon"><svg aria-hidden="true"><use href="#i-scan"/></svg></span><h3>Scan het. Boek het.</h3><p>De screenshot die je naar je klant stuurt, gebruik je ook in de scanner. Laat de datum en tijd uitlezen, controleer ze en voeg de afspraak toe. Dat scheelt handmatig overtypen.</p><span class="feature-tag">Screenshot → datum en tijd → boeking</span></article>
+        <article><span class="feature-icon"><svg aria-hidden="true"><use href="#i-calendar"/></svg></span><h3>Je volgende plek, zonder puzzelwerk</h3><p>Al je boekingen samen in een dag-, week- of maandoverzicht. De app rekent met jouw ingestelde tussentijd en geeft bij een overlap aan wanneer er weer plek is. Jij hoeft de tijden niet steeds zelf op te tellen.</p><span class="feature-tag">Eén planning voor al je kanalen</span></article>
+        <article><span class="feature-icon"><svg aria-hidden="true"><use href="#i-layers"/></svg></span><h3>Twee accounts? Twee tijdvakken.</h3><p>Kun je meerdere boekingen tegelijk aannemen? Voeg een eigen tijdvak toe voor elk account en geef het een naam. Met maximaal vier parallelle tijdvakken houd je ook een drukke planning overzichtelijk.</p><span class="feature-tag">1, 2, 3 of 4 tijdvakken</span></article>
+        <article><span class="feature-icon"><svg aria-hidden="true"><use href="#i-chart"/></svg></span><h3>Zie wat je werk oplevert</h3><p>Hoeveel boekingen heb je gehad? Welk bedrag heb je ontvangen en wat staat nog open? Je statistieken geven je inzicht in je resultaten, ook uitgesplitst naar het platform waar je boekingen vandaan komen.</p><span class="feature-tag">Boekingen / Ontvangen / Openstaand</span></article>
+        <article><span class="feature-icon"><svg aria-hidden="true"><use href="#i-bell"/></svg></span><h3>Achteraf betalen? Blijft in beeld.</h3><p>Markeer een boeking als achteraf te betalen en vink hem af zodra je betaald bent. Stel zelf in hoeveel minuten vóór of na de boeking je een melding over de openstaande betaling wilt krijgen.</p><span class="feature-tag">Jij bepaalt je herinneringsmoment</span></article>
+        <article><span class="feature-icon"><svg aria-hidden="true"><use href="#i-sliders"/></svg></span><h3>Jouw werkwijze. Jouw instellingen.</h3><p>Pas je starttijden, tussentijd, standaardprijs, tijdvakken en meldingen aan. Kies een lichte of donkere weergave. Je hebt de ruimte om Boekingsschema in te richten zoals jij prettig werkt.</p><span class="feature-tag">Stel de app op jouw manier in</span></article>
       </div>
-      <div style="display:flex;align-items:center;gap:8px;">
-        <input type="number" id="inst-gap-uur" min="0" max="23" style="width:60px;" />
-        <span style="font-size:0.75rem;color:var(--muted);">u</span>
-        <input type="number" id="inst-gap-min" min="0" max="59" style="width:60px;" />
-        <span style="font-size:0.75rem;color:var(--muted);">m</span>
+      <div class="ranking-spotlight" aria-labelledby="ranking-heading">
+        <div><p class="eyebrow">EEN BEETJE GEZONDE COMPETITIE</p><h3 id="ranking-heading">Hoe doe jij het<br><em>tussen de anderen?</em></h3><p>Vergelijk jezelf met andere actieve gebruikers in de ranglijst. Wie heeft de meeste boekingen en wie heeft de meeste boekingsomzet? Bekijk de resultaten van de dag, week of maand en ga voor je volgende plek.</p><p class="ranking-privacy">Jij bepaalt in je instellingen of je profiel zichtbaar is. Niet-actieve gebruikers worden niet aan anderen getoond.</p></div>
+        <div class="ranking-preview" aria-label="Fictief voorbeeld van de ranglijst"><div class="ranking-preview-top"><svg aria-hidden="true"><use href="#i-trophy"/></svg><strong>Ranglijst</strong><span>Voorbeeld</span></div><div class="ranking-periods" aria-label="Beschikbare periodes"><span>Dag</span><span class="selected">Week</span><span>Maand</span></div><div class="ranking-preview-row rank-first"><span class="rank-medal">1</span><div><strong>@PlannerPro</strong><small>24 boekingen · € 240,00</small></div><svg aria-hidden="true"><use href="#i-trophy"/></svg></div><div class="ranking-preview-row rank-self"><span class="rank-medal">2</span><div><strong>@JouwPlanning <span class="rank-you">Jij</span></strong><small>22 boekingen · € 220,00</small></div><span class="rank-chase">Nog 3<br>voor de kop</span></div><div class="ranking-preview-row rank-third"><span class="rank-medal">3</span><div><strong>@BoekingBaas</strong><small>19 boekingen · € 190,00</small></div></div><div class="ranking-metrics"><span><svg aria-hidden="true"><use href="#i-calendar"/></svg> Aantal boekingen</span><span><svg aria-hidden="true"><use href="#i-chart"/></svg> Boekingsomzet</span></div><p>Voorbeeldweergave met fictieve gegevens.</p></div>
       </div>
-    </div>
-    <div class="instelling-rij">
-      <div>
-        <div class="instelling-label">Boekingen vanaf</div>
-        <div class="instelling-info">Vroegste starttijd voor een boeking</div>
+    </section>
+
+    <section class="everywhere"><div class="wrap everywhere-grid"><div class="pocket-visual" aria-label="Voorbeeld van een dagplanning: Emma past tussen twee andere boekingen">
+        <div class="schedule-phone">
+          <div class="schedule-island" aria-hidden="true"></div>
+          <div class="schedule-brand"><img src="/icon-192.png" width="23" height="23" alt=""><strong>Boekingsschema</strong><span aria-hidden="true">☰</span></div>
+          <div class="schedule-date">Woensdag 28 oktober</div>
+          <div class="schedule-lane">TIJDVAK 1</div>
+          <div class="schedule-booking"><span class="schedule-number">1</span><div><strong>Boeking 1</strong><span>09:00 – 10:35</span><small>1u 35m · Betaald</small></div><i aria-hidden="true">✓</i></div>
+          <div class="schedule-gap"><span>Volgende vanaf <b>10:35</b></span><span>Vorige uiterlijk <b>12:25</b></span></div>
+          <div class="schedule-booking schedule-emma"><span class="schedule-number">2</span><div><strong>Emma <em>Past ertussen</em></strong><span>14:00 – 15:35</span><small>1u 35m · Achteraf</small></div><i aria-hidden="true">✓</i></div>
+          <div class="schedule-gap"><span>Volgende vanaf <b>15:35</b></span><span>Vorige uiterlijk <b>16:25</b></span></div>
+          <div class="schedule-booking"><span class="schedule-number">3</span><div><strong>Boeking 3</strong><span>18:00 – 19:35</span><small>1u 35m · Betaald</small></div><i aria-hidden="true">✓</i></div>
+          <div class="schedule-gap schedule-gap-last"><span>Volgende vanaf <b>19:35</b></span></div>
+          <span class="schedule-home" aria-hidden="true"></span>
+        </div><span class="pocket-circle" aria-hidden="true"></span>
+      </div><div><p class="eyebrow">WAAR JE DAG JE OOK BRENGT</p><h2>Een goed overzicht<br>past ook <em>in je broekzak.</em></h2><p>Open Boekingsschema op je telefoon of laptop. Zet de app op het beginscherm van je telefoon, zodat je planning met één tik bereikbaar is.</p><ul class="check-list"><li>Dezelfde planning op je ingelogde apparaten</li><li>Vorige en volgende mogelijkheden direct in beeld</li><li>Je abonnement en facturen op één plek</li></ul><div class="pocket-actions"><a class="text-link" href="/app/">Open de app <svg class="inline-icon" aria-hidden="true"><use href="#i-arrow"/></svg></a><a class="text-link install-help-link" href="/app/#installeren">Hoe zet ik de app op mijn beginscherm?</a></div></div></div></section>
+
+    <section class="pricing wrap section-space" id="prijzen" aria-labelledby="pricing-heading"><div class="pricing-intro"><p class="eyebrow">EERST EVEN PROBEREN</p><h2 id="pricing-heading">Vind je ritme.<br><em>Kies daarna wat past.</em></h2><p>Vraag eerst een uitnodiging aan bij de beheerder. Na goedkeuring ontvang je een code waarmee je kunt registreren. Bij je eerste login na je e-mailbevestiging begint je gratis proefweek van zeven dagen. Je kiest zelf of je verdergaat.</p></div>
+      <div class="price-grid">
+        <article class="price-card"><h3>Per maand</h3><div class="price">€ 7,99</div><p>Iedere maand</p><div class="price-detail">Flexibel per maand betalen.</div><a href="#uitnodiging" class="button button-outline">Vraag uitnodiging aan <svg class="inline-icon" aria-hidden="true"><use href="#i-arrow"/></svg></a></article>
+        <article class="price-card"><h3>Per halfjaar</h3><div class="price">€ 39,99</div><p>Iedere 6 maanden</p><div class="price-detail">Omgerekend € 6,67 per maand.<br>Je bespaart € 7,95 per halfjaar.*</div><a href="#uitnodiging" class="button button-outline">Vraag uitnodiging aan <svg class="inline-icon" aria-hidden="true"><use href="#i-arrow"/></svg></a></article>
+        <article class="price-card price-highlight"><span class="price-ribbon">Voordeel per jaar</span><h3>Per jaar</h3><div class="price">€ 59,99</div><p>Iedere 12 maanden</p><div class="price-detail">Omgerekend € 5,00 per maand.<br>Je bespaart € 35,89 per jaar.*</div><a href="#uitnodiging" class="button button-gold">Vraag uitnodiging aan <svg class="inline-icon" aria-hidden="true"><use href="#i-arrow"/></svg></a></article>
+        <article class="price-card"><h3>Voor altijd</h3><div class="price">€ 99,99</div><p>Eenmalig betalen</p><div class="price-detail">Eén betaling voor blijvende toegang.</div><a href="#uitnodiging" class="button button-outline">Vraag uitnodiging aan <svg class="inline-icon" aria-hidden="true"><use href="#i-arrow"/></svg></a></article>
       </div>
-      <input type="time" id="inst-open" style="width:120px;" />
-    </div>
-    <div class="instelling-rij">
-      <div>
-        <div class="instelling-label">Boekingen tot</div>
-        <div class="instelling-info">Laatste starttijd voor een boeking</div>
-      </div>
-      <input type="time" id="inst-sluit" style="width:120px;" />
-    </div>
-    <div class="instelling-rij">
-      <div>
-        <div class="instelling-label">Standaard prijs</div>
-        <div class="instelling-info">Automatisch ingevulde prijs bij nieuwe boeking</div>
-      </div>
-      <div style="display:flex;align-items:center;gap:6px;">
-        <span style="font-size:0.75rem;color:var(--muted);">€</span>
-        <input type="number" id="inst-prijs" min="0" step="0.01" style="width:80px;" />
-      </div>
-    </div>
-    <button class="add-btn" id="inst-opslaan" style="margin-top:16px;">Opslaan</button>
-  </div>
+      <p class="price-note">Alle prijzen zijn inclusief btw. * Vergeleken met maandelijks betalen. De terugkerende abonnementen verlengen automatisch tot je opzegt. Je kiest en betaalt in de app.</p>
+    </section>
 
-  <div class="form-card" style="margin-top:16px;">
-    <div class="form-title">Parallelle tijdvakken</div>
-    <div style="font-size:0.72rem;color:var(--muted);margin-bottom:16px;">Aantal gelijktijdige boekingen op hetzelfde tijdstip</div>
-    <div class="instelling-rij">
-      <div>
-        <label class="instelling-label" for="inst-max-tijdvakken">Max. tijdvakken</label>
-        <div class="instelling-info">Maximaal aantal parallelle boekingen per tijdstip</div>
-      </div>
-      <input type="number" id="inst-max-tijdvakken" min="1" max="4" step="1" inputmode="numeric" aria-describedby="inst-tijdvakken-error" style="width:68px;flex-shrink:0;" oninput="updateTijdvakNamenInputs()" />
-    </div>
-    <p id="inst-tijdvakken-error" class="tijdvak-invoer-fout" role="alert" hidden></p>
-    <div id="inst-tijdvak-namen" style="margin-top:12px;"></div>
-    <button class="add-btn" onclick="slaAlleenTijdvakkenOp()" style="margin-top:14px;width:100%;">Opslaan tijdvakken</button>
-  </div>
+    <section class="invitation wrap" id="uitnodiging" aria-labelledby="invitation-heading">
+      <div class="invitation-copy"><p class="eyebrow">JOUW EERSTE STAP</p><h2 id="invitation-heading">Jouw planning begint<br><em>met een berichtje.</em></h2><p>Wil je Boekingsschema proberen? Vraag via WhatsApp een uitnodiging aan bij de beheerder. Na goedkeuring krijg je een persoonlijke uitnodigingscode om je account aan te maken.</p><a class="button button-gold invitation-contact" href="https://wa.me/31682272729?text=Hoi%21%20Ik%20wil%20graag%20Boekingsschema%20proberen.%20Mag%20ik%20een%20uitnodigingscode%20aanvragen%3F" target="_blank" rel="noopener noreferrer"><svg class="inline-icon" aria-hidden="true"><use href="#i-chat"/></svg> Vraag je uitnodiging aan via WhatsApp</a><p class="invitation-note">WhatsApp opent met een ingevuld bericht. Jij verstuurt het zelf.</p></div>
+      <ol class="invitation-steps"><li><span>01</span><div><h3>Vraag een uitnodiging aan</h3><p>Stuur de beheerder een bericht via WhatsApp.</p></div></li><li><span>02</span><div><h3>Ontvang je code</h3><p>De beheerder beoordeelt je aanvraag en stuurt je na goedkeuring een uitnodigingscode.</p></div></li><li><span>03</span><div><h3>Maak je account en probeer het uit</h3><p>Registreer met je code en bevestig je e-mail. Je proefweek begint bij je eerste bevestigde login.</p></div></li></ol>
+    </section>
 
-  <div class="form-card" style="margin-top:16px;">
-    <div class="form-title">Weergave</div>
-    <div class="instelling-rij">
-      <div>
-        <div class="instelling-label">Thema</div>
-        <div class="instelling-info">Kies tussen donker of licht thema</div>
-      </div>
-      <div class="thema-toggle" id="thema-toggle">
-        <button class="thema-opt" id="thema-donker" onclick="setThema('donker')">&#127762; Donker</button>
-        <button class="thema-opt" id="thema-licht" onclick="setThema('licht')">&#9728; Licht</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="form-card" style="margin-top:16px;">
-    <div class="form-title">Ranglijst</div>
-    <div class="instelling-rij">
-      <div>
-        <div class="instelling-label">Zichtbaarheid</div>
-        <div class="instelling-info">Bepaal of andere gebruikers jou kunnen zien in de ranglijst</div>
-      </div>
-      <div class="thema-toggle" id="ranglijst-zichtbaarheid-toggle">
-        <button class="thema-opt" id="rang-openbaar" onclick="setRanglijstZichtbaarheid(false)">&#127758; Openbaar</button>
-        <button class="thema-opt" id="rang-prive" onclick="setRanglijstZichtbaarheid(true)">&#128274; Privé</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="form-card" style="margin-top:16px;">
-    <div class="form-title">Meldingen</div>
-
-    <!-- Herinnering timing -->
-    <div class="instelling-label" style="margin-bottom:6px;">Herinnering achteraf betalingen</div>
-    <div class="instelling-info" style="margin-bottom:12px;">Wanneer wil je een herinnering krijgen voor klanten die nog moeten betalen?</div>
-    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:20px;">
-      <select id="inst-melding-richting" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'DM Mono',monospace;font-size:0.82rem;padding:7px 10px;outline:none;cursor:pointer;">
-        <option value="voor">voor</option>
-        <option value="na">na</option>
-      </select>
-      <span style="font-size:0.78rem;color:var(--muted);">de boeking,</span>
-      <input type="number" id="inst-melding-minuten" min="0" max="999" value="15" style="width:64px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'DM Mono',monospace;font-size:0.82rem;padding:7px 10px;outline:none;text-align:center;" />
-      <span style="font-size:0.78rem;color:var(--muted);">minuten</span>
-    </div>
-
-    <!-- Push: Nieuws & updates -->
-    <div class="instelling-rij" style="margin-bottom:14px;">
-      <div>
-        <div class="instelling-label">&#128240; Nieuws &amp; updates</div>
-        <div class="instelling-info">Pushnotificatie bij nieuw nieuws of update</div>
-      </div>
-      <button class="push-toggle aan" id="toggle-push-nieuws" onclick="togglePushVoorkeur('nieuws')" title="Nieuws notificaties">
-        <div class="push-toggle-bal"></div>
-      </button>
-    </div>
-
-    <!-- Push: Achteraf betalingen -->
-    <div class="instelling-rij" style="margin-bottom:20px;">
-      <div>
-        <div class="instelling-label">&#128176; Achteraf betalingen</div>
-        <div class="instelling-info">Pushnotificatie bij openstaande betalingen</div>
-      </div>
-      <button class="push-toggle aan" id="toggle-push-achteraf" onclick="togglePushVoorkeur('achteraf')" title="Betalings notificaties">
-        <div class="push-toggle-bal"></div>
-      </button>
-    </div>
-
-    <button class="add-btn" onclick="slaMeldingenInstellingenOp()" style="width:100%;">Opslaan meldingen</button>
-  </div>
-</div>
-
-<!-- Statistieken pagina -->
-<div class="container" id="pagina-statistieken" style="display:none;">
-  <div class="pagina-header">
-    <div style="display:flex;align-items:center;gap:12px;">
-      <button class="nav-btn" id="statistieken-terug">&#8592;</button>
-      <div>
-        <h1 style="margin-bottom:0;">Statistieken</h1>
-        <div class="subtitle" id="stat-periode-label" style="margin-bottom:0;">Vandaag</div>
-      </div>
-    </div>
-    <div style="display:flex;gap:8px;align-items:center;">
-      <button class="bel-btn" id="bel-btn-stat" title="Meldingen">
-        <span class="bel-icoon">&#128276;</span>
-        <span class="bel-stip" id="bel-stip-stat" style="display:none;"></span>
-      </button>
-      <button class="hamburger-btn" id="hamburger-btn-stat">
-        <span></span><span></span><span></span>
-      </button>
-    </div>
-  </div>
-
-  <!-- Periode tabs + navigatie -->
-  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:20px;">
-    <div class="view-tabs">
-      <button class="view-tab active" id="stat-tab-dag">Dag</button>
-      <button class="view-tab" id="stat-tab-week">Week</button>
-      <button class="view-tab" id="stat-tab-maand">Maand</button>
-      <button class="view-tab" id="stat-tab-jaar">Jaar</button>
-    </div>
-    <div class="nav-btns">
-      <button class="nav-btn" id="stat-prev">&#8592;</button>
-      <button class="nav-btn" id="stat-today" style="font-size:0.62rem;padding:6px 10px;">Nu</button>
-      <button class="nav-btn" id="stat-next">&#8594;</button>
-    </div>
-  </div>
-
-  <!-- Dag/week/maand selector -->
-  <div id="stat-selector" style="margin-bottom:20px;"></div>
-
-  <!-- Stat kaarten -->
-  <div class="stat-grid" id="stat-grid"></div>
-
-  <!-- Grafiek -->
-  <div class="form-card" style="margin-top:16px;padding:20px;position:relative;">
-    <div class="stat-sectie-titel" id="stat-grafiek-titel">Inkomsten</div>
-    <div style="position:relative;">
-      <canvas id="stat-grafiek" style="width:100%;height:180px;"></canvas>
-      <div id="grafiek-tooltip" style="display:none;position:absolute;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 10px;pointer-events:none;text-align:center;min-width:70px;"></div>
-    </div>
-  </div>
-
-  <!-- Platform & openstaand -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px;" id="stat-extra-grid">
-    <div class="form-card" id="stat-platforms"></div>
-    <div class="form-card" id="stat-openstaand" style="cursor:pointer;"></div>
-  </div>
-
-  <!-- Openstaande boekingen lijst -->
-  <div class="form-card" id="stat-openstaand-lijst" style="display:none;margin-top:16px;">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
-      <div class="stat-sectie-titel" style="margin-bottom:0;">Openstaande betalingen</div>
-      <button onclick="document.getElementById('stat-openstaand-lijst').style.display='none'" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:1rem;">&#10005;</button>
-    </div>
-    <div id="stat-openstaand-items"></div>
-  </div>
-</div>
-
-<!-- Pathé pagina -->
-<div class="container" id="pagina-pathe" style="display:none;">
-  <div class="pagina-header">
-    <div style="display:flex;align-items:center;gap:12px;">
-      <button class="nav-btn" id="pathe-terug">&#8592;</button>
-      <div>
-        <h1 style="margin-bottom:0;">&#127916; Pathé Films</h1>
-        <div class="subtitle" style="margin-bottom:0;">Films die passen bij jouw schema</div>
-      </div>
-    </div>
-    <div style="display:flex;gap:8px;align-items:center;">
-      <button class="bel-btn" id="bel-btn-pathe" title="Meldingen">
-        <span class="bel-icoon">&#128276;</span>
-        <span class="bel-stip" id="bel-stip-pathe" style="display:none;"></span>
-      </button>
-      <button class="hamburger-btn" id="hamburger-btn-pathe">
-        <span></span><span></span><span></span>
-      </button>
-    </div>
-  </div>
-
-  <!-- Datum kiezer -->
-  <div class="form-card" style="margin-bottom:16px;">
-    <div class="form-row" style="align-items:flex-end;gap:12px;flex-wrap:wrap;">
-      <div class="form-group" style="flex:1;min-width:120px;">
-        <label>Datum</label>
-        <input type="date" id="pathe-datum" />
-      </div>
-      <div class="form-group" style="flex:2;min-width:140px;">
-        <label>Vestiging (optioneel)</label>
-        <input type="text" id="pathe-vestiging" placeholder="bijv. Utrecht, Amsterdam..." />
-      </div>
-      <div class="form-group" style="flex:2;min-width:140px;">
-        <label>Film (optioneel)</label>
-        <input type="text" id="pathe-film" placeholder="bijv. Mission Impossible..." />
-      </div>
-      <button class="add-btn" id="pathe-zoek-btn" style="white-space:nowrap;">&#128269; Zoek films</button>
-    </div>
-    <div id="pathe-tijdsloten" style="margin-top:12px;"></div>
-  </div>
-
-  <!-- Resultaten -->
-  <div id="pathe-resultaten"></div>
-</div>
-
-<script defer src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script defer src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-<script defer src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-<script defer src="/app-main.js"></script>
-<script defer src="/subscription-access.js"></script>
-<script defer src="/subscriptions.js"></script>
-<script defer src="/billing-overview.js"></script>
-<script defer src="/ranking.js"></script>
-<script defer src="/paywall-preview.js"></script>
-<script defer src="/auth.js"></script>
+    <section class="faq wrap" aria-labelledby="faq-heading"><div><p class="eyebrow">GOED OM TE WETEN</p><h2 id="faq-heading">Nog een<br><em>kleine vraag?</em></h2></div><div class="faq-list">
+      <details><summary>Moeten mijn klanten ook een account maken?</summary><p>Nee. Je legt de afspraken zelf vast in jouw Boekingsschema-account. Je klant hoeft daarvoor niets te installeren of een account aan te maken.</p></details>
+      <details><summary>Moet ik de datum en tijd altijd zelf intypen?</summary><p>Nee. Kies zelf een screenshot van je afspraak. De scanner leest de datum en tijd uit, waarna jij het resultaat controleert en de boeking toevoegt. Je kunt een afspraak ook zelf invoeren. De app leest geen gesprekken rechtstreeks uit WhatsApp, Marktplaats of andere apps.</p></details>
+      <details><summary>Hoe vraag ik een uitnodiging en proefweek aan?</summary><p><a href="#uitnodiging">Vraag hier je uitnodiging aan via WhatsApp.</a> De beheerder stuurt je na goedkeuring een code. Daarmee registreer je in de app en bevestig je je e-mailadres. Je proefweek begint zodra je voor het eerst met je bevestigde account inlogt.</p></details>
+      <details><summary>Kan ik mijn facturen terugvinden?</summary><p>Ja. Via Abonnement beheren zie je je gekozen betaaloptie, de volgende betaling en je eigen facturen. Je kunt facturen bekijken en als PDF downloaden.</p></details>
+      <details><summary>Kan ik een abonnement al tijdens de proefweek kiezen?</summary><p>Ja. Je kunt direct betalen. De betaalde looptijd begint na je proefweek, zodat je de resterende proeftijd behoudt. Bij een terugkerend abonnement volgt de volgende afschrijving na de eerste betaalde periode.</p></details>
+    </div></section>
+    <section class="closing wrap"><div class="closing-mark" aria-hidden="true">✳</div><p class="eyebrow">MINDER ZOEKEN. MEER OVERZICHT.</p><h2>Een opgeruimde planning.<br><em>Dat werkt wel zo lekker.</em></h2><a class="button button-gold" href="#uitnodiging">Vraag je uitnodiging aan <svg class="inline-icon" aria-hidden="true"><use href="#i-arrow"/></svg></a><p>Eerst je aanvraag. Daarna je code en zeven dagen gratis proberen.</p></section>
+  </main>
+  <footer class="wrap site-footer"><a class="brand" href="#"><img src="/icon-192.png" alt="" width="28" height="28"><span>Boekingsschema</span></a><span>Rust in je planning. Ruimte voor je dag.</span><a href="/app/">Naar de app <svg class="inline-icon" aria-hidden="true"><use href="#i-arrow"/></svg></a></footer>
+  <svg class="icon-defs" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><defs>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M6 18 18 6M6 6h12v12"/></symbol>
+    <symbol id="i-reply" viewBox="0 0 24 24"><path d="M6 4v7a5 5 0 0 0 5 5h9m-5-5 5 5-5 5"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="m8 5 11 7-11 7Z"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></symbol>
+    <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4m10-4v4M3 11h18m-13 4h3v3H8z"/></symbol>
+    <symbol id="i-layers" viewBox="0 0 24 24"><path d="m3 7 9-4 9 4-9 4-9-4Zm0 5 9 4 9-4M3 17l9 4 9-4"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></symbol>
+    <symbol id="i-phone" viewBox="0 0 24 24"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M10 5h4m-3 14h2"/></symbol>
+    <symbol id="i-scan" viewBox="0 0 24 24"><path d="M3 8V4a1 1 0 0 1 1-1h4m8 0h4a1 1 0 0 1 1 1v4M3 16v4a1 1 0 0 0 1 1h4m8 0h4a1 1 0 0 0 1-1v-4M3 12h18"/><path d="m8 9 2-2 3 3 2-1 2 3"/></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 3v17h17M8 16v-4m5 4V7m5 9V4"/></symbol>
+    <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h5m6 0h5M4 17h9m6 0h1"/><circle cx="12" cy="7" r="3"/><circle cx="16" cy="17" r="3"/></symbol>
+    <symbol id="i-chat" viewBox="0 0 24 24"><path d="M21 11a9 9 0 0 1-9 9H4l-2 2V11a9 9 0 0 1 19 0Z"/><path d="M7 10h10m-10 4h6"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24"><path d="M5 17h14l-2-3V9a5 5 0 0 0-10 0v5l-2 3Zm5 3h4M12 2v2"/></symbol>
+    <symbol id="i-trophy" viewBox="0 0 24 24"><path d="M7 3h10v6a5 5 0 0 1-10 0V3Zm10 2h4v3a4 4 0 0 1-4 4M7 5H3v3a4 4 0 0 0 4 4m5 2v6m-4 1h8"/></symbol>
+  </defs></svg>
 </body>
 </html>

@@ -2490,7 +2490,7 @@ function verstuurNieuwsMelding() {
     verstuurPushNaarAllen(
       '💬 Nieuwe melding van ' + huidigeGebruiker,
       titel,
-      'https://boekingschema.netlify.app/?goto=meldingen',
+      window.location.origin + '/app/?goto=meldingen',
       'nieuws'
     );
   }).catch(function(e) {
@@ -2538,7 +2538,7 @@ function publiceerAdminUpdate() {
     verstuurPushNaarAllen(
       '📰 ' + titel,
       inhoud.length > 100 ? inhoud.slice(0, 97) + '…' : inhoud,
-      'https://boekingschema.netlify.app/?goto=nieuws',
+      window.location.origin + '/app/?goto=nieuws',
       'nieuws'
     );
   }).catch(function(e) {
@@ -2615,7 +2615,7 @@ function publiceerBeheerUpdate() {
     verstuurPushNaarAllen(
       '📰 ' + titel,
       inhoud.length > 100 ? inhoud.slice(0, 97) + '…' : inhoud,
-      'https://boekingschema.netlify.app/?goto=nieuws',
+      window.location.origin + '/app/?goto=nieuws',
       'nieuws'
     );
   }).catch(function(e) {
@@ -2677,7 +2677,7 @@ function urlBase64NaarUint8Array(base64String) {
 }
 
 function registreerServiceWorker() {
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+  if (!('serviceWorker' in navigator)) return;
   navigator.serviceWorker.register('/sw.js').then(function(reg) {
     // Luister naar berichten van de Service Worker (navigatie bij klik op notificatie)
     navigator.serviceWorker.addEventListener('message', function(event) {

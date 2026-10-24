@@ -16,3 +16,23 @@
   from = "/api/*"
   to = "/.netlify/functions/:splat"
   status = 200
+
+# Keep previous entry addresses working after introducing /app/.
+
+[[redirects]]
+  from = "/intro/"
+  to = "/"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "/intro/index.html"
+  to = "/"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "/boekingen.html"
+  to = "/app/"
+  status = 302
+  force = true
