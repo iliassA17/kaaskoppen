@@ -116,6 +116,33 @@ test('installatie-uitleg werkt vanuit het menu en inlogscherm met optionele brow
   await expect(page.locator('#menu-bar')).toBeHidden();
   await expect(dialog).toContainText('Android · Chrome');
   await expect(dialog).toContainText('iPhone · Safari');
+  const androidTab=dialog.getByRole('tab',{name:'Android · Chrome'});
+  const iphoneTab=dialog.getByRole('tab',{name:'iPhone · Safari'});
+  await androidTab.click();
+  await expect(page.locator('#install-android')).toBeVisible();
+  await expect(page.locator('#install-iphone')).toBeHidden();
+  const illustrations=page.locator('#install-android img');
+  await expect(illustrations).toHaveCount(3);
+  for(const image of await illustrations.all()){
+    await image.scrollIntoViewIfNeeded();
+    await expect.poll(()=>image.evaluate(img=>img.complete&&img.naturalWidth>0)).toBe(true);
+  }
+  await page.locator('#install-dialog').evaluate(el=>el.scrollTop=0);
+  await iphoneTab.click();
+  await expect(page.locator('#install-iphone')).toBeVisible();
+  await expect(page.locator('#install-android')).toBeHidden();
+  await expect(page.locator('#install-iphone img')).toHaveCount(3);
+  for(const image of await page.locator('#install-iphone img').all()){
+    await image.scrollIntoViewIfNeeded();
+    await expect.poll(()=>image.evaluate(img=>img.complete&&img.naturalWidth>0)).toBe(true);
+  }
+  await iphoneTab.focus();await page.keyboard.press('ArrowLeft');
+  await expect(androidTab).toHaveAttribute('aria-selected','true');
+  await expect(androidTab).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(page.locator('#install-android')).toBeFocused();
+  await page.getByRole('button',{name:'Uitleg sluiten'}).focus();
+  await page.locator('#install-dialog').evaluate(el=>el.scrollTop=0);
   await expect(page.locator('#install-app-link')).toHaveAttribute('href','/app/');
   await expect(page.locator('#install-native')).toBeHidden();
   await page.screenshot({path:test.info().outputPath('installeren-mobiel.png'),fullPage:true});

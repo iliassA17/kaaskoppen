@@ -54,6 +54,13 @@ serviceworker blijft op `/sw.js` geregistreerd om bestaande pushregistraties
 te behouden. Hij slaat geen HTML-pagina's in een offlinecache op.
 
 De uitleg is toegankelijk vanaf het inlogscherm, het appmenu en de introductie.
+Het venster heeft Android- en iPhone-tabbladen met elk drie lokale SVG-
+voorbeeldschermen in `images/install/`. Gouden kaders markeren de relevante
+knoppen. De afbeeldingen hebben alternatieve tekst en korte bijschriften;
+browserdetails kunnen per versie verschillen. Het passende tabblad is op
+iPhone/iPad vooraf geselecteerd en blijft met klikken of toetsenbord te wisselen.
+De afbeeldingen worden uitgesteld geladen met `loading="lazy"`.
+
 Op Android beschrijft die Chrome → menu → **App installeren** / **Toevoegen aan
 startscherm**. Op iPhone beschrijft die Safari → deelmenu → **Zet op beginscherm**.
 Als de browser een installatieprompt aanbiedt, verschijnt een extra knop. Een

@@ -533,12 +533,27 @@
   <p id="install-intro">Zet de app op je beginscherm. Je opent dan direct de app, zonder eerst de introductiepagina te zien.</p>
   <p class="install-already" id="install-already" hidden>Je hebt Boekingsschema al als app geopend.</p>
   <button type="button" class="auth-btn" id="install-native" hidden>Installeer Boekingsschema</button>
-  <div class="install-platforms">
-    <section aria-labelledby="install-android"><h3 id="install-android">Android · Chrome</h3><ol><li>Open de app-link hieronder in <strong>Chrome</strong>.</li><li>Tik op <strong>⋮</strong> en kies <strong>App installeren</strong> of <strong>Toevoegen aan startscherm</strong>.</li><li>Bevestig met <strong>Installeren</strong> of <strong>Toevoegen</strong>.</li></ol></section>
-    <section aria-labelledby="install-iphone"><h3 id="install-iphone">iPhone · Safari</h3><ol><li>Open de app-link hieronder in <strong>Safari</strong>.</li><li>Open het <strong>deelmenu</strong> (het vierkant met de pijl omhoog; soms via <strong>⋯</strong>).</li><li>Kies <strong>Zet op beginscherm</strong> en tik op <strong>Voeg toe</strong>. Zie je <strong>Open als webapp</strong>? Laat die optie aan.</li></ol></section>
+  <div class="install-device-tabs" role="tablist" aria-label="Kies je telefoon">
+    <button type="button" role="tab" id="install-tab-android" aria-controls="install-android" aria-selected="true" tabindex="0">Android · Chrome</button>
+    <button type="button" role="tab" id="install-tab-iphone" aria-controls="install-iphone" aria-selected="false" tabindex="-1">iPhone · Safari</button>
   </div>
+  <p class="install-image-note">Volg de drie afbeeldingen. De gouden rand wijst de knop aan.</p>
+  <section class="install-device-panel" id="install-android" role="tabpanel" tabindex="0" aria-labelledby="install-tab-android">
+    <ol class="install-image-steps" role="list">
+      <li><img src="/images/install/android-menu.svg" width="340" height="450" loading="lazy" decoding="async" alt="Chrome op Android: de drie stippen rechtsboven zijn met goud omlijnd."><div class="install-step-copy"><span aria-hidden="true">1</span><div><h3>Open het menu</h3><p>Open de app in <strong>Chrome</strong>. Tik rechtsboven op de <strong>drie stippen ⋮</strong>.</p></div></div></li>
+      <li><img src="/images/install/android-startscherm.svg" width="340" height="450" loading="lazy" decoding="async" alt="In het Chrome-menu is Toevoegen aan startscherm met goud omlijnd."><div class="install-step-copy"><span aria-hidden="true">2</span><div><h3>Kies toevoegen</h3><p>Tik op <strong>Toevoegen aan startscherm</strong>. Soms heet dit <strong>App installeren</strong>.</p></div></div></li>
+      <li><img src="/images/install/android-installeren.svg" width="340" height="450" loading="lazy" decoding="async" alt="In het Android-bevestigingsvenster is de knop Installeren met goud omlijnd."><div class="install-step-copy"><span aria-hidden="true">3</span><div><h3>Bevestig de installatie</h3><p>Tik op <strong>Installeren</strong> of <strong>Toevoegen</strong>. Het app-icoon komt op je beginscherm.</p></div></div></li>
+    </ol>
+  </section>
+  <section class="install-device-panel" id="install-iphone" role="tabpanel" tabindex="0" aria-labelledby="install-tab-iphone" hidden>
+    <ol class="install-image-steps" role="list">
+      <li><img src="/images/install/iphone-delen.svg" width="340" height="450" loading="lazy" decoding="async" alt="Safari op iPhone: het deelicoon, een vierkant met een pijl omhoog, is met goud omlijnd."><div class="install-step-copy"><span aria-hidden="true">1</span><div><h3>Open het deelmenu</h3><p>Open de app in <strong>Safari</strong> en tik op het <strong>deelicoon</strong>. Zie je dat niet? Tik eerst op <strong>⋯</strong>.</p></div></div></li>
+      <li><img src="/images/install/iphone-beginscherm.svg" width="340" height="450" loading="lazy" decoding="async" alt="In het Safari-deelmenu is Zet op beginscherm met goud omlijnd."><div class="install-step-copy"><span aria-hidden="true">2</span><div><h3>Kies beginscherm</h3><p>Tik op <strong>Zet op beginscherm</strong>. Scroll zo nodig omlaag in het deelmenu.</p></div></div></li>
+      <li><img src="/images/install/iphone-toevoegen.svg" width="340" height="450" loading="lazy" decoding="async" alt="Het iPhone-bevestigingsscherm toont Open als webapp aan en markeert rechtsboven Voeg toe."><div class="install-step-copy"><span aria-hidden="true">3</span><div><h3>Tik op ‘Voeg toe’</h3><p>Laat <strong>Open als webapp</strong> aan als je die optie ziet. Tik rechtsboven op <strong>Voeg toe</strong>.</p></div></div></li>
+    </ol>
+  </section>
   <div class="install-app-link"><span>Gebruik deze rechtstreekse app-link:</span><a id="install-app-link" href="/app/">Open de app</a></div>
-  <p class="install-footnote">Heb je al een snelkoppeling die de introductie opent? Vervang die dan door deze app-link. Menu-opties kunnen per telefoon iets anders heten.</p>
+  <p class="install-footnote">Heb je al een snelkoppeling die de introductie opent? Vervang die dan door deze app-link. De afbeeldingen zijn voorbeeldschermen. Knoppen en menu-opties kunnen per telefoon of browserversie iets verschillen.</p>
 </dialog>
 
 <!-- Beheerder scherm -->

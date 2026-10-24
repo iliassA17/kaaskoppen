@@ -2,7 +2,7 @@
 .auth-install-links button,.auth-install-links a{font:inherit;font-size:.7rem;color:var(--accent);background:none;border:0;cursor:pointer;text-decoration:underline;text-underline-offset:4px;line-height:1.7}
 .auth-install-links a{font-size:.65rem;color:var(--muted)}
 a.menu-item{text-decoration:none}
-.install-dialog{width:min(690px,calc(100% - 28px));max-height:calc(100dvh - 36px);padding:28px;margin:auto;overflow-y:auto;overscroll-behavior:contain;border:1px solid var(--border);border-radius:17px;background:var(--surface);color:var(--text);box-shadow:0 20px 80px #0007;font-family:'DM Mono',monospace}
+.install-dialog{width:min(940px,calc(100% - 28px));max-height:calc(100dvh - 36px);padding:28px;margin:auto;overflow-y:auto;overscroll-behavior:contain;border:1px solid var(--border);border-radius:17px;background:var(--surface);color:var(--text);box-shadow:0 20px 80px #0007;font-family:'DM Mono',monospace}
 .install-dialog::backdrop{background:#000a;backdrop-filter:blur(3px)}
 .install-header{display:flex;align-items:flex-start;gap:15px;justify-content:space-between}
 .install-header h2{font:400 1.7rem/1.2 Fraunces,serif;color:var(--accent);margin:0}
@@ -10,13 +10,26 @@ a.menu-item{text-decoration:none}
 .install-dialog>p{font-size:.75rem;line-height:1.9;color:var(--muted);margin-top:18px}
 .install-dialog #install-native{margin-top:20px}
 .install-dialog [hidden]{display:none!important}
-.install-platforms{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-top:23px}
-.install-platforms section{border:1px solid var(--border);border-radius:10px;padding:17px;background:var(--surface2);min-width:0}
-.install-platforms h3{font-size:.85rem;font-weight:500;color:var(--accent);margin-bottom:13px}
-.install-platforms ol{padding-left:19px;font-size:.74rem;line-height:1.9;color:var(--muted)}
-.install-platforms li+li{margin-top:12px}.install-platforms strong{font-weight:400;color:var(--text)}
 .install-app-link{display:grid;gap:8px;border-top:1px solid var(--border);padding-top:20px;margin-top:22px;font-size:.72rem;line-height:1.7;color:var(--muted)}
 .install-app-link a{color:var(--accent);overflow-wrap:anywhere;text-underline-offset:4px}
 .install-dialog>.install-footnote{font-size:.65rem;margin-top:16px}
 .install-dialog .install-already{color:var(--success)}
-@media(max-width:600px){.install-dialog{padding:23px 19px}.install-platforms{grid-template-columns:1fr}.install-header h2{font-size:1.5rem}.install-dialog>p{font-size:.74rem}.install-platforms ol{font-size:.75rem}}
+@media(max-width:600px){.install-dialog{padding:23px 19px}.install-header h2{font-size:1.5rem}.install-dialog>p{font-size:.74rem}}
+
+.install-header{position:sticky;top:-28px;z-index:3;background:var(--surface);padding:5px 0 12px}
+.install-device-tabs{display:flex;gap:7px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:5px;margin-top:22px}
+.install-device-tabs button{flex:1;min-width:0;padding:12px 8px;border:1px solid transparent;border-radius:7px;background:none;color:var(--muted);font:inherit;font-size:.8rem;line-height:1.5;cursor:pointer}
+.install-device-tabs button[aria-selected="true"]{background:var(--accent);color:var(--bg);border-color:var(--accent)}
+.install-device-tabs button:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.install-dialog>.install-image-note{font-size:.68rem;margin-top:13px}
+.install-image-steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px;padding:0;margin:19px 0 0;list-style:none}
+.install-image-steps>li{min-width:0;background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:13px 12px 18px}
+.install-image-steps img{display:block;width:100%;max-width:250px;height:auto;margin:0 auto 15px}
+.install-step-copy{display:flex;align-items:flex-start;gap:10px}
+.install-step-copy>span{flex-shrink:0;display:grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--accent);color:var(--bg);font-size:.75rem;line-height:1}
+.install-step-copy h3{font-size:.82rem;color:var(--text);line-height:1.6;font-weight:400;margin:1px 0 8px}
+.install-step-copy p{font-size:.74rem;color:var(--text);opacity:.82;line-height:1.85}
+.install-step-copy strong{color:var(--text);font-weight:400}
+@media(max-width:650px){.install-header{top:-23px}.install-image-steps{grid-template-columns:1fr;gap:16px}.install-image-steps>li{padding:15px 17px 21px}.install-image-steps img{max-width:230px;margin-bottom:15px}.install-device-tabs button{font-size:.72rem;padding:11px 5px}.install-step-copy h3{font-size:.84rem}.install-step-copy p{font-size:.74rem}}
+
+.install-device-panel:focus-visible{outline:2px solid var(--accent);outline-offset:4px;border-radius:10px}

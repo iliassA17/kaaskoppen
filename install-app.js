@@ -5,6 +5,28 @@
   const already = document.getElementById('install-already');
   const standalone = window.matchMedia('(display-mode: standalone)');
   let prompt = null;
+  const tabs = Array.from(dialog.querySelectorAll('[role="tab"]'));
+  const selectDevice = tab => {
+    tabs.forEach(button => {
+      const selected = button === tab;
+      button.setAttribute('aria-selected', String(selected));
+      button.tabIndex = selected ? 0 : -1;
+      document.getElementById(button.getAttribute('aria-controls')).hidden = !selected;
+    });
+  };
+  tabs.forEach((tab, index) => {
+    tab.addEventListener('click', () => selectDevice(tab));
+    tab.addEventListener('keydown', event => {
+      const next = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 :
+        event.key === 'ArrowRight' ? (index + 1) % tabs.length :
+        event.key === 'ArrowLeft' ? (index + tabs.length - 1) % tabs.length : null;
+      if (next === null) return;
+      event.preventDefault(); selectDevice(tabs[next]); tabs[next].focus();
+    });
+  });
+  const appleDevice = /iPhone|iPad|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  selectDevice(document.getElementById(appleDevice ? 'install-tab-iphone' : 'install-tab-android'));
 
   const update = () => {
     const installed = standalone.matches || navigator.standalone === true;
