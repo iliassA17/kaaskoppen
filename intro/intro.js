@@ -16,7 +16,6 @@
   window.matchMedia('(min-width: 601px)').addEventListener('change', () => setMenu(false));
 
   const demo = document.querySelector('.demo');
-  const play = document.getElementById('demo-play');
   const caption = document.getElementById('demo-caption');
   const steps = Array.from(document.querySelectorAll('[data-demo-step]'));
   const form = document.querySelector('.demo-form');
@@ -27,27 +26,22 @@
     'Scan je screenshot. Controleer de gevonden datum en tijd en voeg de boeking toe.',
     'Je boeking staat in je planning. Houd je volgende vrije plek en betaalstatus in beeld.'
   ];
-  let step = 0, playing = false, finished = false, timer = null, started = 0, remaining = 4000;
-  function label() {
-    if (motion.matches) play.innerHTML = '<span aria-hidden="true">→</span> ' + (step === 2 ? 'Opnieuw bekijken' : 'Bekijk volgende stap');
-    else if (playing) play.innerHTML = '<svg class="inline-icon" aria-hidden="true"><use href="#i-pause"/></svg> Pauzeer demo';
-    else play.innerHTML = '<svg class="inline-icon" aria-hidden="true"><use href="#i-play"/></svg> ' + (finished ? 'Opnieuw afspelen' : step === 0 && remaining === 4000 ? 'Speel demo af' : 'Speel verder');
-  }
+  let step = 0, playing = false, inView = false, timer = null, started = 0, remaining = 4000;
   function render() {
     demo.dataset.step = String(step);
     demo.dataset.playing = String(playing);
+    demo.dataset.reducedMotion = String(motion.matches);
     caption.textContent = captions[step];
     document.querySelector('.demo-number').textContent = '0' + (step + 1);
     document.querySelector('.app-caption').textContent = step === 2 ? '03 / Je houdt overzicht' : '02 / Je scant je screenshot';
-    form.hidden = step === 2; result.hidden = step !== 2;
-    steps.forEach((button, index) => { if (index === step) button.setAttribute('aria-current', 'step'); else button.removeAttribute('aria-current'); });
-    label();
+    form.hidden = !motion.matches && step === 2;
+    result.hidden = !motion.matches && step !== 2;
+    steps.forEach((indicator, index) => { if (index === step) indicator.setAttribute('aria-current', 'step'); else indicator.removeAttribute('aria-current'); });
   }
   function schedule() {
     clearTimeout(timer); started = performance.now();
     timer = setTimeout(() => {
-      if (step === 2) { playing = false; finished = true; remaining = 4000; render(); return; }
-      step++; remaining = 4000; render(); schedule();
+      step = (step + 1) % 3; remaining = 4000; render(); schedule();
     }, remaining);
   }
   function pause() {
@@ -55,17 +49,25 @@
     remaining = Math.max(1, remaining - (performance.now() - started));
     clearTimeout(timer); timer = null; playing = false; render();
   }
-  play.addEventListener('click', () => {
-    if (motion.matches) { clearTimeout(timer); playing = false; step = (step + 1) % 3; remaining = 4000; finished = false; render(); return; }
-    if (playing) { pause(); return; }
-    if (finished) { step = 0; finished = false; remaining = 4000; }
-    playing = true; render(); schedule();
-  });
-  steps.forEach((button, index) => button.addEventListener('click', () => {
-    clearTimeout(timer); timer = null; playing = false; finished = false; step = index; remaining = 4000; render();
-  }));
-  document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
-  motion.addEventListener('change', () => { pause(); render(); });
-  if ('IntersectionObserver' in window) new IntersectionObserver(entries => { if (!entries[0].isIntersecting) pause(); }, {threshold: 0}).observe(demo);
+  function syncPlayback() {
+    if (!inView || document.hidden || motion.matches) { pause(); render(); return; }
+    if (!playing) { playing = true; render(); schedule(); }
+  }
+  document.addEventListener('visibilitychange', syncPlayback);
+  motion.addEventListener('change', syncPlayback);
+  if ('IntersectionObserver' in window) {
+    new IntersectionObserver(entries => {
+      inView = entries[0].isIntersecting && entries[0].intersectionRatio >= .25;
+      syncPlayback();
+    }, {threshold: [0, .25]}).observe(document.querySelector('.demo-stage'));
+  } else {
+    const measure = () => {
+      const bounds = demo.getBoundingClientRect();
+      inView = bounds.top < innerHeight * .75 && bounds.bottom > innerHeight * .25;
+      syncPlayback();
+    };
+    window.addEventListener('scroll', measure, {passive: true});
+    window.addEventListener('resize', measure); measure();
+  }
   render();
 })();

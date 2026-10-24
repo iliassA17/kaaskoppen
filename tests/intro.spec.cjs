@@ -22,52 +22,62 @@ test('intro is een losse pagina zonder sessie, externe diensten of aanpassingen 
   expect(await page.evaluate(()=>({local:localStorage.length,session:sessionStorage.length}))).toEqual({local:0,session:0});
   await expect(page.locator('.feature-grid article')).toHaveCount(6);
   await expect(page.locator('.price-card')).toHaveCount(4);
+  const invitation=new URL(await page.locator('.invitation-contact').getAttribute('href'));
+  expect(invitation.origin).toBe('https://wa.me');
+  expect(invitation.pathname).toBe('/31682272729');
+  expect(invitation.searchParams.get('text')).toContain('uitnodigingscode aanvragen');
+  await expect(page.locator('.price-card a[href="#uitnodiging"]')).toHaveCount(4);
   await page.screenshot({path:test.info().outputPath('intro-desktop.png'),fullPage:true,animations:'disabled'});
 });
 
-test('demonstratie speelt af, pauzeert, eindigt en kan opnieuw of per stap bekeken worden',async({page})=>{
+test('demonstratie start bij scrollen, herhaalt en pauzeert buiten beeld',async({page})=>{
+  await page.emulateMedia({reducedMotion:'no-preference'});
   await page.clock.install();await page.goto('/intro/');
-  const demo=page.locator('.demo'),play=page.locator('#demo-play');
-  await play.click();await expect(demo).toHaveAttribute('data-playing','true');
+  const demo=page.locator('.demo'),stage=page.locator('.demo-stage');
+  await expect(demo).toHaveAttribute('data-playing','false');
+  await expect(demo.locator('button')).toHaveCount(0);
+  await stage.scrollIntoViewIfNeeded();await expect(demo).toHaveAttribute('data-playing','true');
   await page.clock.fastForward(4100);await expect(demo).toHaveAttribute('data-step','1');
   await expect(page.locator('.scan-preview')).toBeVisible();
   await expect(page.locator('.date-value')).toHaveText('28 oktober');
   await expect(page.locator('.time-value')).toHaveText('14:00');
-  await play.click();await expect(play).toContainText('Speel verder');
-  await page.clock.fastForward(10000);await expect(demo).toHaveAttribute('data-step','1');
-  await play.click();await page.clock.fastForward(4100);
-  await expect(demo).toHaveAttribute('data-step','2');await expect(page.locator('.demo-result')).toBeVisible();
-  await expect(page.locator('.demo-result')).toContainText('Boeking 2');
-  await page.clock.fastForward(4100);await expect(play).toContainText('Opnieuw afspelen');
-  await play.click();await expect(demo).toHaveAttribute('data-step','0');
-  await page.locator('[data-demo-step="2"]').click();await expect(demo).toHaveAttribute('data-playing','false');
-  await expect(page.locator('[data-demo-step="2"]')).toHaveAttribute('aria-current','step');
-  await page.clock.fastForward(10000);await expect(demo).toHaveAttribute('data-step','2');
+  await page.clock.fastForward(4100);await expect(demo).toHaveAttribute('data-step','2');
+  await expect(page.locator('.demo-result')).toBeVisible();
+  await page.clock.fastForward(4100);await expect(demo).toHaveAttribute('data-step','0');
+  await expect(demo).toHaveAttribute('data-playing','true');
+  await page.evaluate(()=>window.scrollTo({top:0,behavior:'instant'}));
+  await expect(demo).toHaveAttribute('data-playing','false');
+  const stopped=await demo.getAttribute('data-step');
+  await page.clock.fastForward(20000);await expect(demo).toHaveAttribute('data-step',stopped);
+  await stage.scrollIntoViewIfNeeded();await expect(demo).toHaveAttribute('data-playing','true');
+  await page.clock.fastForward(4100);await expect(demo).toHaveAttribute('data-step','1');
 });
 
-test('mobiel menu, faq en stappen blijven bruikbaar; minder beweging speelt niets automatisch af',async({page})=>{
+test('mobiel toont drie concurrenten en een passende dagplanning; minder beweging toont de hele uitleg stil',async({page})=>{
   await page.emulateMedia({reducedMotion:'reduce'});await page.setViewportSize({width:390,height:844});
   await page.goto('/intro/');
   await page.locator('.nav-toggle').click();await expect(page.locator('#site-nav')).toBeVisible();
   await page.keyboard.press('Escape');await expect(page.locator('#site-nav')).toBeHidden();
   await expect(page.locator('.nav-toggle')).toBeFocused();
+  await expect(page.locator('.ranking-preview-row')).toHaveCount(3);
+  await expect(page.locator('.unpaid-booking')).toContainText('Achteraf');
+  await expect(page.locator('.schedule-booking')).toHaveCount(3);
+  await expect(page.locator('.schedule-booking').nth(1)).toContainText('Emma');
+  await expect(page.locator('.schedule-gap').nth(0)).toContainText('12:25');
+  await expect(page.locator('.schedule-gap').nth(1)).toContainText('15:35');
   for(const width of [320,390,768]){
     await page.setViewportSize({width,height:900});
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
-    for(const step of [0,1,2]){
-      await page.locator('[data-demo-step="'+step+'"]').click();
-      await expect(page.locator('.demo')).toHaveAttribute('data-playing','false');
-      expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
-      if(step===1)expect(await page.locator('.fake-save').evaluate(el=>el.getBoundingClientRect().bottom<=el.closest('.demo-app').getBoundingClientRect().bottom)).toBe(true);
-      if(step===2)expect(await page.locator('.result-toast').evaluate(el=>el.getBoundingClientRect().bottom<=el.closest('.demo-app').getBoundingClientRect().bottom)).toBe(true);
-    }
+    await page.locator('.demo-stage').scrollIntoViewIfNeeded();
+    await expect(page.locator('.demo')).toHaveAttribute('data-playing','false');
+    await expect(page.locator('.demo-form')).toBeVisible();
+    await expect(page.locator('.demo-result')).toBeVisible();
+    expect(await page.locator('.result-toast').evaluate(el=>el.getBoundingClientRect().bottom<=el.closest('.demo-app').getBoundingClientRect().bottom)).toBe(true);
     if(width===390){
       await page.evaluate(()=>window.scrollTo({top:0,behavior:'instant'}));
       await page.screenshot({path:test.info().outputPath('intro-mobiel.png'),fullPage:true,animations:'disabled'});
     }
   }
-  await page.locator('#demo-play').click();await expect(page.locator('.demo')).toHaveAttribute('data-step','0');
-  await expect(page.locator('.demo')).toHaveAttribute('data-playing','false');
   await page.locator('.faq summary').nth(1).click();
   await expect(page.locator('.faq details').nth(1)).toHaveAttribute('open','');
   await expect(page.locator('.faq details').nth(1)).toContainText('zelf invoeren');
